@@ -1,5 +1,5 @@
-import PlaceholderScreen from "@/components/layout/PlaceholderScreen";
+import { redirect } from "next/navigation";
 
 export default function StorePage() {
-  return <PlaceholderScreen title="Store" />;
+  redirect("/orders");
 }

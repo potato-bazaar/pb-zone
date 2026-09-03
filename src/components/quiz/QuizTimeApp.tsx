@@ -30,7 +30,6 @@ export function QuizTimeApp() {
         setRunId((n) => n + 1);
         setPhase("play");
       }}
-      initialCoins={120}
     />
   );
 }

@@ -1,5 +1,5 @@
-import PlaceholderScreen from "@/components/layout/PlaceholderScreen";
+import { RewardsPrizesScreen } from "@/components/rewards/RewardsPrizesScreen";
 
 export default function RewardsPage() {
-  return <PlaceholderScreen title="Rewards" />;
+  return <RewardsPrizesScreen />;
 }

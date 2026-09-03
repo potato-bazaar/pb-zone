@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type IconProps = { active?: boolean };
 
@@ -67,20 +68,29 @@ function RewardsIcon({ active }: IconProps) {
   );
 }
 
-function StoreIcon({ active }: IconProps) {
+function OrderIcon({ active }: IconProps) {
   const c = active ? "#fff" : "#3D3A5C";
   if (active) {
     return (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="#fff" aria-hidden>
-        <path d="M7.2 6H3.8a1 1 0 1 0 0 2h2.5l1.05 8.2A2.3 2.3 0 0 0 9.6 18.2h7.7a2.3 2.3 0 0 0 2.25-1.8L21.2 8.5a1 1 0 0 0-1-.9H7.85L7.55 6.4A1.3 1.3 0 0 0 7.2 6Zm1.7 3.6h10.3l-1.3 6.5a.3.3 0 0 1-.3.25H9.6a.3.3 0 0 1-.3-.25L8.9 9.6ZM9.5 19.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm7.2 0a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Z" />
+        <path d="M8 3.5h8a2 2 0 0 1 2 2V6h1.2A1.8 1.8 0 0 1 21 7.8v11.4A1.8 1.8 0 0 1 19.2 21H4.8A1.8 1.8 0 0 1 3 19.2V7.8A1.8 1.8 0 0 1 4.8 6H6v-.5a2 2 0 0 1 2-2Zm0 2.5v.5h8V6H8Zm-2.2 3v9.7c0 .1.1.3.2.3h11.8c.1 0 .2-.1.2-.3V9.5H5.8Zm3.2 2.2h6v1.6h-6v-1.6Zm0 3.2h4.5v1.6H9v-1.6Z" />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 6h2l1.2 9.5a1.8 1.8 0 0 0 1.8 1.5h8a1.8 1.8 0 0 0 1.75-1.4L20.5 8H7.2" />
-      <circle cx="9.5" cy="20" r="1.2" fill={c} stroke="none" />
-      <circle cx="16.8" cy="20" r="1.2" fill={c} stroke="none" />
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke={c}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4.5V3.8A1.3 1.3 0 0 1 10.3 2.5h3.4A1.3 1.3 0 0 1 15 3.8v.7" />
+      <path d="M9 11h6M9 15h4" />
     </svg>
   );
 }
@@ -95,7 +105,16 @@ function ProfileIcon({ active }: IconProps) {
     );
   }
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke={c}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <circle cx="12" cy="8" r="3.4" />
       <path d="M5.2 19.5c1.5-3.2 3.9-4.8 6.8-4.8s5.3 1.6 6.8 4.8" />
     </svg>
@@ -106,12 +125,41 @@ const tabs = [
   { href: "/home", label: "Home", Icon: HomeIcon },
   { href: "/games", label: "Games", Icon: GamesIcon },
   { href: "/rewards", label: "Rewards", Icon: RewardsIcon },
-  { href: "/store", label: "Store", Icon: StoreIcon },
+  { href: "/orders", label: "Your Order", Icon: OrderIcon },
   { href: "/profile", label: "Profile", Icon: ProfileIcon },
 ] as const;
 
 export function AppBottomNav() {
   const pathname = usePathname();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Dismiss any focused field when changing tabs (clears iOS ▲▼✓ accessory bar)
+  useEffect(() => {
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, [pathname]);
+
+  // Hide nav while iOS/Android keyboard + form accessory are up
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const covered = window.innerHeight - vv.height - vv.offsetTop;
+      setKeyboardOpen(covered > 80);
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  if (keyboardOpen) return null;
 
   return (
     <nav
@@ -121,9 +169,10 @@ export function AppBottomNav() {
         paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
       }}
     >
-      <div className="mx-auto flex h-[4.25rem] w-full max-w-screen-sm items-center justify-around px-2 pt-1">
+      <div className="mx-auto flex h-[4.25rem] w-full max-w-screen-sm items-center justify-around px-1.5 pt-1">
         {tabs.map((tab) => {
-          const active = pathname === tab.href;
+          const active =
+            pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           const Icon = tab.Icon;
 
           return (
@@ -135,13 +184,13 @@ export function AppBottomNav() {
               <span
                 className={
                   active
-                    ? "flex flex-col items-center justify-center gap-1 rounded-[1.15rem] bg-[#6A5AE0] px-3.5 py-2"
-                    : "flex flex-col items-center justify-center gap-1 px-3.5 py-2"
+                    ? "flex flex-col items-center justify-center gap-1 rounded-[1.15rem] bg-[#6A5AE0] px-2.5 py-2"
+                    : "flex flex-col items-center justify-center gap-1 px-2.5 py-2"
                 }
               >
                 <Icon active={active} />
                 <span
-                  className={`text-[10px] font-semibold leading-none ${
+                  className={`max-w-full truncate text-[9px] font-semibold leading-none ${
                     active ? "text-white" : "text-[#3D3A5C]"
                   }`}
                 >

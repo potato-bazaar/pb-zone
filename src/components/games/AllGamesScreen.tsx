@@ -4,11 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { CoinBadge } from "@/components/ui/CoinBadge";
+import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { ALL_GAMES } from "@/data/games";
 
-const USER_COINS = 120;
-
 export function AllGamesScreen() {
+  const { coins } = usePbCoins();
+
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-[#F7F5FC]">
       <div
@@ -18,31 +19,13 @@ export function AllGamesScreen() {
           paddingBottom: "calc(7.5rem + env(safe-area-inset-bottom, 0px))",
         }}
       >
-        <header className="mb-5 flex items-center justify-between gap-3">
-          <Link
-            href="/home"
-            aria-label="Back"
-            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#1a1a2e]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-          </Link>
-
-          <h1 className="font-display text-xl font-bold text-[#1a1a2e]">
+        <header className="relative mb-5 flex min-h-10 items-center justify-center">
+          <h1 className="font-display text-xl font-bold text-[#2940B3]">
             All Games
           </h1>
-
-          <CoinBadge amount={USER_COINS} />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2">
+            <CoinBadge amount={coins} />
+          </div>
         </header>
 
         <ul className="flex flex-col gap-3.5 pb-2">

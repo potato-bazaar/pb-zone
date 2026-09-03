@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CoinBadge } from "@/components/ui/CoinBadge";
+import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import {
   QuizCompleteScreen,
   QuizCorrectScreen,
@@ -21,7 +22,6 @@ type QuizPlayScreenProps = {
   onExit: () => void;
   onHome: () => void;
   onPlayAgain: () => void;
-  initialCoins?: number;
 };
 
 type Feedback =
@@ -63,12 +63,11 @@ export function QuizPlayScreen({
   onExit,
   onHome,
   onPlayAgain,
-  initialCoins = 120,
 }: QuizPlayScreenProps) {
+  const { coins, addCoins, spendCoins } = usePbCoins();
   const questions = useMemo(() => pickQuestions(), []);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<"A" | "B" | "C" | "D" | null>(null);
-  const [coins, setCoins] = useState(initialCoins);
   const [score, setScore] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [fastBonus, setFastBonus] = useState(0);
@@ -88,13 +87,17 @@ export function QuizPlayScreen({
   useEffect(() => {
     if (finished || locked || feedback || !current) return;
     if (timeLeft <= 0) {
-      revealAnswer(false);
+      if (selected) {
+        revealAnswer(selected === current.correctId);
+      } else {
+        revealAnswer(false);
+      }
       return;
     }
     const t = window.setTimeout(() => setTimeLeft((s) => s - 1), 1000);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, finished, locked, feedback, index]);
+  }, [timeLeft, finished, locked, feedback, index, selected]);
 
   function resetForNext() {
     setSelected(null);
@@ -121,7 +124,7 @@ export function QuizPlayScreen({
       setScore((s) => s + gained);
       setCorrectCount((c) => c + 1);
       if (bonus) setFastBonus((b) => b + bonus);
-      setCoins((c) => c + gained);
+      addCoins(gained);
       setFeedback({
         kind: "correct",
         pointsGained: gained,
@@ -140,7 +143,7 @@ export function QuizPlayScreen({
   function continueAfterFeedback() {
     if (isLast) {
       setScore((s) => s + QUIZ_POINTS_COMPLETE);
-      setCoins((c) => c + QUIZ_POINTS_COMPLETE);
+      addCoins(QUIZ_POINTS_COMPLETE);
       setFinished(true);
       setFeedback(null);
       return;
@@ -152,13 +155,15 @@ export function QuizPlayScreen({
   function onSelect(id: "A" | "B" | "C" | "D") {
     if (locked || finished || feedback || !current) return;
     setSelected(id);
-    revealAnswer(id === current.correctId);
+  }
+
+  function onSubmit() {
+    if (locked || finished || feedback || !current || !selected) return;
+    revealAnswer(selected === current.correctId);
   }
 
   function spend(cost: number) {
-    if (coins < cost) return false;
-    setCoins((c) => c - cost);
-    return true;
+    return spendCoins(cost);
   }
 
   function use5050() {
@@ -338,14 +343,14 @@ export function QuizPlayScreen({
                   onClick={() => onSelect(opt.id)}
                   className={`flex w-full items-center gap-3 rounded-[1.15rem] px-3.5 py-3.5 text-left shadow-[0_2px_10px_rgba(43,31,122,0.07)] transition active:scale-[0.99] ${
                     isSelected
-                      ? "bg-[#6A5AE0] text-white"
+                      ? "border-2 border-[#6A5AE0] bg-[#6A5AE0] text-white shadow-[0_4px_16px_rgba(106,90,224,0.35)]"
                       : "border border-[#EEEAF5] bg-white text-[#2B1F7A]"
                   }`}
                 >
                   <span
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
                       isSelected
-                        ? "bg-white/20 text-white"
+                        ? "bg-white text-[#6A5AE0]"
                         : "bg-[#6A5AE0] text-white"
                     }`}
                   >
@@ -359,6 +364,18 @@ export function QuizPlayScreen({
             );
           })}
         </ul>
+
+        {selected && !locked && (
+          <div className="mt-5 flex justify-center">
+            <button
+              type="button"
+              onClick={onSubmit}
+              className="min-w-[11rem] rounded-full bg-[#6A5AE0] px-10 py-3.5 text-base font-extrabold text-white shadow-[0_6px_20px_rgba(106,90,224,0.4)] transition active:scale-[0.98]"
+            >
+              Submit
+            </button>
+          </div>
+        )}
 
         <div className="mt-auto pb-2 pt-6">
           <div className="flex items-stretch rounded-[1.35rem] bg-white px-1 py-3.5 shadow-[0_4px_18px_rgba(43,31,122,0.1)]">
