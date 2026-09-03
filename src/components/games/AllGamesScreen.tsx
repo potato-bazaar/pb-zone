@@ -1,14 +1,38 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { CoinBadge } from "@/components/ui/CoinBadge";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { ALL_GAMES } from "@/data/games";
+import { fetchQuizPoints } from "@/lib/quizApi";
 
 export function AllGamesScreen() {
-  const { coins } = usePbCoins();
+  const { coins, setCoins } = usePbCoins();
+  const session = useUserSession();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchQuizPoints({
+      token: session.token,
+      userId: session.userId,
+      userName: session.userName,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        if (typeof data.points === "number") setCoins(data.points);
+      })
+      .catch((error) => {
+        console.warn("[quiz] me/points failed", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session.token, session.userId, session.userName, setCoins]);
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-[#F7F5FC]">

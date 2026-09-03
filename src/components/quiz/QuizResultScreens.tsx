@@ -122,7 +122,7 @@ export function QuizCorrectScreen({
 
 type WrongProps = {
   correctOption: QuizOption;
-  explanation: string;
+  explanation?: string | null;
   isLast: boolean;
   onNext: () => void;
 };
@@ -192,12 +192,94 @@ export function QuizWrongScreen({
                 {correctOption.text}
               </span>
             </div>
-            <div className="my-4 h-px bg-[#EEEAF5]" />
-            <p className="text-[14px] font-bold text-[#2B1F7A]">Explanation</p>
-            <p className="mt-2 text-[15px] font-semibold leading-relaxed text-[#4B3F8A]">
-              {explanation}
-            </p>
+            {explanation ? (
+              <>
+                <div className="my-4 h-px bg-[#EEEAF5]" />
+                <p className="text-[14px] font-bold text-[#2B1F7A]">
+                  Explanation
+                </p>
+                <p className="mt-2 text-[15px] font-semibold leading-relaxed text-[#4B3F8A]">
+                  {explanation}
+                </p>
+              </>
+            ) : null}
           </div>
+
+          <div className="mt-auto w-full pb-2 pt-6">
+            <button
+              type="button"
+              onClick={onNext}
+              className="flex w-full items-center justify-center rounded-full bg-[#6A5AE0] py-[15px] text-[16px] font-bold text-white shadow-[0_8px_20px_rgba(106,90,224,0.38)] transition active:scale-[0.99]"
+            >
+              {isLast ? "See Results" : "Next Question"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type MissedProps = {
+  correctOption?: QuizOption | null;
+  isLast: boolean;
+  onNext: () => void;
+};
+
+export function QuizMissedScreen({
+  correctOption,
+  isLast,
+  onNext,
+}: MissedProps) {
+  return (
+    <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-[#FFF8EE]">
+      <div
+        className="flex min-h-0 flex-1 flex-col px-4 pb-12"
+        style={{
+          paddingTop: "max(3.75rem, calc(var(--header-top) + 1.25rem))",
+        }}
+      >
+        <div className="mx-auto flex w-full flex-1 flex-col items-center">
+          <h1 className="font-display text-center text-[2.15rem] font-extrabold leading-none tracking-tight text-[#C2410C]">
+            Time&apos;s Up!
+          </h1>
+
+          <div className="relative mt-8 flex h-[240px] w-full shrink-0 items-end justify-center sm:mt-10 sm:h-[260px]">
+            <span
+              className="pointer-events-none absolute bottom-1 left-1/2 h-6 w-36 -translate-x-1/2 rounded-[100%] bg-[#F5D0A8]/45 blur-[7px]"
+              aria-hidden
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/quiz-potato-missed.png?v=2"
+              alt=""
+              className="relative z-10 mx-auto h-[92%] w-auto max-w-[260px] object-contain object-bottom"
+              draggable={false}
+            />
+          </div>
+
+          <p className="mt-5 font-display text-center text-[1.45rem] font-extrabold text-[#C2410C]">
+            You missed it!
+          </p>
+          <p className="mt-2.5 max-w-[17rem] text-center text-[14px] font-medium leading-snug text-[#9A6B4A]">
+            Time ran out before you could answer this question.
+          </p>
+
+          {correctOption ? (
+            <div className="mt-6 w-[88%] max-w-sm rounded-[1.5rem] border border-[#E8E4F5] bg-white px-5 py-5 text-center shadow-[0_2px_10px_rgba(43,31,122,0.04)]">
+              <p className="text-[14px] font-bold text-[#5B4DB8]">
+                Correct Answer
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#D8D4E8] bg-[#F3F1F8] text-[16px] font-extrabold text-[#3D2F8A]">
+                  {correctOption.id}
+                </span>
+                <span className="text-[18px] font-extrabold text-[#2B1F7A]">
+                  {correctOption.text}
+                </span>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-auto w-full pb-2 pt-6">
             <button
@@ -233,7 +315,12 @@ export function QuizCompleteScreen({
   onPlayAgain,
   onHome,
 }: CompleteProps) {
-  const answerScore = totalEarned - fastBonus - completionBonus;
+  // Total = correct-answer points + bonuses (never go negative)
+  const answerPoints = Math.max(
+    0,
+    totalEarned - fastBonus - completionBonus,
+  );
+  const displayTotal = answerPoints + fastBonus + completionBonus;
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
@@ -263,7 +350,7 @@ export function QuizCompleteScreen({
             Your Score
           </p>
           <p className="mt-1 text-center font-display text-[2.75rem] font-extrabold leading-none text-[#6A5AE0]">
-            {answerScore + fastBonus}{" "}
+            {displayTotal}{" "}
             <span className="text-[1.75rem]">PB</span>
           </p>
 
@@ -273,6 +360,10 @@ export function QuizCompleteScreen({
               <span className="font-bold text-[#2B1F7A]">
                 {correctCount} / {totalQuestions}
               </span>
+            </li>
+            <li className="flex items-center justify-between text-[#4B3F8A]">
+              <span>Answer Points</span>
+              <span className="font-bold text-[#2B1F7A]">+{answerPoints} PB</span>
             </li>
             <li className="flex items-center justify-between text-[#4B3F8A]">
               <span>Fast Answer Bonus</span>
@@ -289,7 +380,7 @@ export function QuizCompleteScreen({
           <div className="mt-6 flex items-center justify-between rounded-2xl bg-[#FFF4CC] px-4 py-4">
             <span className="font-bold text-[#2B1F7A]">Total Earned</span>
             <span className="flex items-center gap-2 font-extrabold text-[#2B1F7A]">
-              {totalEarned} PB
+              {displayTotal} PB
               <MiniCoin className="h-6 w-6" />
             </span>
           </div>

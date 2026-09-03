@@ -3,6 +3,8 @@
 type HowToPlayProps = {
   onStart: () => void;
   onBack: () => void;
+  starting?: boolean;
+  error?: string | null;
 };
 
 const STEPS = [
@@ -39,7 +41,12 @@ const SCORING = [
   { label: "Complete Quiz Bonus", value: "+30 PB" },
 ] as const;
 
-export function QuizHowToPlay({ onStart, onBack }: HowToPlayProps) {
+export function QuizHowToPlay({
+  onStart,
+  onBack,
+  starting = false,
+  error = null,
+}: HowToPlayProps) {
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
       <div
@@ -112,12 +119,18 @@ export function QuizHowToPlay({ onStart, onBack }: HowToPlayProps) {
           </div>
 
           <div className="mt-auto pb-4 pt-6">
+            {error ? (
+              <p className="mb-3 text-center text-[13px] font-semibold text-[#DC2626]">
+                {error}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={onStart}
-              className="flex h-14 w-full items-center justify-center rounded-full bg-[#6A5AE0] text-base font-extrabold text-white shadow-md shadow-primary/25 active:scale-[0.98]"
+              disabled={starting}
+              className="flex h-14 w-full items-center justify-center rounded-full bg-[#6A5AE0] text-base font-extrabold text-white shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60"
             >
-              Start Quiz
+              {starting ? "Starting…" : "Start Quiz"}
             </button>
           </div>
         </div>
