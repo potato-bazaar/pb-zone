@@ -1,4 +1,6 @@
 import { createHmac } from "crypto";
+import http from "http";
+import https from "https";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -89,6 +91,60 @@ function resolveAuthHeaders(request: NextRequest): Headers {
   return headers;
 }
 
+type UpstreamResult = {
+  status: number;
+  contentType: string | null;
+  body: string;
+};
+
+/**
+ * Node http(s) request so we can optionally skip TLS hostname checks
+ * when QUIZ_API_TLS_INSECURE=true (misconfigured deploy cert).
+ */
+function upstreamRequest(
+  target: URL,
+  method: string,
+  headers: Headers,
+  body?: string,
+): Promise<UpstreamResult> {
+  const insecure = process.env.QUIZ_API_TLS_INSECURE === "true";
+  const isHttps = target.protocol === "https:";
+  const lib = isHttps ? https : http;
+
+  const headerBag: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    headerBag[key] = value;
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = lib.request(
+      target,
+      {
+        method,
+        headers: headerBag,
+        ...(isHttps && insecure
+          ? { rejectUnauthorized: false, checkServerIdentity: () => undefined }
+          : {}),
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        res.on("end", () => {
+          resolve({
+            status: res.statusCode ?? 502,
+            contentType: res.headers["content-type"] ?? null,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
 async function proxyQuiz(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -102,45 +158,45 @@ async function proxyQuiz(
   });
 
   const headers = resolveAuthHeaders(request);
-
-  const init: RequestInit = {
-    method: request.method,
-    headers,
-    cache: "no-store",
-  };
-
+  let body: string | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const body = await request.text();
-    if (body) init.body = body;
+    const text = await request.text();
+    if (text) body = text;
   }
 
   try {
-    const upstream = await fetch(target.toString(), {
-      ...init,
-      signal: AbortSignal.timeout(4_000),
-    });
-    const text = await upstream.text();
+    const upstream = await upstreamRequest(
+      target,
+      request.method,
+      headers,
+      body,
+    );
     const responseHeaders = new Headers();
-    const upstreamType = upstream.headers.get("content-type");
-    if (upstreamType) responseHeaders.set("content-type", upstreamType);
+    if (upstream.contentType) {
+      responseHeaders.set("content-type", upstream.contentType);
+    }
 
-    return new NextResponse(text, {
+    return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: responseHeaders,
     });
   } catch (error) {
     const cause =
       error instanceof Error && "cause" in error
-        ? (error as Error & { cause?: { code?: string } }).cause
+        ? (error as Error & {
+            cause?: { code?: string; reason?: string };
+          }).cause
         : undefined;
-    const timedOut =
-      error instanceof Error &&
-      (error.name === "TimeoutError" || error.name === "AbortError");
+    const code =
+      cause?.code ||
+      (error instanceof Error && "code" in error
+        ? String((error as Error & { code?: string }).code)
+        : undefined);
     const detail =
-      cause?.code === "ECONNREFUSED"
-        ? `Quiz BE not reachable at ${target.origin} (is it running on port 3001?)`
-        : timedOut
-          ? `Quiz BE at ${target.origin} did not respond in 4s (port 3001 may be another app, not the quiz API)`
+      code === "ECONNREFUSED"
+        ? `Quiz BE not reachable at ${target.origin} (is it running?)`
+        : code === "ERR_TLS_CERT_ALTNAME_INVALID"
+          ? `SSL cert mismatch for ${target.origin}. Fix server cert or set QUIZ_API_TLS_INSECURE=true for local dev.`
           : error instanceof Error
             ? error.message
             : "Failed to reach quiz API";
