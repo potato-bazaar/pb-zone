@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#F6F6F6] text-[#000000] font-sans antialiased overflow-x-hidden;
+  }
+}
+
+/* Uber minimalist scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F6F6F6;
+}
+::-webkit-scrollbar-thumb {
+  background: #D0D0D0;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A0A0A0;
+}
+
+.uber-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E2E2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.uber-card:hover {
+  border-color: #C8C8C8;
+}
+
+.uber-button-primary {
+  background: #000000;
+  color: #FFFFFF;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.uber-button-primary:hover {
+  background: #262626;
+}
+
+.uber-button-secondary {
+  background: #EEEEEE;
+  color: #000000;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.uber-button-secondary:hover {
+  background: #E2E2E2;
+}
+
+.uber-button-outline {
+  background: #FFFFFF;
+  color: #000000;
+  border: 1px solid #E2E2E2;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.uber-button-outline:hover {
+  border-color: #000000;
+  background: #FAFAFA;
+}
