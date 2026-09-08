@@ -11,13 +11,14 @@ import {
   startQuizSession,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
+import { startLiveMirror } from "@/lib/quizLiveMirror";
 
 type Phase = "howto" | "play";
 
 export function QuizTimeApp() {
   const router = useRouter();
   const session = useUserSession();
-  const { setCoins } = usePbCoins();
+  const { setWallet } = usePbCoins();
   const [phase, setPhase] = useState<Phase>("howto");
   const [runId, setRunId] = useState(0);
   const [starting, setStarting] = useState(false);
@@ -42,7 +43,15 @@ export function QuizTimeApp() {
 
     try {
       const data = await startQuizSession(auth);
-      setCoins(data.user.points);
+      startLiveMirror({
+        userId: auth.userId || "dev-user-1",
+        sessionId: data.sessionId,
+        question: data.question,
+      });
+      setWallet({
+        coins: data.user.points,
+        earnedCoins: data.user.earnedPoints,
+      });
       setQuizSession(data);
       setRunId((n) => n + 1);
       setPhase("play");

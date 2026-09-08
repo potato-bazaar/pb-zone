@@ -385,6 +385,7 @@ export function App() {
                 onOpenSimulator={() => setIsSimulatorOpen(true)}
                 onRegenerateQuestion={(q) => setRegenTargetQuestion(q)}
                 onTogglePublish={handleTogglePublish}
+                liveFromApi={activeGame?.format === 'pb-quiz'}
               />
             ) : (
               renderEmptyState()
@@ -398,6 +399,7 @@ export function App() {
                 onUpdateQuiz={handleUpdateQuiz}
                 onNavigateToSetup={() => setCurrentTab('setup')}
                 onOpenSimulator={() => setIsSimulatorOpen(true)}
+                liveFromApi={activeGame?.format === 'pb-quiz'}
               />
             ) : (
               renderEmptyState()
@@ -431,7 +433,13 @@ export function App() {
 
           {isQuizGame && currentTab === 'analytics' && (
             activeQuiz && analytics ? (
-              <AnalyticsDashboard quiz={activeQuiz} analytics={analytics} winners={winners} onRefresh={loadData} />
+              <AnalyticsDashboard
+                quiz={activeQuiz}
+                analytics={analytics}
+                winners={winners}
+                onRefresh={loadData}
+                liveFromApi={activeGame?.format === 'pb-quiz'}
+              />
             ) : (
               renderEmptyState()
             )

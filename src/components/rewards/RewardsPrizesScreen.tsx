@@ -34,7 +34,7 @@ const HOW_IT_WORKS = [
   },
   {
     id: "gift",
-    text: "Reach 500 PB to unlock your Basic Gift.",
+    text: "Earn 500 PB from games to unlock your Basic Gift. Welcome coins cannot be used to claim rewards.",
   },
   {
     id: "climb",
@@ -168,8 +168,8 @@ function GiftHeaderIcon() {
 }
 
 export function RewardsPrizesScreen() {
-  const { coins } = usePbCoins();
-  const basicUnlocked = coins >= 500;
+  const { earnedCoins } = usePbCoins();
+  const basicUnlocked = earnedCoins >= 500;
 
   return (
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-white">
@@ -242,7 +242,7 @@ export function RewardsPrizesScreen() {
                   Everyone Gets a Basic Gift!
                 </h2>
                 <p className="mt-0.5 text-[12px] font-medium leading-snug text-[#2940B3]/75">
-                  All players with 500 PB or more will get this exclusive gift.
+                  All players who earn 500 PB from games will get this exclusive gift.
                 </p>
               </div>
             </div>

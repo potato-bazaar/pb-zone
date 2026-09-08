@@ -11,6 +11,9 @@ interface QuestionCardProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   index: number;
+  readOnly?: boolean;
+  allowDelete?: boolean;
+  deleting?: boolean;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -22,6 +25,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onMoveUp,
   onMoveDown,
   index,
+  readOnly = false,
+  allowDelete = false,
+  deleting = false,
 }) => {
   const [showExplanation, setShowExplanation] = useState(true);
   const isPictureRound = question.pictureUrl !== undefined || question.imagePrompt !== undefined;
@@ -45,6 +51,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {readOnly ? (
+            <>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-[#EBF7EE] text-[#0E8345] px-2 py-0.5">
+                Live API
+              </span>
+              {allowDelete && (
+                <button
+                  onClick={() => onDelete(question.id)}
+                  disabled={deleting}
+                  className="p-1.5 text-[#6B6B6B] hover:text-[#C62828] disabled:opacity-50 transition-colors"
+                  title="Delete from live bank"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
           <button
             onClick={() => onMoveUp(index)}
             disabled={index === 0}
@@ -88,6 +112,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -232,9 +258,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </span>
           <span className="font-mono font-medium text-black">+{question.points} pts</span>
         </div>
-        <button onClick={() => setShowExplanation(!showExplanation)} className="text-[#6B6B6B] hover:text-black underline transition-colors">
-          {showExplanation ? 'Hide rationale' : 'View rationale'}
-        </button>
+        <div className="flex items-center gap-3">
+          {allowDelete && (
+            <button
+              onClick={() => onDelete(question.id)}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider border border-[#C62828] text-[#C62828] hover:bg-[#C62828] hover:text-white disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+              {deleting ? 'Deleting…' : 'Delete question'}
+            </button>
+          )}
+          <button onClick={() => setShowExplanation(!showExplanation)} className="text-[#6B6B6B] hover:text-black underline transition-colors">
+            {showExplanation ? 'Hide rationale' : 'View rationale'}
+          </button>
+        </div>
       </div>
     </div>
   );

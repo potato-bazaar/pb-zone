@@ -10,7 +10,7 @@ import { ALL_GAMES } from "@/data/games";
 import { fetchQuizPoints } from "@/lib/quizApi";
 
 export function AllGamesScreen() {
-  const { coins, setCoins } = usePbCoins();
+  const { coins, setWallet } = usePbCoins();
   const session = useUserSession();
 
   useEffect(() => {
@@ -23,7 +23,9 @@ export function AllGamesScreen() {
     })
       .then((data) => {
         if (cancelled) return;
-        if (typeof data.points === "number") setCoins(data.points);
+        if (typeof data.points === "number") {
+          setWallet({ coins: data.points, earnedCoins: data.earnedPoints });
+        }
       })
       .catch((error) => {
         console.warn("[quiz] me/points failed", error);
@@ -32,7 +34,7 @@ export function AllGamesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [session.token, session.userId, session.userName, setCoins]);
+  }, [session.token, session.userId, session.userName, setWallet]);
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-[#F7F5FC]">

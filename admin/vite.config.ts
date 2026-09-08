@@ -9,6 +9,12 @@ export default defineConfig({
     strictPort: true,
     open: false,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
+    },
     hmr: {
       protocol: 'ws',
       host: 'localhost',
