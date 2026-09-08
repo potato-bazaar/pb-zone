@@ -3,13 +3,15 @@ import { Quiz, QuizQuestion } from '../../types/quiz';
 import { QuestionCard } from './QuestionCard';
 import { QuestionRegenModal } from './QuestionRegenModal';
 import { QuestionEditModal } from './QuestionEditModal';
+import { ScoringPointsModal } from './ScoringPointsModal';
 import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
 import { 
   Plus, 
   Search, 
   Play, 
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Coins
 } from 'lucide-react';
 
 interface QuizDetailViewProps {
@@ -32,6 +34,9 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   const [regenTarget, setRegenTarget] = useState<QuizQuestion | null>(null);
   const [editTarget, setEditTarget] = useState<QuizQuestion | null>(null);
   const [copied, setCopied] = useState(false);
+  const [scoringOpen, setScoringOpen] = useState(false);
+  const [scoringSaving, setScoringSaving] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
   const live = useLiveQuestionBank(liveFromApi);
 
   // Handle single question swap
@@ -138,6 +143,14 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
 
   const sourceQuestions = liveFromApi ? live.questions : quiz.questions;
   const perQuiz = live.settings?.questionsPerQuiz ?? 12;
+  const scoringValues = {
+    pointsPerCorrect: Number(live.settings?.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(live.settings?.fastAnswerBonus ?? 5),
+    completeQuizBonus: Number(live.settings?.completeQuizBonus ?? 30),
+    questionsPerQuiz: Number(live.settings?.questionsPerQuiz ?? 12),
+    timerSeconds: Number(live.settings?.timerSeconds ?? 15),
+    fastAnswerSeconds: Number(live.settings?.fastAnswerSeconds ?? 5),
+  };
 
   void onNavigateToSetup;
 
@@ -214,6 +227,22 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
                 {liveFromApi ? `${live.settings?.timerSeconds ?? 15}s` : quiz.playsCount}
               </div>
             </div>
+            {liveFromApi && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScoringError(null);
+                  setScoringOpen(true);
+                }}
+                className="text-left p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[7.5rem] hover:border-black"
+                title="Edit scoring points"
+              >
+                <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Scoring</div>
+                <div className="font-mono font-bold text-base text-black">
+                  +{scoringValues.pointsPerCorrect}/+{scoringValues.fastAnswerBonus}/+{scoringValues.completeQuizBonus}
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
@@ -255,6 +284,17 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
                 className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] disabled:opacity-60"
               >
                 {live.refreshingDaily ? 'Generating…' : 'Run daily refresh'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScoringError(null);
+                  setScoringOpen(true);
+                }}
+                className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] flex items-center gap-2"
+              >
+                <Coins className="h-3.5 w-3.5" />
+                Set scoring points
               </button>
               </>
             )}
@@ -394,6 +434,33 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
           isOpen={Boolean(editTarget)}
           onClose={() => setEditTarget(null)}
           onSave={handleSaveQuestion}
+        />
+      )}
+
+      {liveFromApi && (
+        <ScoringPointsModal
+          isOpen={scoringOpen}
+          initial={scoringValues}
+          saving={scoringSaving}
+          error={scoringError}
+          onClose={() => {
+            if (scoringSaving) return;
+            setScoringOpen(false);
+          }}
+          onSave={async (values) => {
+            setScoringSaving(true);
+            setScoringError(null);
+            try {
+              await live.saveScoring(values);
+              setScoringOpen(false);
+            } catch (err) {
+              setScoringError(
+                err instanceof Error ? err.message : 'Could not save scoring points.',
+              );
+            } finally {
+              setScoringSaving(false);
+            }
+          }}
         />
       )}
     </div>

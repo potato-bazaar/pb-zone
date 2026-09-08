@@ -1,74 +1,26 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { usePbCoins } from "@/components/providers/PbCoinsProvider";
-import { ALL_PLAYERS, type LeaderboardPlayer } from "@/data/leaderboard";
+import { useSearchParams } from "next/navigation";
+import { LeaderboardRankRow } from "@/components/leaderboard/LeaderboardRankRow";
+import { useLeaderboardBoard } from "@/hooks/useLeaderboardBoard";
+import {
+  visibleFullBoard,
+  type LeaderboardPeriod,
+} from "@/lib/leaderboardApi";
 
-function PlayerAvatar({
-  size = "sm",
-  ringClass = "ring-white",
-}: {
-  size?: "sm";
-  ringClass?: string;
-}) {
-  return (
-    <Image
-      src="/images/home/avatar.png"
-      alt=""
-      width={36}
-      height={36}
-      className={`h-9 w-9 shrink-0 rounded-full bg-white object-cover ring-2 ${ringClass}`}
-      unoptimized
-    />
-  );
-}
-
-function LeaderboardRow({
-  row,
-  yourCoins,
-}: {
-  row: LeaderboardPlayer;
-  yourCoins: number;
-}) {
-  if (row.isYou) {
-    return (
-      <div className="px-3 py-0.5">
-        <div className="flex items-center gap-3 rounded-2xl bg-[#EEF4FF] px-3 py-3">
-          <span className="w-5 shrink-0 text-center text-sm font-bold text-[#2940B3]">
-            {row.rank}
-          </span>
-          <PlayerAvatar ringClass="ring-[#2940B3]" />
-          <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#2940B3]">
-            You
-          </p>
-          <span className="shrink-0 text-sm font-bold text-[#2940B3]">
-            {yourCoins.toLocaleString()} PB
-          </span>
-        </div>
-      </div>
-    );
+function parsePeriod(value: string | null): LeaderboardPeriod {
+  if (value === "week" || value === "month" || value === "overall") {
+    return value;
   }
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="w-5 shrink-0 text-center text-sm font-bold text-[#1a1a2e]">
-        {row.rank}
-      </span>
-      <PlayerAvatar ringClass="ring-white" />
-      <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#1a1a2e]">
-        {row.name}
-      </p>
-      <span className="shrink-0 text-sm font-bold text-[#1a1a2e]">
-        {row.points.toLocaleString()}{" "}
-        <span className="text-[#22A06B]">PB</span>
-      </span>
-    </div>
-  );
+  return "overall";
 }
 
 export function FullLeaderboardScreen() {
-  const { coins } = usePbCoins();
+  const searchParams = useSearchParams();
+  const period = parsePeriod(searchParams.get("period"));
+  const { board, error, loading } = useLeaderboardBoard(period, 100);
+  const rows = board ? visibleFullBoard(board) : [];
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
@@ -102,9 +54,26 @@ export function FullLeaderboardScreen() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8 [-webkit-overflow-scrolling:touch]">
-        {ALL_PLAYERS.map((row) => (
-          <LeaderboardRow key={row.rank} row={row} yourCoins={coins} />
-        ))}
+        {loading ? (
+          <p className="px-6 py-16 text-center text-sm font-semibold text-[#6B7280]">
+            Loading leaderboard…
+          </p>
+        ) : error ? (
+          <p className="px-6 py-16 text-center text-sm font-semibold text-[#B42318]">
+            {error}
+          </p>
+        ) : rows.length ? (
+          rows.map((row) => (
+            <LeaderboardRankRow
+              key={row.userId || `${row.rank}-${row.name}`}
+              row={row}
+            />
+          ))
+        ) : (
+          <p className="px-6 py-16 text-center text-sm font-semibold text-[#6B7280]">
+            Play games to earn points and appear here.
+          </p>
+        )}
 
         <p className="mt-4 flex items-center justify-center gap-1.5 px-4 text-[11px] text-[#9CA3AF]">
           <svg

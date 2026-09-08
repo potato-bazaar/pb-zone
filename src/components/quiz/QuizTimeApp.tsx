@@ -6,6 +6,7 @@ import { QuizHowToPlay } from "@/components/quiz/QuizHowToPlay";
 import { QuizPlayScreen } from "@/components/quiz/QuizPlayScreen";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useQuizScoring } from "@/hooks/useQuizScoring";
 import {
   QuizApiError,
   startQuizSession,
@@ -26,6 +27,7 @@ export function QuizTimeApp() {
   const [quizSession, setQuizSession] = useState<QuizSessionStartData | null>(
     null,
   );
+  const scoring = useQuizScoring(phase !== "play");
 
   const auth = useMemo(
     () => ({
@@ -51,6 +53,7 @@ export function QuizTimeApp() {
       setWallet({
         coins: data.user.points,
         earnedCoins: data.user.earnedPoints,
+        pbPoints: data.user.leaderboardPoints,
       });
       setQuizSession(data);
       setRunId((n) => n + 1);
@@ -74,6 +77,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError}
+        scoring={scoring}
       />
     );
   }
@@ -85,6 +89,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError ?? "Session missing. Tap Start Quiz again."}
+        scoring={scoring}
       />
     );
   }

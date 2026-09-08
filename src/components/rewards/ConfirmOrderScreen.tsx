@@ -63,7 +63,11 @@ export function ConfirmOrderScreen({
     setClaimError(null);
     try {
       const wallet = await claimQuizReward(auth, tier.points);
-      setWallet({ coins: wallet.points, earnedCoins: wallet.earnedPoints });
+      setWallet({
+        coins: wallet.points,
+        earnedCoins: wallet.earnedPoints,
+        pbPoints: wallet.leaderboardPoints,
+      });
       const order = placeRewardOrder(tier, address);
       router.push(
         `/rewards/claim/success?orderId=${encodeURIComponent(order.id)}`,

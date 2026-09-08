@@ -27,6 +27,15 @@ export type QuizBankStats = {
   dailyNewCount?: number;
 };
 
+export type QuizScoringConfig = {
+  pointsPerCorrect: number;
+  fastAnswerBonus: number;
+  completeQuizBonus: number;
+  fastAnswerSeconds?: number;
+  questionsPerQuiz?: number;
+  timerSeconds?: number;
+};
+
 export type QuizApiSettings = {
   pointsPerCorrect: number;
   questionsPerQuiz: number;
@@ -234,6 +243,50 @@ export async function fetchQuestionBankStats() {
 export async function fetchQuizSettings() {
   const payload = await adminFetch<QuizApiSettings>('/quiz-settings');
   return payload.data;
+}
+
+function normalizeScoring(row: Partial<QuizScoringConfig> | null | undefined): QuizScoringConfig {
+  return {
+    pointsPerCorrect: Number(row?.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(row?.fastAnswerBonus ?? 5),
+    completeQuizBonus: Number(row?.completeQuizBonus ?? 30),
+    fastAnswerSeconds: Number(row?.fastAnswerSeconds ?? 5),
+    questionsPerQuiz: Number(row?.questionsPerQuiz ?? 12),
+    timerSeconds: Number(row?.timerSeconds ?? 15),
+  };
+}
+
+/** GET /v1/admin/quiz-scoring — fill admin scoring form. */
+export async function fetchQuizScoring() {
+  const payload = await adminFetch<QuizScoringConfig>('/quiz-scoring');
+  return normalizeScoring(payload.data);
+}
+
+export type SaveQuizScoringPayload = {
+  pointsPerCorrect: number;
+  fastAnswerBonus: number;
+  completeQuizBonus: number;
+  questionsPerQuiz?: number;
+  timerSeconds?: number;
+  fastAnswerSeconds?: number;
+};
+
+/** PUT /v1/admin/quiz-scoring — first 3 required; rest optional. */
+export async function saveQuizScoring(payload: SaveQuizScoringPayload) {
+  const body: SaveQuizScoringPayload = {
+    pointsPerCorrect: payload.pointsPerCorrect,
+    fastAnswerBonus: payload.fastAnswerBonus,
+    completeQuizBonus: payload.completeQuizBonus,
+  };
+  if (payload.questionsPerQuiz != null) body.questionsPerQuiz = payload.questionsPerQuiz;
+  if (payload.timerSeconds != null) body.timerSeconds = payload.timerSeconds;
+  if (payload.fastAnswerSeconds != null) body.fastAnswerSeconds = payload.fastAnswerSeconds;
+
+  const result = await adminFetch<QuizScoringConfig>('/quiz-scoring', {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+  return normalizeScoring(result.data);
 }
 
 function normalizePlayStats(row: Partial<QuizPlayStats> | null | undefined): QuizPlayStats {

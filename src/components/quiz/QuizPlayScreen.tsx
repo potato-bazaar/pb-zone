@@ -116,7 +116,7 @@ export function QuizPlayScreen({
     initialSession.settings.lifelines ?? defaultLifelineSettings(),
   );
   const pointsPerCorrect = Number(
-    initialSession.settings.pointsPerCorrect ?? 5,
+    initialSession.settings.pointsPerCorrect ?? 20,
   );
   const [selected, setSelected] = useState<QuizOptionKey | null>(null);
   const [timeLeft, setTimeLeft] = useState(
@@ -149,13 +149,18 @@ export function QuizPlayScreen({
   const total = question.total || 12;
   const progressPct = (question.index / total) * 100;
 
-  function applyWallet(nextPoints: number, nextEarned?: number) {
+  function applyWallet(
+    nextPoints: number,
+    nextEarned?: number,
+    nextPbPoints?: number,
+  ) {
     if (!Number.isFinite(nextPoints)) return;
     const coins = Math.max(0, Math.floor(nextPoints));
     setDisplayCoins(coins);
     setWallet({
       coins,
       earnedCoins: typeof nextEarned === "number" ? nextEarned : undefined,
+      pbPoints: typeof nextPbPoints === "number" ? nextPbPoints : undefined,
     });
   }
 
@@ -356,7 +361,7 @@ export function QuizPlayScreen({
               ? data.correctCount * pointsPerCorrect
               : 0;
 
-      applyWallet(data.userPoints, data.earnedPoints);
+      applyWallet(data.userPoints, data.earnedPoints, data.leaderboardPoints);
       setResult({
         ...data,
         sessionScore: data.sessionScore > 0 ? data.sessionScore : earned,
@@ -434,7 +439,7 @@ export function QuizPlayScreen({
 
     try {
       const data = await useQuizLifeline(auth, sessionId, type);
-      applyWallet(data.userPoints, data.earnedPoints);
+      applyWallet(data.userPoints, data.earnedPoints, data.leaderboardPoints);
 
       if (type === "fifty_fifty") {
         if (data.options?.length) {

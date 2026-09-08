@@ -7,10 +7,13 @@ import {
   fetchAllQuestionBank,
   fetchQuestionBankStats,
   fetchQuizPlayStats,
+  fetchQuizScoring,
   fetchQuizSettings,
   runDailyQuestionRefresh,
+  saveQuizScoring,
   type QuizApiSettings,
   type QuizPlayStats,
+  type SaveQuizScoringPayload,
 } from '../services/quizBankApi';
 
 export function useLiveQuestionBank(enabled: boolean) {
@@ -37,12 +40,22 @@ export function useLiveQuestionBank(enabled: boolean) {
     setLoading(true);
     setError(null);
     try {
-      const [stats, quizSettings, nextPlayStats] = await Promise.all([
+      const [stats, quizSettings, quizScoring, nextPlayStats] = await Promise.all([
         fetchQuestionBankStats().catch(() => null),
         fetchQuizSettings().catch(() => null),
+        fetchQuizScoring().catch(() => null),
         fetchQuizPlayStats().catch(() => null),
       ]);
-      setSettings(quizSettings);
+      const mergedSettings: QuizApiSettings | null = quizSettings || quizScoring
+        ? {
+            pointsPerCorrect: 20,
+            questionsPerQuiz: 12,
+            timerSeconds: 15,
+            ...(quizSettings ?? {}),
+            ...(quizScoring ?? {}),
+          }
+        : null;
+      setSettings(mergedSettings);
       setActive(stats?.active ?? 0);
       setTotal(stats?.active ?? stats?.total ?? 0);
       if (nextPlayStats) setPlayStats(nextPlayStats);
@@ -51,7 +64,7 @@ export function useLiveQuestionBank(enabled: boolean) {
       setSource('bank');
       setUpstream(page.upstream ?? null);
       setQuestions(
-        page.questions.map((row, index) => bankQuestionToQuizQuestion(row, index, quizSettings)),
+        page.questions.map((row, index) => bankQuestionToQuizQuestion(row, index, mergedSettings)),
       );
       setTotal(page.total || stats?.active || page.questions.length);
       setActive(stats?.active ?? page.total);
@@ -120,6 +133,29 @@ export function useLiveQuestionBank(enabled: boolean) {
     }
   }, [refresh]);
 
+  const saveScoring = useCallback(
+    async (payload: SaveQuizScoringPayload) => {
+      const next = await saveQuizScoring(payload);
+      setSettings((prev) => ({
+        ...(prev ?? {
+          pointsPerCorrect: 20,
+          questionsPerQuiz: 12,
+          timerSeconds: 15,
+        }),
+        ...next,
+      }));
+      setQuestions((current) =>
+        current.map((row) => ({
+          ...row,
+          points: Number(next.pointsPerCorrect ?? row.points),
+          timeLimitSeconds: Number(next.timerSeconds ?? row.timeLimitSeconds),
+        })),
+      );
+      return next;
+    },
+    [],
+  );
+
   return {
     loading,
     error,
@@ -136,5 +172,6 @@ export function useLiveQuestionBank(enabled: boolean) {
     refresh,
     removeQuestion,
     runDailyRefresh,
+    saveScoring,
   };
 }

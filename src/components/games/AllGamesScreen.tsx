@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
-import { CoinBadge } from "@/components/ui/CoinBadge";
+import { WalletBadges } from "@/components/ui/WalletBadges";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { ALL_GAMES } from "@/data/games";
 import { fetchQuizPoints } from "@/lib/quizApi";
 
 export function AllGamesScreen() {
-  const { coins, setWallet } = usePbCoins();
+  const { setWallet } = usePbCoins();
   const session = useUserSession();
 
   useEffect(() => {
@@ -24,7 +24,11 @@ export function AllGamesScreen() {
       .then((data) => {
         if (cancelled) return;
         if (typeof data.points === "number") {
-          setWallet({ coins: data.points, earnedCoins: data.earnedPoints });
+          setWallet({
+            coins: data.points,
+            earnedCoins: data.earnedPoints,
+            pbPoints: data.leaderboardPoints,
+          });
         }
       })
       .catch((error) => {
@@ -50,7 +54,7 @@ export function AllGamesScreen() {
             All Games
           </h1>
           <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <CoinBadge amount={coins} />
+            <WalletBadges />
           </div>
         </header>
 
