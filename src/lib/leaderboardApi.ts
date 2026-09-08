@@ -47,7 +47,7 @@ function leaderboardBaseUrl() {
   }
   const publicBase =
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3001";
+    "https://pbzone-api.potatobazaar.com";
   return `${publicBase}/v1/leaderboard`;
 }
 

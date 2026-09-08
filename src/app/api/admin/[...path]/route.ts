@@ -11,7 +11,7 @@ function adminUpstreamBase() {
   return (
     process.env.QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3001"
+    "https://pbzone-api.potatobazaar.com"
   );
 }
 
@@ -146,6 +146,26 @@ async function proxyAdmin(
     }
     responseHeaders.set("x-pb-admin-upstream", target.origin);
     responseHeaders.set("access-control-expose-headers", "x-pb-admin-upstream");
+
+    if (upstream.status === 403) {
+      let message = "Admin access required";
+      try {
+        const parsed = JSON.parse(upstream.body) as { message?: string };
+        if (typeof parsed.message === "string" && parsed.message.trim()) {
+          message = parsed.message;
+        }
+      } catch {
+        // keep default
+      }
+      return NextResponse.json(
+        {
+          error: "Admin access required",
+          message: `${message}. Set QUIZ_ADMIN_API_KEY in .env.local to the same value as the BE ADMIN_API_KEY for ${target.origin}.`,
+          upstream: target.toString(),
+        },
+        { status: 403, headers: responseHeaders },
+      );
+    }
     return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: responseHeaders,
