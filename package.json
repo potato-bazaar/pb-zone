@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "concurrently -k -n web,admin -c cyan,magenta \"next dev -p 3000\" \"npm --prefix admin run dev\"",
+    "dev:web": "next dev -p 3000",
     "dev:admin": "npm --prefix admin run dev",
     "tunnel": "ngrok http 3000",
-    "build": "next build",
+    "build": "npm --prefix admin install && npm --prefix admin run build && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -20,6 +21,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",

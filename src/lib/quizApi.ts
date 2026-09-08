@@ -125,7 +125,7 @@ function quizBaseUrl() {
   if (process.env.NEXT_PUBLIC_QUIZ_USE_PROXY !== "false") {
     return "/api/quiz";
   }
-  return publicBase || "http://localhost:3001/v1/quiz";
+  return publicBase || "https://pbzone-api.potatobazaar.com/v1/quiz";
 }
 
 export type QuizAuth = {

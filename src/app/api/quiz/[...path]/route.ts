@@ -16,7 +16,7 @@ function quizUpstreamBase() {
   return (
     process.env.QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3001"
+    "https://pbzone-api.potatobazaar.com"
   );
 }
 

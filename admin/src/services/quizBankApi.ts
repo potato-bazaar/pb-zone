@@ -1,3 +1,4 @@
+import { adminApiKey, quizApiBase } from '../config';
 import { QuizQuestion } from '../types/quiz';
 import { parseLiveMirror, type QuizLiveMirror } from '../lib/quizLiveMirror';
 
@@ -134,11 +135,13 @@ async function adminFetch<T>(
   message?: string;
   upstream?: string;
 }> {
-  const url = `/api/admin${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${quizApiBase()}/v1/admin${path.startsWith('/') ? path : `/${path}`}`;
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...(init?.headers as Record<string, string> | undefined),
   };
+  const key = adminApiKey();
+  if (key) headers['x-admin-key'] = key;
   if (init?.body && !headers['content-type']) {
     headers['content-type'] = 'application/json';
   }

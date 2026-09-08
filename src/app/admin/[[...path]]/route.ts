@@ -46,8 +46,8 @@ async function proxyVite(request: Request, relPath: string) {
         "<html><head><meta charset='utf-8'><title>Admin UI offline</title></head>",
         "<body style='font-family:system-ui;padding:2rem;max-width:40rem'>",
         "<h1>Admin UI is not running</h1>",
-        "<p><code>/admin</code> proxies to Vite on <code>http://127.0.0.1:5173</code>. Start it, then reload this page:</p>",
-        "<pre style='background:#111;color:#fff;padding:1rem'>cd admin && npm install && npm run dev</pre>",
+        "<p><code>/admin</code> is started with the web app. Wait a few seconds and reload, or run:</p>",
+        "<pre style='background:#111;color:#fff;padding:1rem'>npm run dev</pre>",
         "</body></html>",
       ].join(""),
       {
