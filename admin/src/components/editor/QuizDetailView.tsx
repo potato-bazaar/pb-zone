@@ -3,17 +3,15 @@ import { Quiz, QuizQuestion } from '../../types/quiz';
 import { QuestionCard } from './QuestionCard';
 import { QuestionRegenModal } from './QuestionRegenModal';
 import { QuestionEditModal } from './QuestionEditModal';
+import { ScoringPointsModal } from './ScoringPointsModal';
+import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
 import { 
   Plus, 
-  Sparkles, 
   Search, 
-  Filter, 
-  Check, 
-  Clock, 
-  Layers, 
   Play, 
-  FileCode,
-  Share2
+  RefreshCw,
+  AlertTriangle,
+  Coins
 } from 'lucide-react';
 
 interface QuizDetailViewProps {
@@ -21,6 +19,7 @@ interface QuizDetailViewProps {
   onUpdateQuiz: (updated: Quiz) => void;
   onNavigateToSetup: () => void;
   onOpenSimulator: () => void;
+  liveFromApi?: boolean;
 }
 
 export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
@@ -28,12 +27,17 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   onUpdateQuiz,
   onNavigateToSetup,
   onOpenSimulator,
+  liveFromApi = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [regenTarget, setRegenTarget] = useState<QuizQuestion | null>(null);
   const [editTarget, setEditTarget] = useState<QuizQuestion | null>(null);
   const [copied, setCopied] = useState(false);
+  const [scoringOpen, setScoringOpen] = useState(false);
+  const [scoringSaving, setScoringSaving] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
+  const live = useLiveQuestionBank(liveFromApi);
 
   // Handle single question swap
   const handleApplySwap = (newQuestion: QuizQuestion) => {
@@ -58,7 +62,19 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   };
 
   // Delete question
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = async (id: string) => {
+    if (liveFromApi) {
+      const ok = window.confirm(
+        'Delete this question from the live bank? Players will not get it in new quizzes. Past sessions stay intact.',
+      );
+      if (!ok) return;
+      try {
+        await live.removeQuestion(id);
+      } catch {
+        // Error is shown by the live bank hook.
+      }
+      return;
+    }
     const remaining = quiz.questions
       .filter((q) => q.id !== id)
       .map((q, idx) => ({ ...q, order: idx + 1 }));
@@ -125,14 +141,29 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
     onUpdateQuiz({ ...quiz, status: nextStatus });
   };
 
-  // Copy JSON
+  const sourceQuestions = liveFromApi ? live.questions : quiz.questions;
+  const perQuiz = live.settings?.questionsPerQuiz ?? 12;
+  const scoringValues = {
+    pointsPerCorrect: Number(live.settings?.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(live.settings?.fastAnswerBonus ?? 5),
+    completeQuizBonus: Number(live.settings?.completeQuizBonus ?? 30),
+    questionsPerQuiz: Number(live.settings?.questionsPerQuiz ?? 12),
+    timerSeconds: Number(live.settings?.timerSeconds ?? 15),
+    fastAnswerSeconds: Number(live.settings?.fastAnswerSeconds ?? 5),
+  };
+
+  void onNavigateToSetup;
+
   const handleCopyJSON = () => {
-    navigator.clipboard.writeText(JSON.stringify(quiz, null, 2));
+    const payload = liveFromApi
+      ? { source: 'pb-zone-quiz-api', total: live.total, active: live.active, settings: live.settings, questions: live.questions }
+      : quiz;
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredQuestions = quiz.questions.filter((q) => {
+  const filteredQuestions = sourceQuestions.filter((q) => {
     const matchesDiff = selectedDifficulty === 'all' || q.difficulty === selectedDifficulty;
     const matchesSearch =
       q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -149,51 +180,124 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B]">
-                Deck Management (20 Questions)
+                {liveFromApi ? 'Live Quiz API Question Bank' : 'Deck Management (20 Questions)'}
               </span>
               <span
                 className={`text-[9px] px-2 py-0.5 font-bold uppercase font-mono ${
-                  quiz.status === 'published'
+                  liveFromApi
+                    ? 'bg-[#EBF7EE] text-[#0E8345]'
+                    : quiz.status === 'published'
                     ? 'bg-[#EBF7EE] text-[#0E8345]'
                     : 'bg-[#EEEEEE] text-[#545454]'
                 }`}
               >
-                ● {quiz.status}
+                ● {liveFromApi ? 'API BANK' : quiz.status}
               </span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-black">{quiz.title}</h1>
-            <p className="text-xs text-[#6B6B6B] mt-1 max-w-2xl">{quiz.description}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-black">
+              {liveFromApi ? 'PB Zone Quiz — Live Questions' : quiz.title}
+            </h1>
+            <p className="text-xs text-[#6B6B6B] mt-1 max-w-2xl">
+              {liveFromApi
+                ? `Roz 10:00 AM IST pe naya AI set bank mein add hota hai. Har player ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
+                : quiz.description}
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
               <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Questions</div>
-              <div className="font-mono font-bold text-base text-black">{quiz.questions.length} / 20</div>
+              <div className="font-mono font-bold text-base text-black">
+                {liveFromApi ? `${live.active} active` : `${quiz.questions.length} / 20`}
+              </div>
             </div>
             <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
-              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Pass Mark</div>
-              <div className="font-mono font-bold text-base text-black">{quiz.passScore} pts</div>
+              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">
+                {liveFromApi ? 'Per Quiz' : 'Pass Mark'}
+              </div>
+              <div className="font-mono font-bold text-base text-black">
+                {liveFromApi ? `${perQuiz} Qs` : `${quiz.passScore} pts`}
+              </div>
             </div>
             <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
-              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Plays</div>
-              <div className="font-mono font-bold text-base text-black">{quiz.playsCount}</div>
+              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">
+                {liveFromApi ? 'Timer' : 'Plays'}
+              </div>
+              <div className="font-mono font-bold text-base text-black">
+                {liveFromApi ? `${live.settings?.timerSeconds ?? 15}s` : quiz.playsCount}
+              </div>
             </div>
+            {liveFromApi && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScoringError(null);
+                  setScoringOpen(true);
+                }}
+                className="text-left p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[7.5rem] hover:border-black"
+                title="Edit scoring points"
+              >
+                <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Scoring</div>
+                <div className="font-mono font-bold text-base text-black">
+                  +{scoringValues.pointsPerCorrect}/+{scoringValues.fastAnswerBonus}/+{scoringValues.completeQuizBonus}
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="pt-4 border-t border-[#E2E2E2] flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleToggleStatus}
-              className={`px-4 py-2 text-xs font-bold transition-all ${
-                quiz.status === 'published'
-                  ? 'bg-white border border-black text-black hover:bg-[#F6F6F6]'
-                  : 'bg-[#0E8345] text-white hover:bg-[#0b6b37]'
-              }`}
-            >
-              {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
-            </button>
+            {!liveFromApi && (
+              <button
+                onClick={handleToggleStatus}
+                className={`px-4 py-2 text-xs font-bold transition-all ${
+                  quiz.status === 'published'
+                    ? 'bg-white border border-black text-black hover:bg-[#F6F6F6]'
+                    : 'bg-[#0E8345] text-white hover:bg-[#0b6b37]'
+                }`}
+              >
+                {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
+              </button>
+            )}
+
+            {liveFromApi && (
+              <>
+              <button
+                onClick={() => void live.refresh()}
+                disabled={live.loading || live.refreshingDaily}
+                className="px-4 py-2 text-xs font-bold bg-black text-white hover:bg-[#262626] disabled:opacity-60 flex items-center gap-2"
+              >
+                <RefreshCw className={`h-3 w-3 ${live.loading ? 'animate-spin' : ''}`} />
+                Refresh from API
+              </button>
+              <button
+                onClick={() => {
+                  const ok = window.confirm(
+                    'Run daily refresh now? This resets usage shuffle and can generate up to 600 new AI questions. It may take several minutes.',
+                  );
+                  if (!ok) return;
+                  void live.runDailyRefresh();
+                }}
+                disabled={live.loading || live.refreshingDaily}
+                className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] disabled:opacity-60"
+              >
+                {live.refreshingDaily ? 'Generating…' : 'Run daily refresh'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScoringError(null);
+                  setScoringOpen(true);
+                }}
+                className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] flex items-center gap-2"
+              >
+                <Coins className="h-3.5 w-3.5" />
+                Set scoring points
+              </button>
+              </>
+            )}
 
             <button
               onClick={onOpenSimulator}
@@ -211,6 +315,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
             </button>
           </div>
 
+          {!liveFromApi && (
           <div className="flex items-center gap-2">
             <button
               onClick={handleAddNewQuestion}
@@ -220,6 +325,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
               <span>Add Question</span>
             </button>
           </div>
+          )}
         </div>
       </div>
 
@@ -231,7 +337,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search question text or options..."
+            placeholder={liveFromApi ? 'Search the full quiz API bank…' : 'Search question text or options...'}
             className="w-full pl-9 pr-4 py-2 bg-white border border-[#E2E2E2] text-xs text-black placeholder-[#6B6B6B] focus:border-black focus:outline-none"
           />
         </div>
@@ -258,11 +364,32 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
 
       {/* Note on individual swap */}
       <div className="flex items-center justify-between text-xs text-[#6B6B6B] px-1">
-        <span>Showing {filteredQuestions.length} of {quiz.questions.length} questions</span>
+        <span>
+          Showing {filteredQuestions.length} of {sourceQuestions.length}
+          {liveFromApi ? ` loaded · bank ${live.active || live.total}` : ' questions'}
+        </span>
         <span className="text-black font-semibold">
-          💡 Click "Swap Q#" on any question (e.g. Question #3) to regenerate it with AI
+          {liveFromApi
+            ? 'Delete a question to soft-remove it from new quizzes. Options are shuffled per player.'
+            : '💡 Click "Swap Q#" on any question (e.g. Question #3) to regenerate it with AI'}
         </span>
       </div>
+
+      {liveFromApi && live.error && (
+        <div className="flex items-start gap-3 p-4 border border-[#C62828] bg-[#FFF5F5] text-xs text-[#C62828]">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold">Could not load live quiz questions</div>
+            <p className="mt-1 text-[#7F1D1D]">{live.error}</p>
+          </div>
+        </div>
+      )}
+
+      {liveFromApi && live.loading && (
+        <div className="bg-white border border-[#E2E2E2] p-8 text-center text-xs text-[#6B6B6B]">
+          Loading questions from the PB Zone quiz API…
+        </div>
+      )}
 
       {/* Question Cards List */}
       <div className="space-y-4">
@@ -271,14 +398,22 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
             key={q.id}
             question={q}
             index={idx}
-            totalQuestions={quiz.questions.length}
+            totalQuestions={sourceQuestions.length}
+            readOnly={liveFromApi}
+            allowDelete={liveFromApi}
+            deleting={liveFromApi && live.deletingId === q.id}
             onRegenerate={(question) => setRegenTarget(question)}
             onEdit={(question) => setEditTarget(question)}
-            onDelete={(id) => handleDeleteQuestion(id)}
+            onDelete={(id) => void handleDeleteQuestion(id)}
             onMoveUp={handleMoveUp}
             onMoveDown={handleMoveDown}
           />
         ))}
+        {liveFromApi && !live.loading && !live.error && filteredQuestions.length === 0 && (
+          <div className="bg-white border border-[#E2E2E2] p-8 text-center text-xs text-[#6B6B6B]">
+            Question bank is empty, or list API is not deployed yet. Seed / daily-refresh the quiz API, then refresh.
+          </div>
+        )}
       </div>
 
       {/* Single Question Swap Modal */}
@@ -299,6 +434,33 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
           isOpen={Boolean(editTarget)}
           onClose={() => setEditTarget(null)}
           onSave={handleSaveQuestion}
+        />
+      )}
+
+      {liveFromApi && (
+        <ScoringPointsModal
+          isOpen={scoringOpen}
+          initial={scoringValues}
+          saving={scoringSaving}
+          error={scoringError}
+          onClose={() => {
+            if (scoringSaving) return;
+            setScoringOpen(false);
+          }}
+          onSave={async (values) => {
+            setScoringSaving(true);
+            setScoringError(null);
+            try {
+              await live.saveScoring(values);
+              setScoringOpen(false);
+            } catch (err) {
+              setScoringError(
+                err instanceof Error ? err.message : 'Could not save scoring points.',
+              );
+            } finally {
+              setScoringSaving(false);
+            }
+          }}
         />
       )}
     </div>

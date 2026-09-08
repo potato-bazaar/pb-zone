@@ -2,6 +2,12 @@ import { createHmac } from "crypto";
 import http from "http";
 import https from "https";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getLiveQuizMirror,
+  recordLiveQuizAnswer,
+  recordLiveQuizStart,
+} from "@/lib/quizLiveMirrorStore";
+import { asMirrorQuestion } from "@/lib/quizLiveMirror";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,12 +151,83 @@ function upstreamRequest(
   });
 }
 
+function unwrapData(body: string): Record<string, unknown> | null {
+  try {
+    const json = JSON.parse(body) as Record<string, unknown>;
+    if (json && typeof json === "object" && json.data && typeof json.data === "object") {
+      return json.data as Record<string, unknown>;
+    }
+    return json;
+  } catch {
+    return null;
+  }
+}
+
+function recordQuizTraffic(
+  method: string,
+  segments: string[],
+  userId: string,
+  responseBody: string,
+) {
+  if (method !== "POST") return;
+  const data = unwrapData(responseBody);
+  if (!data) return;
+
+  if (segments.length === 1 && segments[0] === "sessions") {
+    const sessionId = String(
+      data.sessionId ??
+        data.id ??
+        (data.session as { id?: string } | undefined)?.id ??
+        "",
+    );
+    recordLiveQuizStart({
+      userId,
+      sessionId,
+      question: asMirrorQuestion(data.question) ?? {},
+    });
+    return;
+  }
+
+  if (segments[0] !== "sessions" || segments.length < 3) return;
+  const sessionId = segments[1];
+  const action = segments[2];
+  if (action === "answer") {
+    recordLiveQuizAnswer({
+      userId,
+      sessionId,
+      correctOption: data.correctOption ? String(data.correctOption) : null,
+      nextQuestion: asMirrorQuestion(data.nextQuestion),
+    });
+    return;
+  }
+  if (action === "lifeline") {
+    recordLiveQuizAnswer({
+      userId,
+      sessionId,
+      correctOption: data.correctOption ? String(data.correctOption) : null,
+      nextQuestion: asMirrorQuestion(data.nextQuestion),
+    });
+  }
+}
+
 async function proxyQuiz(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
   const segments = path ?? [];
+
+  if (
+    request.method === "GET" &&
+    segments.length === 1 &&
+    segments[0] === "live-session"
+  ) {
+    return NextResponse.json(
+      { success: true, data: getLiveQuizMirror() },
+      { status: 200 },
+    );
+  }
+
   const upstreamPath = `/v1/quiz/${segments.join("/")}`;
   const target = new URL(`${quizUpstreamBase()}${upstreamPath}`);
   request.nextUrl.searchParams.forEach((value, key) => {
@@ -174,6 +251,15 @@ async function proxyQuiz(
     const responseHeaders = new Headers();
     if (upstream.contentType) {
       responseHeaders.set("content-type", upstream.contentType);
+    }
+
+    if (upstream.status >= 200 && upstream.status < 300) {
+      recordQuizTraffic(
+        request.method,
+        segments,
+        headers.get("x-user-id") || "dev-user-1",
+        upstream.body,
+      );
     }
 
     return new NextResponse(upstream.body, {

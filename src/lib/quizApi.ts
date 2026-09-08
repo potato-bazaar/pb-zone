@@ -27,12 +27,25 @@ export type QuizLifelineSettings = {
 export type QuizSessionSettings = {
   timerSeconds: number;
   pointsPerCorrect?: number;
+  fastAnswerBonus?: number;
+  fastAnswerSeconds?: number;
+  completeQuizBonus?: number;
+  questionsPerQuiz?: number;
   lifelines: QuizLifelineSettings;
+};
+
+export type QuizScoringConfig = {
+  pointsPerCorrect: number;
+  fastAnswerBonus: number;
+  completeQuizBonus: number;
+  fastAnswerSeconds?: number;
+  questionsPerQuiz?: number;
+  timerSeconds?: number;
 };
 
 export type QuizSessionStartData = {
   sessionId: string;
-  user: { name?: string; points: number };
+  user: { name?: string; points: number; earnedPoints: number; leaderboardPoints: number };
   settings: QuizSessionSettings;
   question: QuizApiQuestion;
 };
@@ -45,6 +58,8 @@ export type QuizAnswerData = {
   pointsAwarded: number;
   sessionScore: number;
   userPoints: number;
+  earnedPoints: number;
+  leaderboardPoints: number;
   status: "active" | "completed" | string;
   nextQuestion: QuizApiQuestion | null;
 };
@@ -54,6 +69,8 @@ export type QuizLifelineType = "fifty_fifty" | "extra_time" | "skip";
 export type QuizLifelineData = {
   type: QuizLifelineType;
   userPoints: number;
+  earnedPoints: number;
+  leaderboardPoints?: number;
   options?: QuizApiOption[];
   removedOptions?: QuizOptionKey[];
   extraTimeSeconds?: number;
@@ -68,6 +85,8 @@ export type QuizResultData = {
   totalQuestions: number;
   sessionScore: number;
   userPoints: number;
+  earnedPoints?: number;
+  leaderboardPoints?: number;
   fastBonus?: number;
   completionBonus?: number;
   pointsAwarded?: number;
@@ -78,6 +97,9 @@ export type QuizResultData = {
 export type QuizPointsData = {
   name?: string;
   points: number;
+  earnedPoints: number;
+  bonusPoints?: number;
+  leaderboardPoints: number;
 };
 
 type ApiEnvelope<T> = { data: T; message?: string; error?: string };
@@ -181,15 +203,37 @@ async function quizFetch<T>(
 
 export function fetchQuizPoints(auth: QuizAuth) {
   return quizFetch<QuizPointsData>("/me/points", auth, { method: "GET" }).then(
-    (data) => ({
-      name: data.name,
-      points: Number(
-        (data as QuizPointsData).points ??
-          (data as { userPoints?: number }).userPoints ??
-          0,
-      ),
-    }),
+    (data) => {
+      const points = Number(
+        data.points ?? (data as { userPoints?: number }).userPoints ?? 0,
+      );
+      const earnedPoints = Number(data.earnedPoints ?? 0);
+      return {
+        name: data.name,
+        points,
+        earnedPoints,
+        bonusPoints: Number(data.bonusPoints ?? Math.max(0, points - earnedPoints)),
+        leaderboardPoints: Number(data.leaderboardPoints ?? 0),
+      };
+    },
   );
+}
+
+export function claimQuizReward(auth: QuizAuth, amount: number) {
+  return quizFetch<QuizPointsData>("/rewards/claim", auth, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  }).then((data) => {
+    const points = Number(data.points ?? 0);
+    const earnedPoints = Number(data.earnedPoints ?? 0);
+    return {
+      name: data.name,
+      points,
+      earnedPoints,
+      bonusPoints: Number(data.bonusPoints ?? Math.max(0, points - earnedPoints)),
+      leaderboardPoints: Number(data.leaderboardPoints ?? 0),
+    };
+  });
 }
 
 function normalizeQuestion(raw: Partial<QuizApiQuestion> | null | undefined) {
@@ -204,7 +248,7 @@ function normalizeQuestion(raw: Partial<QuizApiQuestion> | null | undefined) {
     id: raw.id,
     index: Number(raw.index ?? 1),
     total: Number(raw.total ?? (options.length || 12)),
-    timerSeconds: Number(raw.timerSeconds ?? 8),
+    timerSeconds: Number(raw.timerSeconds ?? 15),
     question: raw.question ?? "",
     options,
     explanation: raw.explanation,
@@ -216,8 +260,12 @@ function normalizeSettings(
 ): QuizSessionSettings {
   const life = raw?.lifelines;
   return {
-    timerSeconds: Number(raw?.timerSeconds ?? 8),
-    pointsPerCorrect: raw?.pointsPerCorrect,
+    timerSeconds: Number(raw?.timerSeconds ?? 15),
+    pointsPerCorrect: Number(raw?.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(raw?.fastAnswerBonus ?? 5),
+    fastAnswerSeconds: Number(raw?.fastAnswerSeconds ?? 5),
+    completeQuizBonus: Number(raw?.completeQuizBonus ?? 30),
+    questionsPerQuiz: Number(raw?.questionsPerQuiz ?? 12),
     lifelines: {
       fiftyFiftyCost: Number(life?.fiftyFiftyCost ?? 10),
       extraTimeCost: Number(life?.extraTimeCost ?? 10),
@@ -227,13 +275,58 @@ function normalizeSettings(
   };
 }
 
+export async function fetchQuizScoring(): Promise<QuizScoringConfig> {
+  const base = quizBaseUrl();
+  const url = `${base}/scoring`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  let json: unknown = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    let msg = `Quiz API error (${res.status})`;
+    if (json && typeof json === "object") {
+      const payload = json as { message?: unknown; error?: unknown };
+      const fromApi = payload.message ?? payload.error;
+      if (typeof fromApi === "string" && fromApi.trim()) msg = fromApi;
+    }
+    throw new QuizApiError(msg, res.status, json);
+  }
+
+  const data =
+    json && typeof json === "object" && "data" in json
+      ? (json as ApiEnvelope<QuizScoringConfig>).data
+      : (json as QuizScoringConfig);
+
+  return {
+    pointsPerCorrect: Number(data?.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(data?.fastAnswerBonus ?? 5),
+    completeQuizBonus: Number(data?.completeQuizBonus ?? 30),
+    fastAnswerSeconds: Number(data?.fastAnswerSeconds ?? 5),
+    questionsPerQuiz: Number(data?.questionsPerQuiz ?? 12),
+    timerSeconds: Number(data?.timerSeconds ?? 15),
+  };
+}
+
 export function startQuizSession(auth: QuizAuth) {
   return quizFetch<Record<string, unknown>>("/sessions", auth, {
     method: "POST",
     body: JSON.stringify({}),
   }).then((raw) => {
-    const user = (raw.user as { name?: string; points?: number } | undefined) ??
-      {};
+    const user = (raw.user as {
+      name?: string;
+      points?: number;
+      earnedPoints?: number;
+      leaderboardPoints?: number;
+    } | undefined) ?? {};
     const question = normalizeQuestion(
       (raw.question as QuizApiQuestion | undefined) ?? null,
     );
@@ -251,6 +344,14 @@ export function startQuizSession(auth: QuizAuth) {
             (raw as { userPoints?: number }).userPoints ??
             0,
         ),
+        earnedPoints: Number(
+          user.earnedPoints ?? (raw as { earnedPoints?: number }).earnedPoints ?? 0,
+        ),
+        leaderboardPoints: Number(
+          user.leaderboardPoints ??
+            (raw as { leaderboardPoints?: number }).leaderboardPoints ??
+            0,
+        ),
       },
       settings: normalizeSettings(
         raw.settings as QuizSessionSettings | undefined,
@@ -263,14 +364,22 @@ export function startQuizSession(auth: QuizAuth) {
 export function submitQuizAnswer(
   auth: QuizAuth,
   sessionId: string,
-  option: QuizOptionKey,
+  option: QuizOptionKey | null,
+  extra?: { timedOut?: boolean; responseTimeSeconds?: number },
 ) {
+  const body: Record<string, unknown> = {};
+  if (extra?.timedOut) body.timedOut = true;
+  if (option) body.option = option;
+  if (typeof extra?.responseTimeSeconds === "number") {
+    body.responseTimeSeconds = extra.responseTimeSeconds;
+  }
+
   return quizFetch<QuizAnswerData>(
     `/sessions/${encodeURIComponent(sessionId)}/answer`,
     auth,
     {
       method: "POST",
-      body: JSON.stringify({ option }),
+      body: JSON.stringify(body),
     },
   ).then((data) => ({
     ...data,
@@ -278,6 +387,8 @@ export function submitQuizAnswer(
     pointsAwarded: Number(data.pointsAwarded ?? 0),
     sessionScore: Number(data.sessionScore ?? 0),
     userPoints: Number(data.userPoints ?? 0),
+    earnedPoints: Number(data.earnedPoints ?? 0),
+    leaderboardPoints: Number(data.leaderboardPoints ?? 0),
   }));
 }
 
@@ -299,6 +410,8 @@ export function useQuizLifeline(
       ? normalizeQuestion(data.nextQuestion)
       : data.nextQuestion,
     userPoints: Number(data.userPoints ?? 0),
+    earnedPoints: Number(data.earnedPoints ?? 0),
+    leaderboardPoints: Number(data.leaderboardPoints ?? 0),
   }));
 }
 
@@ -328,6 +441,8 @@ export function fetchQuizResult(auth: QuizAuth, sessionId: string) {
       sessionScore,
       answerPoints: sessionScore,
       userPoints: Number(raw.userPoints ?? 0),
+      earnedPoints: Number(raw.earnedPoints ?? 0),
+      leaderboardPoints: Number(raw.leaderboardPoints ?? 0),
       fastBonus,
       completionBonus,
       pointsAwarded: totalEarned,

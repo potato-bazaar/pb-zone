@@ -321,12 +321,12 @@ function RewardClaimButton({
 
 export function RewardsScreen() {
   const router = useRouter();
-  const { coins: points } = usePbCoins();
+  const { coins, earnedCoins } = usePbCoins();
   const [claimedTierIds, setClaimedTierIds] = useState<Set<string>>(new Set());
   const [claimModalTier, setClaimModalTier] = useState<RewardTier | null>(null);
-  const nextMilestone = getNextMilestone(points);
+  const nextMilestone = getNextMilestone(earnedCoins);
   const pointsAway = nextMilestone
-    ? pointsToUnlockTier(points, nextMilestone.points)
+    ? pointsToUnlockTier(earnedCoins, nextMilestone.points)
     : 0;
 
   useEffect(() => {
@@ -370,7 +370,7 @@ export function RewardsScreen() {
             <h1 className="font-display text-lg font-bold text-[#1a1a2e]">
               Your Progress
             </h1>
-            <CoinBadge amount={points} />
+            <CoinBadge amount={coins} />
           </div>
         </header>
 
@@ -382,11 +382,14 @@ export function RewardsScreen() {
                 Your Total Points
               </p>
               <p className="font-display mt-1.5 text-[2.35rem] font-extrabold leading-none tracking-tight text-[#2940B3]">
-                {points.toLocaleString()}{" "}
+                {coins.toLocaleString()}{" "}
                 <span className="text-[1.15rem] font-bold">PB</span>
               </p>
-              <p className="mt-2.5 text-[13px] font-medium leading-snug text-[#374151]">
-                Great job! Keep playing and earn more points.
+              <p className="mt-2 text-[12px] font-semibold text-[#2940B3]/80">
+                {earnedCoins.toLocaleString()} PB earned from games
+              </p>
+              <p className="mt-1.5 text-[13px] font-medium leading-snug text-[#374151]">
+                Welcome 1,000 PB can be used in games. Rewards unlock only with points you earn by playing.
               </p>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -421,7 +424,7 @@ export function RewardsScreen() {
               </div>
               <GiftIconBadge />
             </div>
-            <ProgressTimeline points={points} />
+            <ProgressTimeline points={earnedCoins} />
           </section>
 
           {/* Unlock rewards — 4 cards fill full width */}
@@ -431,8 +434,8 @@ export function RewardsScreen() {
             </h2>
             <div className="grid grid-cols-4 gap-3.5">
               {REWARD_TIERS.map((tier) => {
-                const unlocked = isTierUnlocked(points, tier.points);
-                const remaining = pointsToUnlockTier(points, tier.points);
+                const unlocked = isTierUnlocked(earnedCoins, tier.points);
+                const remaining = pointsToUnlockTier(earnedCoins, tier.points);
                 const claimed = claimedTierIds.has(tier.id);
                 const canClaim = unlocked && !claimed;
 
@@ -550,8 +553,8 @@ export function RewardsScreen() {
           <section className="mx-1 flex items-center gap-1 rounded-[1.35rem] border border-[#E8ECF4] bg-white px-3.5 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
             <p className="min-w-0 flex-[1.5] text-[13px] font-semibold leading-[1.3] text-[#2940B3]">
               <span className="block">
-                All players with{" "}
-                <span className="font-bold">500 PB</span> or more
+                All players who earn{" "}
+                <span className="font-bold">500 PB</span> from games
               </span>
               <span className="block">will get a guaranteed Basic Gift!</span>
             </p>

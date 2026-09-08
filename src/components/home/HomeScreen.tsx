@@ -4,9 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { ChampionBanner } from "@/components/home/ChampionBanner";
-import { CoinBadge } from "@/components/ui/CoinBadge";
+import { WalletBadges } from "@/components/ui/WalletBadges";
 import { GameCarousel, type FeaturedGame } from "@/components/home/GameCarousel";
-import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { ALL_GAMES } from "@/data/games";
 
@@ -24,7 +23,6 @@ const featuredGames: FeaturedGame[] = ALL_GAMES.map((game) => ({
 
 export function HomeScreen() {
   const { userName } = useUserSession();
-  const { coins } = usePbCoins();
 
   return (
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
@@ -36,7 +34,7 @@ export function HomeScreen() {
       >
         {/* Sticky header — content scrolls underneath, no hard divider */}
         <header
-          className="sticky top-0 z-30 flex items-center justify-between gap-3 rounded-b-2xl bg-[#F5F3FF] px-4 pb-4"
+          className="sticky top-0 z-30 flex items-center justify-between gap-2 rounded-b-2xl bg-[#F5F3FF] px-4 pb-4"
           style={{ paddingTop: "var(--header-top)" }}
         >
           <div className="flex min-w-0 items-center gap-2.5">
@@ -58,7 +56,7 @@ export function HomeScreen() {
             </div>
           </div>
 
-          <CoinBadge amount={coins} />
+          <WalletBadges />
         </header>
 
         <div className="px-4 pt-2">

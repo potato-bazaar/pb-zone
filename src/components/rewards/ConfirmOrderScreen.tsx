@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { RewardTier } from "@/data/rewards";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { QuizApiError, claimQuizReward } from "@/lib/quizApi";
 import {
   formatAddressBlock,
   loadRewardAddress,
@@ -20,8 +22,21 @@ export function ConfirmOrderScreen({
   tierId: string;
 }) {
   const router = useRouter();
-  const { coins, spendCoins } = usePbCoins();
+  const session = useUserSession();
+  const { earnedCoins, setWallet } = usePbCoins();
   const [address, setAddress] = useState<RewardAddress | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const canClaim = earnedCoins >= tier.points;
+
+  const auth = useMemo(
+    () => ({
+      token: session.token,
+      userId: session.userId,
+      userName: session.userName,
+    }),
+    [session.token, session.userId, session.userName],
+  );
 
   useEffect(() => {
     const saved = loadRewardAddress();
@@ -42,12 +57,30 @@ export function ConfirmOrderScreen({
 
   const formatted = formatAddressBlock(address);
 
-  function handlePlaceOrder() {
-    if (!address) return;
-    if (coins < tier.points) return;
-    if (!spendCoins(tier.points)) return;
-    const order = placeRewardOrder(tier, address);
-    router.push(`/rewards/claim/success?orderId=${encodeURIComponent(order.id)}`);
+  async function handlePlaceOrder() {
+    if (!address || claiming || !canClaim) return;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const wallet = await claimQuizReward(auth, tier.points);
+      setWallet({
+        coins: wallet.points,
+        earnedCoins: wallet.earnedPoints,
+        pbPoints: wallet.leaderboardPoints,
+      });
+      const order = placeRewardOrder(tier, address);
+      router.push(
+        `/rewards/claim/success?orderId=${encodeURIComponent(order.id)}`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof QuizApiError
+          ? error.message
+          : "Could not claim this reward. Earn more PB by playing games.";
+      setClaimError(message);
+    } finally {
+      setClaiming(false);
+    }
   }
 
   return (
@@ -155,15 +188,22 @@ export function ConfirmOrderScreen({
 
         <p className="mt-5 text-center text-[13px] font-medium leading-snug text-[#8B93A7]">
           After you submit, our team will contact you and deliver your reward.
+          Welcome coins cannot be used to claim rewards.
         </p>
+
+        {claimError ? (
+          <p className="mt-3 text-center text-[13px] font-semibold text-[#D14343]">
+            {claimError}
+          </p>
+        ) : null}
 
         <button
           type="button"
-          onClick={handlePlaceOrder}
-          disabled={coins < tier.points}
+          onClick={() => void handlePlaceOrder()}
+          disabled={!canClaim || claiming}
           className="mt-5 flex w-full items-center justify-center rounded-[0.95rem] bg-[#6A5AE0] py-3.5 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(106,90,224,0.35)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#C5C0E8] disabled:shadow-none"
         >
-          Place Order
+          {claiming ? "Placing order…" : "Place Order"}
         </button>
 
         <p className="mt-4 text-center text-[12px] font-medium text-[#8B93A7]">

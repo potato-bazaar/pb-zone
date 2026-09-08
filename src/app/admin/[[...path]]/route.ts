@@ -27,17 +27,35 @@ async function proxyVite(request: Request, relPath: string) {
   const incoming = new URL(request.url);
   const suffix = relPath ? `/admin/${relPath}` : "/admin/";
   const target = `${VITE_ORIGIN}${suffix}${incoming.search}`;
-  const res = await fetch(target, {
-    headers: {
-      accept: request.headers.get("accept") ?? "*/*",
-    },
-    cache: "no-store",
-    redirect: "manual",
-  });
-  const headers = new Headers();
-  const contentType = res.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
-  return new Response(res.body, { status: res.status, headers });
+  try {
+    const res = await fetch(target, {
+      headers: {
+        accept: request.headers.get("accept") ?? "*/*",
+      },
+      cache: "no-store",
+      redirect: "manual",
+    });
+    const headers = new Headers();
+    const contentType = res.headers.get("content-type");
+    if (contentType) headers.set("content-type", contentType);
+    return new Response(res.body, { status: res.status, headers });
+  } catch {
+    return new Response(
+      [
+        "<!doctype html>",
+        "<html><head><meta charset='utf-8'><title>Admin UI offline</title></head>",
+        "<body style='font-family:system-ui;padding:2rem;max-width:40rem'>",
+        "<h1>Admin UI is not running</h1>",
+        "<p><code>/admin</code> proxies to Vite on <code>http://127.0.0.1:5173</code>. Start it, then reload this page:</p>",
+        "<pre style='background:#111;color:#fff;padding:1rem'>cd admin && npm install && npm run dev</pre>",
+        "</body></html>",
+      ].join(""),
+      {
+        status: 503,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      },
+    );
+  }
 }
 
 async function serveBuiltAdmin(relPath: string) {

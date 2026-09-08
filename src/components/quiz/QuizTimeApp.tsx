@@ -6,18 +6,20 @@ import { QuizHowToPlay } from "@/components/quiz/QuizHowToPlay";
 import { QuizPlayScreen } from "@/components/quiz/QuizPlayScreen";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useQuizScoring } from "@/hooks/useQuizScoring";
 import {
   QuizApiError,
   startQuizSession,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
+import { startLiveMirror } from "@/lib/quizLiveMirror";
 
 type Phase = "howto" | "play";
 
 export function QuizTimeApp() {
   const router = useRouter();
   const session = useUserSession();
-  const { setCoins } = usePbCoins();
+  const { setWallet } = usePbCoins();
   const [phase, setPhase] = useState<Phase>("howto");
   const [runId, setRunId] = useState(0);
   const [starting, setStarting] = useState(false);
@@ -25,6 +27,7 @@ export function QuizTimeApp() {
   const [quizSession, setQuizSession] = useState<QuizSessionStartData | null>(
     null,
   );
+  const scoring = useQuizScoring(phase !== "play");
 
   const auth = useMemo(
     () => ({
@@ -42,7 +45,16 @@ export function QuizTimeApp() {
 
     try {
       const data = await startQuizSession(auth);
-      setCoins(data.user.points);
+      startLiveMirror({
+        userId: auth.userId || "dev-user-1",
+        sessionId: data.sessionId,
+        question: data.question,
+      });
+      setWallet({
+        coins: data.user.points,
+        earnedCoins: data.user.earnedPoints,
+        pbPoints: data.user.leaderboardPoints,
+      });
       setQuizSession(data);
       setRunId((n) => n + 1);
       setPhase("play");
@@ -65,6 +77,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError}
+        scoring={scoring}
       />
     );
   }
@@ -76,6 +89,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError ?? "Session missing. Tap Start Quiz again."}
+        scoring={scoring}
       />
     );
   }
