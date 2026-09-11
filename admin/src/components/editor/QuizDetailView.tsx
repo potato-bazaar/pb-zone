@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Quiz, QuizQuestion } from '../../types/quiz';
 import { QuestionCard } from './QuestionCard';
 import { QuestionRegenModal } from './QuestionRegenModal';
@@ -8,25 +8,78 @@ import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
 import { 
   Plus, 
   Search, 
-  Play, 
   RefreshCw,
   AlertTriangle,
-  Coins
+  Coins,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { cn } from '../../lib/utils';
+
+const PAGE_SIZE = 20;
+
+function pageItems(current: number, total: number): Array<number | 'ellipsis'> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const items: Array<number | 'ellipsis'> = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) items.push('ellipsis');
+  for (let i = start; i <= end; i += 1) items.push(i);
+  if (end < total - 1) items.push('ellipsis');
+  items.push(total);
+  return items;
+}
+
+function StatTile({
+  title,
+  value,
+  onClick,
+}: {
+  title: string;
+  value: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums leading-none whitespace-nowrap">{value}</p>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={title}
+        className="rounded-lg border bg-card p-3 text-left shadow-none hover:bg-accent"
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <Card className="shadow-none">
+      <div className="p-3">{body}</div>
+    </Card>
+  );
+}
+
+const btnPrimary =
+  'inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60';
+const btnOutline =
+  'inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent disabled:opacity-60';
 
 interface QuizDetailViewProps {
   quiz: Quiz;
   onUpdateQuiz: (updated: Quiz) => void;
-  onNavigateToSetup: () => void;
-  onOpenSimulator: () => void;
   liveFromApi?: boolean;
 }
 
 export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   quiz,
   onUpdateQuiz,
-  onNavigateToSetup,
-  onOpenSimulator,
   liveFromApi = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +90,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   const [scoringOpen, setScoringOpen] = useState(false);
   const [scoringSaving, setScoringSaving] = useState(false);
   const [scoringError, setScoringError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const live = useLiveQuestionBank(liveFromApi);
 
   // Handle single question swap
@@ -152,8 +206,6 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
     fastAnswerSeconds: Number(live.settings?.fastAnswerSeconds ?? 5),
   };
 
-  void onNavigateToSetup;
-
   const handleCopyJSON = () => {
     const payload = liveFromApi
       ? { source: 'pb-zone-quiz-api', total: live.total, active: live.active, settings: live.settings, questions: live.questions }
@@ -163,258 +215,343 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredQuestions = sourceQuestions.filter((q) => {
-    const matchesDiff = selectedDifficulty === 'all' || q.difficulty === selectedDifficulty;
-    const matchesSearch =
-      q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.options.some((opt) => opt.text.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      q.topicTag.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesDiff && matchesSearch;
-  });
+  const filteredQuestions = useMemo(() => {
+    return sourceQuestions.filter((q) => {
+      const matchesDiff = selectedDifficulty === 'all' || q.difficulty === selectedDifficulty;
+      const matchesSearch =
+        q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.options.some((opt) => opt.text.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        q.topicTag.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesDiff && matchesSearch;
+    });
+  }, [sourceQuestions, selectedDifficulty, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedQuestions = filteredQuestions.slice(pageStart, pageStart + PAGE_SIZE);
+  const showingFrom = filteredQuestions.length === 0 ? 0 : pageStart + 1;
+  const showingTo = Math.min(pageStart + PAGE_SIZE, filteredQuestions.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedDifficulty]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const goToPage = (next: number) => {
+    setPage(Math.min(totalPages, Math.max(1, next)));
+  };
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Top Banner Header */}
-      <div className="bg-white border border-[#E2E2E2] p-6 space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B]">
-                {liveFromApi ? 'Live Quiz API Question Bank' : 'Deck Management (20 Questions)'}
-              </span>
-              <span
-                className={`text-[9px] px-2 py-0.5 font-bold uppercase font-mono ${
-                  liveFromApi
-                    ? 'bg-[#EBF7EE] text-[#0E8345]'
-                    : quiz.status === 'published'
-                    ? 'bg-[#EBF7EE] text-[#0E8345]'
-                    : 'bg-[#EEEEEE] text-[#545454]'
-                }`}
+    <div className="flex flex-col gap-3 pb-10">
+      <Card className="shadow-none">
+        <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {liveFromApi ? 'Live question bank' : 'Deck management'}
+              </p>
+              <Badge
+                className={
+                  liveFromApi || quiz.status === 'published'
+                    ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                    : 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+                }
               >
-                ● {liveFromApi ? 'API BANK' : quiz.status}
-              </span>
+                <span
+                  className={cn(
+                    'mr-1.5 inline-block h-1.5 w-1.5 rounded-full',
+                    liveFromApi || quiz.status === 'published' ? 'bg-green-600' : 'bg-gray-400',
+                  )}
+                />
+                {liveFromApi ? 'API bank' : quiz.status}
+              </Badge>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-black">
+            <h1 className="text-lg font-semibold leading-tight">
               {liveFromApi ? 'PB Zone Quiz — Live Questions' : quiz.title}
             </h1>
-            <p className="text-xs text-[#6B6B6B] mt-1 max-w-2xl">
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               {liveFromApi
-                ? `Roz 10:00 AM IST pe naya AI set bank mein add hota hai. Har player ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
+                ? `Roz 10:00 AM IST pe naya ${live.target} AI questions automatically replace hote hain — bank ${live.target} pe hi rehta hai, roz manually trim nahi karna. Har player ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
                 : quiz.description}
             </p>
           </div>
+        </div>
+      </Card>
 
-          <div className="flex items-center gap-3">
-            <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
-              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Questions</div>
-              <div className="font-mono font-bold text-base text-black">
-                {liveFromApi ? `${live.active} active` : `${quiz.questions.length} / 20`}
-              </div>
-            </div>
-            <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
-              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">
-                {liveFromApi ? 'Per Quiz' : 'Pass Mark'}
-              </div>
-              <div className="font-mono font-bold text-base text-black">
-                {liveFromApi ? `${perQuiz} Qs` : `${quiz.passScore} pts`}
-              </div>
-            </div>
-            <div className="text-center p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[5rem]">
-              <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">
-                {liveFromApi ? 'Timer' : 'Plays'}
-              </div>
-              <div className="font-mono font-bold text-base text-black">
-                {liveFromApi ? `${live.settings?.timerSeconds ?? 15}s` : quiz.playsCount}
-              </div>
-            </div>
-            {liveFromApi && (
+      <div className={cn('grid grid-cols-2 gap-2', liveFromApi ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
+        <StatTile
+          title={liveFromApi ? 'Active / Cap' : 'Questions'}
+          value={liveFromApi ? `${live.active} / ${live.target}` : `${quiz.questions.length} / 20`}
+        />
+        <StatTile
+          title={liveFromApi ? 'Per quiz' : 'Pass mark'}
+          value={liveFromApi ? `${perQuiz} Qs` : `${quiz.passScore} pts`}
+        />
+        <StatTile
+          title={liveFromApi ? 'Timer' : 'Plays'}
+          value={liveFromApi ? `${live.settings?.timerSeconds ?? 15}s` : String(quiz.playsCount)}
+        />
+        {liveFromApi && (
+          <StatTile
+            title="Scoring"
+            value={`+${scoringValues.pointsPerCorrect}/+${scoringValues.fastAnswerBonus}/+${scoringValues.completeQuizBonus}`}
+            onClick={() => {
+              setScoringError(null);
+              setScoringOpen(true);
+            }}
+          />
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!liveFromApi && (
+            <button type="button" onClick={handleToggleStatus} className={quiz.status === 'published' ? btnOutline : btnPrimary}>
+              {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
+            </button>
+          )}
+
+          {liveFromApi && (
+            <>
               <button
                 type="button"
-                onClick={() => {
-                  setScoringError(null);
-                  setScoringOpen(true);
-                }}
-                className="text-left p-3 bg-[#F6F6F6] border border-[#E2E2E2] min-w-[7.5rem] hover:border-black"
-                title="Edit scoring points"
-              >
-                <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Scoring</div>
-                <div className="font-mono font-bold text-base text-black">
-                  +{scoringValues.pointsPerCorrect}/+{scoringValues.fastAnswerBonus}/+{scoringValues.completeQuizBonus}
-                </div>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="pt-4 border-t border-[#E2E2E2] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {!liveFromApi && (
-              <button
-                onClick={handleToggleStatus}
-                className={`px-4 py-2 text-xs font-bold transition-all ${
-                  quiz.status === 'published'
-                    ? 'bg-white border border-black text-black hover:bg-[#F6F6F6]'
-                    : 'bg-[#0E8345] text-white hover:bg-[#0b6b37]'
-                }`}
-              >
-                {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
-              </button>
-            )}
-
-            {liveFromApi && (
-              <>
-              <button
                 onClick={() => void live.refresh()}
-                disabled={live.loading || live.refreshingDaily}
-                className="px-4 py-2 text-xs font-bold bg-black text-white hover:bg-[#262626] disabled:opacity-60 flex items-center gap-2"
+                disabled={live.loading || live.refreshingDaily || live.pruning}
+                className={btnPrimary}
               >
-                <RefreshCw className={`h-3 w-3 ${live.loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={cn('h-3.5 w-3.5', live.loading ? 'animate-spin' : '')} />
                 Refresh from API
               </button>
               <button
+                type="button"
                 onClick={() => {
+                  const cap = live.target;
                   const ok = window.confirm(
-                    'Run daily refresh now? This resets usage shuffle and can generate up to 600 new AI questions. It may take several minutes.',
+                    `Run daily refresh now? This generates a fresh set of up to ${cap} AI questions and retires older ones so the live bank stays at ${cap}. It may take several minutes.`,
                   );
                   if (!ok) return;
                   void live.runDailyRefresh();
                 }}
-                disabled={live.loading || live.refreshingDaily}
-                className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] disabled:opacity-60"
+                disabled={live.loading || live.refreshingDaily || live.pruning}
+                className={btnOutline}
               >
                 {live.refreshingDaily ? 'Generating…' : 'Run daily refresh'}
               </button>
+              {live.active > live.target && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const extra = live.active - live.target;
+                    const ok = window.confirm(
+                      `Keep only the latest ${live.target} questions? This will retire ${extra} older stacked questions from new quizzes. Past player sessions stay intact.`,
+                    );
+                    if (!ok) return;
+                    void live.pruneToLatest();
+                  }}
+                  disabled={live.loading || live.refreshingDaily || live.pruning}
+                  className="inline-flex h-8 items-center rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {live.pruning ? 'Trimming…' : `Keep latest ${live.target}`}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   setScoringError(null);
                   setScoringOpen(true);
                 }}
-                className="px-4 py-2 text-xs font-bold bg-white border border-black text-black hover:bg-[#F6F6F6] flex items-center gap-2"
+                className={btnOutline}
               >
                 <Coins className="h-3.5 w-3.5" />
                 Set scoring points
               </button>
-              </>
-            )}
-
-            <button
-              onClick={onOpenSimulator}
-              className="px-4 py-2 text-xs font-semibold bg-black text-white hover:bg-[#262626] transition-all flex items-center gap-2"
-            >
-              <Play className="h-3 w-3 fill-current" />
-              <span>Test Play in Simulator</span>
-            </button>
-
-            <button
-              onClick={handleCopyJSON}
-              className="px-3 py-2 text-xs font-semibold bg-white border border-[#E2E2E2] text-black hover:border-black transition-colors"
-            >
-              {copied ? 'Copied!' : 'Export JSON'}
-            </button>
-          </div>
-
-          {!liveFromApi && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleAddNewQuestion}
-              className="px-3.5 py-2 text-xs font-semibold bg-white border border-[#E2E2E2] hover:border-black text-black transition-all flex items-center gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Add Question</span>
-            </button>
-          </div>
+            </>
           )}
+
+          <button type="button" onClick={handleCopyJSON} className={btnOutline}>
+            {copied ? 'Copied!' : 'Export JSON'}
+          </button>
         </div>
+
+        {!liveFromApi && (
+          <button type="button" onClick={handleAddNewQuestion} className={btnOutline}>
+            <Plus className="h-3.5 w-3.5" />
+            Add Question
+          </button>
+        )}
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#6B6B6B]" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={liveFromApi ? 'Search the full quiz API bank…' : 'Search question text or options...'}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-[#E2E2E2] text-xs text-black placeholder-[#6B6B6B] focus:border-black focus:outline-none"
+            className="h-8 w-full rounded-md border border-input bg-background px-3 pl-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs text-[#6B6B6B]">Filter Difficulty:</span>
-          <div className="flex border border-[#E2E2E2] bg-white text-xs">
-            {['all', 'easy', 'medium', 'hard'].map((diff) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {['all', 'easy', 'medium', 'hard'].map((diff) => {
+            const selected = selectedDifficulty === diff;
+            return (
               <button
                 key={diff}
+                type="button"
                 onClick={() => setSelectedDifficulty(diff)}
-                className={`px-3 py-1 capitalize font-medium transition-all ${
-                  selectedDifficulty === diff
-                    ? 'bg-black text-white font-bold'
-                    : 'text-[#545454] hover:text-black'
-                }`}
+                className={cn(
+                  'inline-flex h-8 items-center rounded-md px-2.5 text-sm capitalize',
+                  selected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-input bg-background text-foreground hover:bg-accent',
+                )}
               >
                 {diff}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Note on individual swap */}
-      <div className="flex items-center justify-between text-xs text-[#6B6B6B] px-1">
+      <div className="flex flex-col gap-1 px-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>
-          Showing {filteredQuestions.length} of {sourceQuestions.length}
+          Showing {showingFrom}–{showingTo} of {filteredQuestions.length}
           {liveFromApi ? ` loaded · bank ${live.active || live.total}` : ' questions'}
+          {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ''}
         </span>
-        <span className="text-black font-semibold">
+        <span>
           {liveFromApi
-            ? 'Delete a question to soft-remove it from new quizzes. Options are shuffled per player.'
-            : '💡 Click "Swap Q#" on any question (e.g. Question #3) to regenerate it with AI'}
+            ? 'Older questions are retired when a new daily set lands. Delete one to soft-remove it from new quizzes.'
+            : 'Click "Swap Q#" on any question to regenerate it with AI'}
         </span>
       </div>
+
+      {liveFromApi && live.active > live.target && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Question bank is stacking</p>
+            <p className="mt-0.5">
+              {live.active} active questions are live, but only the latest {live.target} should stay.
+              Click Keep latest {live.target} to retire the older set, or run daily refresh to replace the bank.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {liveFromApi && live.status && !live.error && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-800">
+          {live.status}
+        </div>
+      )}
 
       {liveFromApi && live.error && (
-        <div className="flex items-start gap-3 p-4 border border-[#C62828] bg-[#FFF5F5] text-xs text-[#C62828]">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <div className="font-bold">Could not load live quiz questions</div>
-            <p className="mt-1 text-[#7F1D1D]">{live.error}</p>
+            <p className="font-medium">Could not load live quiz questions</p>
+            <p className="mt-0.5">{live.error}</p>
           </div>
         </div>
       )}
 
-      {liveFromApi && live.loading && (
-        <div className="bg-white border border-[#E2E2E2] p-8 text-center text-xs text-[#6B6B6B]">
-          Loading questions from the PB Zone quiz API…
-        </div>
+      {liveFromApi && (live.loading || live.pruning || live.refreshingDaily) && (
+        <Card className="shadow-none">
+          <p className="p-6 text-center text-sm text-muted-foreground">
+            {live.pruning
+              ? `Retiring older questions so the live bank stays at ${live.target}…`
+              : live.refreshingDaily
+                ? 'Generating the daily question set…'
+                : 'Loading questions from the PB Zone quiz API…'}
+          </p>
+        </Card>
       )}
 
-      {/* Question Cards List */}
-      <div className="space-y-4">
-        {filteredQuestions.map((q, idx) => (
-          <QuestionCard
-            key={q.id}
-            question={q}
-            index={idx}
-            totalQuestions={sourceQuestions.length}
-            readOnly={liveFromApi}
-            allowDelete={liveFromApi}
-            deleting={liveFromApi && live.deletingId === q.id}
-            onRegenerate={(question) => setRegenTarget(question)}
-            onEdit={(question) => setEditTarget(question)}
-            onDelete={(id) => void handleDeleteQuestion(id)}
-            onMoveUp={handleMoveUp}
-            onMoveDown={handleMoveDown}
-          />
-        ))}
+      <div className="space-y-2">
+        {pagedQuestions.map((q, idx) => {
+          const listIndex = liveFromApi
+            ? pageStart + idx
+            : quiz.questions.findIndex((item) => item.id === q.id);
+          return (
+            <QuestionCard
+              key={q.id}
+              question={q}
+              index={listIndex < 0 ? pageStart + idx : listIndex}
+              totalQuestions={sourceQuestions.length}
+              readOnly={liveFromApi}
+              allowDelete={liveFromApi}
+              deleting={liveFromApi && live.deletingId === q.id}
+              onRegenerate={(question) => setRegenTarget(question)}
+              onEdit={(question) => setEditTarget(question)}
+              onDelete={(id) => void handleDeleteQuestion(id)}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+            />
+          );
+        })}
         {liveFromApi && !live.loading && !live.error && filteredQuestions.length === 0 && (
-          <div className="bg-white border border-[#E2E2E2] p-8 text-center text-xs text-[#6B6B6B]">
-            Question bank is empty, or list API is not deployed yet. Seed / daily-refresh the quiz API, then refresh.
-          </div>
+          <Card className="shadow-none">
+            <p className="p-6 text-center text-sm text-muted-foreground">
+              Question bank is empty, or list API is not deployed yet. Seed / daily-refresh the quiz API, then refresh.
+            </p>
+          </Card>
         )}
       </div>
+
+      {filteredQuestions.length > 0 && (
+        <Card className="shadow-none">
+          <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">{PAGE_SIZE} questions per page</p>
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className={btnOutline}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Prev
+              </button>
+              {pageItems(currentPage, totalPages).map((item, idx) =>
+                item === 'ellipsis' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => goToPage(item)}
+                    className={cn(
+                      'h-8 min-w-8 rounded-md px-2 text-sm',
+                      item === currentPage
+                        ? 'bg-primary font-medium text-primary-foreground'
+                        : 'border border-input bg-background hover:bg-accent',
+                    )}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className={btnOutline}
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Single Question Swap Modal */}
       {regenTarget && (

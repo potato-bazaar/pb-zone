@@ -3,7 +3,6 @@ import { Quiz, QuizQuestion } from '../../types/quiz';
 import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
 import { 
   Radio, 
-  Play, 
   Sparkles, 
   ArrowRight,
   RefreshCw,
@@ -14,7 +13,6 @@ import {
 interface ActiveQuizViewProps {
   quiz: Quiz;
   onNavigateToManage: () => void;
-  onOpenSimulator: () => void;
   onRegenerateQuestion: (q: QuizQuestion) => void;
   onTogglePublish: () => void;
   liveFromApi?: boolean;
@@ -23,7 +21,6 @@ interface ActiveQuizViewProps {
 export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
   quiz,
   onNavigateToManage,
-  onOpenSimulator,
   onRegenerateQuestion,
   onTogglePublish,
   liveFromApi = false,
@@ -61,7 +58,7 @@ export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
           </h1>
             <p className="text-xs text-[#6B6B6B] mt-0.5 max-w-2xl">
             {liveFromApi
-              ? `Roz 10:00 AM IST AI bank refresh. Har user ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
+              ? `Roz 10:00 AM IST pe naya ${live.target} AI set automatically replace hota hai. Har user ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
               : quiz.description}
             </p>
         </div>
@@ -77,14 +74,6 @@ export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
               Refresh
             </button>
           )}
-
-          <button
-            onClick={onOpenSimulator}
-            className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-xs font-bold hover:bg-[#262626] transition-all"
-          >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            <span>Play Test Simulator</span>
-          </button>
 
           {!liveFromApi && (
           <button
