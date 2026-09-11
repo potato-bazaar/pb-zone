@@ -12,18 +12,6 @@ interface AnalyticsDashboardProps {
   liveFromApi?: boolean;
 }
 
-function statusLabel(status: string) {
-  if (status === 'completed') return 'Winner';
-  if (status === 'active') return 'Playing';
-  return status || '—';
-}
-
-function statusClass(status: string) {
-  if (status === 'completed') return 'bg-[#EBF7EE] text-[#0E8345]';
-  if (status === 'active') return 'bg-[#FFF6E5] text-[#B45309]';
-  return 'bg-[#EEEEEE] text-[#545454]';
-}
-
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   quiz,
   analytics,
@@ -262,7 +250,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </h3>
             <p className="text-xs text-[#6B6B6B]">
               {liveFromApi
-                ? 'Live players ranked by total points. Correct, skipped, wrong, score and points for the latest session.'
+                ? 'Live players ranked by total points. Correct, skipped, wrong, score, and points for the latest session.'
                 : `Players who reached or exceeded the ${quiz.passScore}/20 pass threshold.`}
             </p>
           </div>
@@ -285,7 +273,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <tr>
                   <th className="py-3 px-4">#</th>
                   <th className="py-3 px-4">Player</th>
-                  <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Correct</th>
                   <th className="py-3 px-4">Skipped</th>
                   <th className="py-3 px-4">Wrong</th>
@@ -296,7 +283,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <tbody className="divide-y divide-[#E2E2E2]">
                 {players.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 px-4 text-center text-[#6B6B6B]">
+                    <td colSpan={7} className="py-8 px-4 text-center text-[#6B6B6B]">
                       {live.loading ? 'Loading live players…' : 'No players have started Quiz Time yet.'}
                     </td>
                   </tr>
@@ -305,11 +292,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <tr key={player.userId} className="hover:bg-[#FAFAFA]">
                       <td className="py-3 px-4 font-mono font-bold text-black">{player.rank}</td>
                       <td className="py-3 px-4 font-semibold text-black">{player.playerName}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase ${statusClass(player.status)}`}>
-                          {statusLabel(player.status)}
-                        </span>
-                      </td>
                       <td className="py-3 px-4 font-mono font-bold text-black">
                         {player.correctCount}/{player.totalQuestions}
                       </td>

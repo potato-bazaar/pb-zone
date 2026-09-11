@@ -319,7 +319,11 @@ export async function fetchQuizScoring(): Promise<QuizScoringConfig> {
 export function startQuizSession(auth: QuizAuth) {
   return quizFetch<Record<string, unknown>>("/sessions", auth, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      name: auth.userName,
+      userName: auth.userName,
+      userId: auth.userId,
+    }),
   }).then((raw) => {
     const user = (raw.user as {
       name?: string;

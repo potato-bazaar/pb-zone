@@ -15,7 +15,7 @@ interface GameConfigPreviewModalProps {
 
 /**
  * Player-facing preview of a configuration: playable wheel, level boards, run tracks.
- * Opened from the "Play Simulator" button for non-quiz games.
+ * Opened from the Preview button for non-quiz games.
  */
 export const GameConfigPreviewModal: React.FC<GameConfigPreviewModalProps> = ({ config, game, isOpen, onClose }) => {
   const [selected, setSelected] = useState(0);

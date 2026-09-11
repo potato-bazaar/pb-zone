@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    appType: 'spa',
     base: '/admin/',
     define: {
       "import.meta.env.VITE_QUIZ_API_BASE_URL": JSON.stringify(apiBase),

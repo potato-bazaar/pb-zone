@@ -2,6 +2,7 @@ import { createHmac } from "crypto";
 import http from "http";
 import https from "https";
 import { NextRequest, NextResponse } from "next/server";
+import { identityFromJwt } from "@/lib/playerIdentity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,12 +51,15 @@ function resolveAuthHeaders(request: NextRequest): Headers {
     headers.set("authorization", incomingAuth);
   }
 
+  const jwtIdentity = identityFromJwt(incomingAuth);
   const userId =
     request.headers.get("x-user-id") ||
+    jwtIdentity.userId ||
     process.env.NEXT_PUBLIC_QUIZ_DEV_USER_ID ||
     process.env.QUIZ_DEV_USER_ID ||
     "dev-user-1";
   const userName =
+    jwtIdentity.userName ||
     request.headers.get("x-user-name") ||
     process.env.NEXT_PUBLIC_QUIZ_DEV_USER_NAME ||
     process.env.QUIZ_DEV_USER_NAME ||

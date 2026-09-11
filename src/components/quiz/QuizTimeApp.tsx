@@ -13,6 +13,8 @@ import {
   type QuizSessionStartData,
 } from "@/lib/quizApi";
 import { startLiveMirror } from "@/lib/quizLiveMirror";
+import { identityFromJwt, isPlaceholderDisplayName } from "@/lib/playerIdentity";
+import { fetchUserProfile } from "@/lib/pbZoneAuth";
 
 type Phase = "howto" | "play";
 
@@ -37,6 +39,7 @@ export function QuizTimeApp() {
     }),
     [session.token, session.userId, session.userName],
   );
+  const [playAuth, setPlayAuth] = useState(auth);
 
   async function beginQuiz() {
     if (starting) return;
@@ -44,9 +47,25 @@ export function QuizTimeApp() {
     setStartError(null);
 
     try {
-      const data = await startQuizSession(auth);
+      let userName =
+        identityFromJwt(session.token).userName || session.userName;
+      if (session.token) {
+        const profile = await fetchUserProfile(session.token);
+        if (profile?.userName && !isPlaceholderDisplayName(profile.userName)) {
+          userName = profile.userName;
+        }
+      }
+
+      const authWithName = {
+        ...auth,
+        userName,
+        userId: session.userId || identityFromJwt(session.token).userId || auth.userId,
+      };
+      setPlayAuth(authWithName);
+
+      const data = await startQuizSession(authWithName);
       startLiveMirror({
-        userId: auth.userId || "dev-user-1",
+        userId: authWithName.userId || "dev-user-1",
         sessionId: data.sessionId,
         question: data.question,
       });
@@ -97,7 +116,7 @@ export function QuizTimeApp() {
   return (
     <QuizPlayScreen
       key={runId}
-      auth={auth}
+      auth={playAuth}
       initialSession={quizSession}
       onExit={() => router.push("/games")}
       onHome={() => router.push("/home")}

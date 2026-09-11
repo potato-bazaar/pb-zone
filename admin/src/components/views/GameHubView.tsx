@@ -1,12 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ChevronDown,
+  Disc3,
+  HelpCircle,
+  Image as ImageIcon,
+  LayoutGrid,
+  MoreHorizontal,
+  Plus,
+  Type,
+  Zap,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Game, GameFormat } from '../../types/quiz';
-import { CONFIG_LABELS, FORMAT_LABELS, getGameKind, isConfigKind } from '../../types/gameConfig';
+import { FORMAT_LABELS } from '../../types/gameConfig';
 import { GAME_IMAGE_LIBRARY } from '../../data/gameConfigCatalog';
-import { Plus, ArrowRight } from 'lucide-react';
+import { fetchQuizPlayStats, fetchQuizTelemetry } from '../../services/quizBankApi';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { cn, formatNumber } from '../../lib/utils';
 
 interface GameHubViewProps {
   games: Game[];
   activeGameId: string;
+  searchQuery?: string;
   onSelectGame: (gameId: string) => void;
   onCreateGame: (newGame: Game) => void;
   getQuizCountForGame: (gameId: string) => number;
@@ -24,16 +40,71 @@ const FORMAT_OPTIONS: GameFormat[] = [
   'potato-rush',
 ];
 
+const TYPE_META: Record<GameFormat, { label: string; icon: LucideIcon }> = {
+  'word-scramble': { label: 'Word Game', icon: Type },
+  'pb-quiz': { label: 'Quiz', icon: HelpCircle },
+  'trivia-20q': { label: 'Quiz', icon: HelpCircle },
+  'picture-guess': { label: 'Picture Game', icon: ImageIcon },
+  'potato-crush': { label: 'Match Game', icon: LayoutGrid },
+  'spin-wheel': { label: 'Lucky Spin', icon: Disc3 },
+  'potato-rush': { label: 'Endless Runner', icon: Zap },
+};
+
+const COVER_BY_FORMAT: Partial<Record<GameFormat, string>> = {
+  'word-scramble': '/images/home/game-word-scramble.png',
+  'pb-quiz': '/images/home/game-quiz-time.png',
+  'trivia-20q': '/images/home/game-quiz-time.png',
+  'picture-guess': '/images/home/game-guess-disease.png',
+  'potato-crush': '/images/home/game-tater-match.png',
+  'potato-rush': '/images/home/game-fix-puzzle.png',
+};
+
+type StatusFilter = 'all' | 'active' | 'draft' | 'paused';
+type SortMode = 'latest' | 'oldest' | 'plays' | 'name';
+
+function statusOf(game: Game): Exclude<StatusFilter, 'all'> {
+  if (game.status === 'active') return 'active';
+  if (game.status === 'maintenance') return 'paused';
+  return 'draft';
+}
+
+function statusStyle(status: Exclude<StatusFilter, 'all'>) {
+  if (status === 'active') {
+    return {
+      label: 'Active',
+      badge: 'bg-green-100 text-green-800 hover:bg-green-100 hover:text-green-800',
+      dot: 'bg-green-600',
+    };
+  }
+  if (status === 'paused') {
+    return {
+      label: 'Paused',
+      badge: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 hover:text-yellow-800',
+      dot: 'bg-yellow-500',
+    };
+  }
+  return {
+    label: 'Draft',
+    badge: 'bg-gray-100 text-gray-800 hover:bg-gray-100 hover:text-gray-800',
+    dot: 'bg-gray-400',
+  };
+}
+
 export const GameHubView: React.FC<GameHubViewProps> = ({
   games,
-  activeGameId,
   onSelectGame,
   onCreateGame,
-  getQuizCountForGame,
-  getRotationCountForGame,
-  getConfigCountForGame,
+  searchQuery = '',
 }) => {
   const [isCreating, setIsCreating] = useState(false);
+  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [sort, setSort] = useState<SortMode>('latest');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [quizPlayers, setQuizPlayers] = useState(0);
+  const [quizPlays, setQuizPlays] = useState(0);
+  const [quizWinners, setQuizWinners] = useState(0);
+
   const [newName, setNewName] = useState('');
   const [newTagline, setNewTagline] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -42,265 +113,308 @@ export const GameHubView: React.FC<GameHubViewProps> = ({
   const [newImageUrl, setNewImageUrl] = useState('/games/spud-trivia.jpg');
   const [newReward, setNewReward] = useState('Exclusive Discount Voucher');
 
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      fetchQuizPlayStats().catch(() => null),
+      fetchQuizTelemetry().catch(() => null),
+    ]).then(([play, live]) => {
+      if (cancelled) return;
+      setQuizPlayers(live?.playerCount ?? play?.playerCount ?? 0);
+      setQuizPlays(live?.sessionCount ?? play?.sessionCount ?? 0);
+      setQuizWinners(live?.winnersCount ?? play?.winnersCount ?? 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const counts = useMemo(
+    () => ({
+      all: games.length,
+      active: games.filter((g) => statusOf(g) === 'active').length,
+      draft: games.filter((g) => statusOf(g) === 'draft').length,
+      paused: games.filter((g) => statusOf(g) === 'paused').length,
+    }),
+    [games],
+  );
+
+  const visibleGames = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const rows = games.filter((game) => {
+      if (filter !== 'all' && statusOf(game) !== filter) return false;
+      if (!q) return true;
+      const type = TYPE_META[game.format]?.label || '';
+      return (
+        game.name.toLowerCase().includes(q) ||
+        game.description.toLowerCase().includes(q) ||
+        type.toLowerCase().includes(q)
+      );
+    });
+    rows.sort((a, b) => {
+      if (sort === 'name') return a.name.localeCompare(b.name);
+      if (sort === 'plays') return b.totalPlays - a.totalPlays;
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return sort === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+    return rows;
+  }, [filter, games, searchQuery, sort]);
+
+  const statsFor = (game: Game) => {
+    if (game.format === 'pb-quiz') {
+      return {
+        plays: quizPlays || game.totalPlays,
+        uniquePlayers: quizPlayers,
+        rewardsClaimed: quizWinners || game.totalWinners,
+      };
+    }
+    return {
+      plays: game.totalPlays,
+      uniquePlayers: game.totalPlays,
+      rewardsClaimed: game.totalWinners,
+    };
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
     const gameId = `game-${Date.now()}`;
-    const slug = newName.toLowerCase().replace(/\s+/g, '-');
-    const newGame: Game = {
+    onCreateGame({
       id: gameId,
       name: newName,
-      slug,
+      slug: newName.toLowerCase().replace(/\s+/g, '-'),
       tagline: newTagline || 'Custom Game Mode',
-      description: newDescription || 'Interactive AI game experience.',
+      description: newDescription || 'Interactive game experience.',
       format: newFormat,
       icon: newIcon || '🎮',
       imageUrl: newImageUrl || '/games/spud-trivia.jpg',
-      status: 'active',
+      status: 'draft',
       isConfigured: true,
       activeQuizId: '',
       totalPlays: 0,
       totalWinners: 0,
       rewardType: newReward,
       createdAt: new Date().toISOString(),
-    };
-
-    onCreateGame(newGame);
+    });
     setIsCreating(false);
+    setNewName('');
+    setNewTagline('');
+    setNewDescription('');
   };
 
-  const contentNoun = (game: Game, count: number) => {
-    const kind = getGameKind(game.format);
-    if (!isConfigKind(kind)) return `${count} Deck${count === 1 ? '' : 's'} Configured`;
-    const labels = CONFIG_LABELS[kind];
-    return `${count} ${count === 1 ? labels.pack : labels.packs} Configured`;
-  };
+  const filters: { id: StatusFilter; label: string; dot?: string }[] = [
+    { id: 'all', label: 'All Games' },
+    { id: 'active', label: 'Active', dot: 'bg-green-600' },
+    { id: 'draft', label: 'Draft', dot: 'bg-gray-400' },
+    { id: 'paused', label: 'Paused', dot: 'bg-yellow-500' },
+  ];
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Page Header */}
-      <div className="border-b border-[#E2E2E2] pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-black text-white text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 font-mono">
-              PB Zone Gaming Network
-            </span>
-            <span className="text-xs text-[#6B6B6B]">Multi-Game Architecture</span>
-          </div>
-          <h1 className="text-3xl font-black tracking-tight text-black">Game Selection Directory</h1>
-          <p className="text-xs text-[#6B6B6B] mt-1 max-w-2xl leading-relaxed">
-            Select the game you want to manage. Quiz games run on AI-generated decks; <strong>Potato Crush</strong>,{' '}
-            <strong>Spin the Potato</strong> and <strong>Potato Rush</strong> run on AI-designed level packs, prize wheels and run
-            packs that you tune by hand.
+          <h1 className="text-lg font-semibold">Games</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage and control all your PB Zone games. Create new games, edit existing ones and track performance.
           </p>
         </div>
-
         <button
+          type="button"
           onClick={() => setIsCreating(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-black text-white text-xs font-bold hover:bg-[#262626] transition-all self-start md:self-auto"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          <span>Create New Game</span>
+          Create New Game
         </button>
       </div>
 
-      {/* Grid of game cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {games.map((game) => {
-          const isCurrentActive = game.id === activeGameId;
-          const kind = getGameKind(game.format);
-          const contentCount = isConfigKind(kind) ? getConfigCountForGame(game.id) : getQuizCountForGame(game.id);
-          const poolCount = getRotationCountForGame(game.id);
-          const isConfigured = game.isConfigured !== false && contentCount > 0;
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map((item) => {
+            const selected = filter === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm',
+                  selected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-input bg-background text-foreground hover:bg-accent',
+                )}
+              >
+                {item.dot && <span className={cn('h-1.5 w-1.5 rounded-full', selected ? 'bg-primary-foreground' : item.dot)} />}
+                {item.label}
+                <span className={cn('text-xs', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                  {counts[item.id]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          return (
-            <div
-              key={game.id}
-              className={`group bg-white border transition-all flex flex-col justify-between ${
-                isCurrentActive ? 'border-black ring-2 ring-black shadow-lg' : 'border-[#E2E2E2] hover:border-black hover:shadow-md'
-              }`}
-            >
-              <div>
-                <div className="relative aspect-video w-full overflow-hidden bg-black border-b border-[#E2E2E2]">
-                  <img
-                    src={game.imageUrl}
-                    alt={game.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2">
-                    <span className="bg-black/90 text-white font-mono text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider backdrop-blur-sm">
-                      {FORMAT_LABELS[game.format] || 'Game Engine'}
-                    </span>
-                    {isCurrentActive && (
-                      <span className="bg-[#0E8345] text-white font-mono text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
-                        ● CURRENT ACTIVE
-                      </span>
-                    )}
-                    {!isConfigured && (
-                      <span className="bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] font-mono text-[10px] font-black px-2 py-0.5 uppercase tracking-wider">
-                        NOT CONFIGURED YET
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute bottom-3 right-3 bg-black/90 text-white text-xs px-2.5 py-1 font-mono font-bold backdrop-blur-sm">
-                    {isConfigured ? `${poolCount} in Player Pool` : 'Config: Empty'}
-                  </div>
-                </div>
-
-                <div className="p-6 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl">{game.icon}</span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-black group-hover:underline">{game.name}</h3>
-                        {!isConfigured && (
-                          <span className="bg-[#F3F4F6] text-[#4B5563] text-[9px] font-mono font-bold px-1.5 py-0.5 uppercase">
-                            Needs Setup
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs font-semibold text-[#545454]">{game.tagline}</p>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-[#6B6B6B] leading-relaxed line-clamp-2">{game.description}</p>
-
-                  <div className="pt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="px-2.5 py-1 bg-[#F6F6F6] border border-[#E2E2E2] text-[#333333] font-medium">
-                      🏆 <strong>Reward:</strong> {game.rewardType}
-                    </span>
-                    {isConfigured ? (
-                      <>
-                        <span className="px-2.5 py-1 bg-[#F6F6F6] border border-[#E2E2E2] text-[#333333] font-mono">
-                          🎮 {game.totalPlays.toLocaleString()} Plays
-                        </span>
-                        <span className="px-2.5 py-1 bg-[#F6F6F6] border border-[#E2E2E2] text-[#333333] font-mono">
-                          {isConfigKind(kind) ? CONFIG_LABELS[kind].emoji : '📚'} {contentNoun(game, contentCount)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="px-2.5 py-1 bg-[#FFFBEB] border border-[#FDE68A] text-[#92400E] font-bold">
-                        ⚡ Generate the first {isConfigKind(kind) ? CONFIG_LABELS[kind].pack.toLowerCase() : 'deck'} with AI
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 pt-0">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setSortOpen((open) => !open)}
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm hover:bg-accent"
+          >
+            Sort by: {sort === 'latest' ? 'Latest' : sort === 'oldest' ? 'Oldest' : sort === 'plays' ? 'Plays' : 'Name'}
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </button>
+          {sortOpen && (
+            <div className="absolute right-0 z-20 mt-1 w-40 rounded-md border bg-popover p-1 shadow-md">
+              {(['latest', 'oldest', 'plays', 'name'] as SortMode[]).map((mode) => (
                 <button
-                  onClick={() => onSelectGame(game.id)}
-                  className={`w-full py-3 px-4 text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                    isCurrentActive
-                      ? 'bg-black text-white hover:bg-[#262626]'
-                      : 'bg-white border border-black text-black hover:bg-black hover:text-white'
-                  }`}
+                  key={mode}
+                  type="button"
+                  className="w-full rounded-sm px-3 py-1.5 text-left text-sm capitalize hover:bg-accent"
+                  onClick={() => {
+                    setSort(mode);
+                    setSortOpen(false);
+                  }}
                 >
-                  <span>
-                    {isConfigured
-                      ? isCurrentActive
-                        ? 'Manage Game Flow & Content'
-                        : 'Select & Manage Game'
-                      : isCurrentActive
-                      ? 'Open Setup'
-                      : 'Select & Configure'}
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  {mode === 'plays' ? 'Most plays' : mode}
                 </button>
-              </div>
+              ))}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
-      {/* Create New Game Modal */}
+      {visibleGames.length === 0 ? (
+        <Card className="shadow-none">
+          <p className="p-6 text-center text-sm text-muted-foreground">No games found</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          {visibleGames.map((game) => {
+            const type = TYPE_META[game.format];
+            const TypeIcon = type.icon;
+            const status = statusOf(game);
+            const look = statusStyle(status);
+            const stats = statsFor(game);
+            const cover = COVER_BY_FORMAT[game.format] || game.imageUrl;
+
+            return (
+              <Card key={game.id} className="shadow-none">
+                <div className="flex gap-3 p-3">
+                  <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-md bg-muted">
+                    <img
+                      src={cover}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (img.src !== game.imageUrl && game.imageUrl) {
+                          img.src = game.imageUrl;
+                          return;
+                        }
+                        img.style.display = 'none';
+                      }}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h2 className="truncate text-sm font-semibold">{game.name}</h2>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <TypeIcon className="h-3.5 w-3.5" />
+                          {type.label}
+                        </p>
+                      </div>
+                      <Badge className={look.badge}>
+                        <span className={cn('mr-1.5 inline-block h-1.5 w-1.5 rounded-full', look.dot)} />
+                        {look.label}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <div>
+                        <span className="font-semibold tabular-nums">{formatNumber(stats.plays)}</span>
+                        <span className="ml-1 text-muted-foreground">Plays</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold tabular-nums">{formatNumber(stats.uniquePlayers)}</span>
+                        <span className="ml-1 text-muted-foreground">Unique Players</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold tabular-nums">{formatNumber(stats.rewardsClaimed)}</span>
+                        <span className="ml-1 text-muted-foreground">Rewards Claimed</span>
+                      </div>
+                    </div>
+
+                    <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{game.description}</p>
+
+                    <div className="mt-2 flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onSelectGame(game.id)}
+                        className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-sm hover:bg-accent"
+                      >
+                        Manage
+                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setMenuId((id) => (id === game.id ? null : game.id))}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                          aria-label={`More actions for ${game.name}`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                        {menuId === game.id && (
+                          <div className="absolute right-0 z-20 mt-1 w-36 rounded-md border bg-popover p-1 shadow-md">
+                            <button
+                              type="button"
+                              className="w-full rounded-sm px-3 py-1.5 text-left text-sm hover:bg-accent"
+                              onClick={() => {
+                                setMenuId(null);
+                                onSelectGame(game.id);
+                              }}
+                            >
+                              Manage
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       {isCreating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-white border border-black p-6 sm:p-8 shadow-2xl space-y-5 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E2E2E2]">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B]">Game Architect</span>
-                <h2 className="text-xl font-bold text-black">Create New Game Experience</h2>
-              </div>
-              <button onClick={() => setIsCreating(false)} className="text-xs text-[#6B6B6B] hover:text-black font-semibold">
-                ✕ Close
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border bg-background p-6 shadow-lg">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Create New Game</h2>
+              <p className="text-sm text-muted-foreground">Add a game to the PB Zone catalog.</p>
             </div>
-
             <form onSubmit={handleCreateSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="sm:col-span-3">
-                  <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Game Name</label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Sweet Potato Botanical Quest"
-                    className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Emoji Icon</label>
-                  <select
-                    value={newIcon}
-                    onChange={(e) => setNewIcon(e.target.value)}
-                    className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
-                  >
-                    <option value="🥔">🥔 Potato</option>
-                    <option value="🍟">🍟 Fries</option>
-                    <option value="🔥">🔥 Streak</option>
-                    <option value="👨‍🍳">👨‍🍳 Chef</option>
-                    <option value="🏆">🏆 Trophy</option>
-                    <option value="⚡">⚡ Blitz</option>
-                    <option value="🧩">🧩 Puzzle</option>
-                    <option value="🎡">🎡 Wheel</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Tagline / Hook</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Game Name</label>
                 <input
-                  type="text"
-                  value={newTagline}
-                  onChange={(e) => setNewTagline(e.target.value)}
-                  placeholder="e.g. 20 Botanical Questions with Nightshade Facts"
-                  className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  required
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Select Game Artwork Banner</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {GAME_IMAGE_LIBRARY.map((img) => (
-                    <button
-                      key={img.url}
-                      type="button"
-                      onClick={() => setNewImageUrl(img.url)}
-                      className={`relative aspect-video border overflow-hidden p-0.5 ${
-                        newImageUrl === img.url ? 'border-black ring-2 ring-black' : 'border-[#E2E2E2]'
-                      }`}
-                    >
-                      <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                      <span className="absolute bottom-1 left-1 bg-black/80 text-white text-[9px] px-1 font-mono">{img.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Game Format</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Format</label>
                   <select
                     value={newFormat}
                     onChange={(e) => setNewFormat(e.target.value as GameFormat)}
-                    className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     {FORMAT_OPTIONS.map((f) => (
                       <option key={f} value={f}>
@@ -308,39 +422,78 @@ export const GameHubView: React.FC<GameHubViewProps> = ({
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-[#6B6B6B] mt-1">
-                    The format decides which AI configuration engine the game uses.
-                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Prize / Reward Voucher</label>
-                  <input
-                    type="text"
-                    value={newReward}
-                    onChange={(e) => setNewReward(e.target.value)}
-                    placeholder="e.g. Free Loaded Fries Voucher"
-                    className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
-                  />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Icon</label>
+                  <select
+                    value={newIcon}
+                    onChange={(e) => setNewIcon(e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="🥔">🥔</option>
+                    <option value="🏆">🏆</option>
+                    <option value="🧩">🧩</option>
+                    <option value="🎡">🎡</option>
+                    <option value="⚡">⚡</option>
+                  </select>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#333333] mb-1">Game Description</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tagline</label>
+                <input
+                  value={newTagline}
+                  onChange={(e) => setNewTagline(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Artwork</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {GAME_IMAGE_LIBRARY.map((img) => (
+                    <button
+                      key={img.url}
+                      type="button"
+                      onClick={() => setNewImageUrl(img.url)}
+                      className={cn(
+                        'aspect-video overflow-hidden rounded-md border',
+                        newImageUrl === img.url ? 'border-foreground ring-1 ring-ring' : 'border-input',
+                      )}
+                    >
+                      <img src={img.url} alt={img.label} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
                 <textarea
                   rows={2}
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Explain the rules and how players qualify for rewards..."
-                  className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
+                  className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#E2E2E2]">
-                <button type="button" onClick={() => setIsCreating(false)} className="px-4 py-2 text-xs font-semibold text-[#6B6B6B] hover:text-black">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reward</label>
+                <input
+                  value={newReward}
+                  onChange={(e) => setNewReward(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="inline-flex h-10 items-center rounded-md border border-input px-4 text-sm hover:bg-accent"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="px-6 py-2.5 bg-black text-white text-xs font-bold hover:bg-[#262626]">
-                  Create Game & Launch Studio
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Create Game
                 </button>
               </div>
             </form>

@@ -1,13 +1,20 @@
 import { createHmac } from "crypto";
 import http from "http";
 import https from "https";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { enforceQuestionBankCap } from "@/lib/quizQuestionBankCap";
 import {
   getLiveQuizMirror,
   recordLiveQuizAnswer,
   recordLiveQuizStart,
 } from "@/lib/quizLiveMirrorStore";
 import { asMirrorQuestion } from "@/lib/quizLiveMirror";
+import {
+  identityFromJwt,
+  isPlaceholderDisplayName,
+} from "@/lib/playerIdentity";
+import { displayNameFromPotatoBazaar } from "@/lib/pbUserProfile";
+import { rememberPlayerName } from "@/lib/playerNameStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,8 +46,10 @@ function signDevBearerToken(userId: string, userName: string) {
       sub: userId,
       id: userId,
       userId,
+      user_id: userId,
       name: userName,
       fullName: userName,
+      userName,
       role: "user",
       iat: now,
       exp: now + 60 * 60 * 12,
@@ -51,7 +60,10 @@ function signDevBearerToken(userId: string, userName: string) {
   return `${data}.${signature}`;
 }
 
-function resolveAuthHeaders(request: NextRequest): Headers {
+async function resolveAuthHeaders(
+  request: NextRequest,
+  options?: { resolveName?: boolean },
+): Promise<Headers> {
   const headers = new Headers();
   headers.set("accept", "application/json");
 
@@ -59,39 +71,55 @@ function resolveAuthHeaders(request: NextRequest): Headers {
   if (contentType) headers.set("content-type", contentType);
 
   const incomingAuth = request.headers.get("authorization");
-  if (incomingAuth) {
-    headers.set("authorization", incomingAuth);
-  }
-
+  const jwtIdentity = identityFromJwt(incomingAuth);
+  const headerName = request.headers.get("x-user-name");
   const userId =
     request.headers.get("x-user-id") ||
+    jwtIdentity.userId ||
     process.env.NEXT_PUBLIC_QUIZ_DEV_USER_ID ||
     process.env.QUIZ_DEV_USER_ID ||
     "dev-user-1";
-  const userName =
-    request.headers.get("x-user-name") ||
+  let userName =
+    [jwtIdentity.userName, headerName].find(
+      (name) => name && !isPlaceholderDisplayName(name),
+    ) ||
+    jwtIdentity.userName ||
+    headerName ||
     process.env.NEXT_PUBLIC_QUIZ_DEV_USER_NAME ||
     process.env.QUIZ_DEV_USER_NAME ||
     "Potato Player";
 
-  // Always forward bypass headers (useful when BE AUTH_DEV_BYPASS=true)
+  if (options?.resolveName && incomingAuth) {
+    const fromProfile = await displayNameFromPotatoBazaar(incomingAuth);
+    if (fromProfile && !isPlaceholderDisplayName(fromProfile)) {
+      userName = fromProfile;
+    }
+  }
+
+  rememberPlayerName(userId, userName);
+
   headers.set("x-user-id", userId);
   headers.set("x-user-name", userName);
 
   const adminKey = request.headers.get("x-admin-key");
   if (adminKey) headers.set("x-admin-key", adminKey);
 
-  // If no Bearer token, auto-sign one for local/dev so Start Quiz works
-  const autoToken =
-    process.env.QUIZ_DEV_AUTO_TOKEN !== "false" &&
-    !incomingAuth &&
-    Boolean(process.env.QUIZ_JWT_SECRET || process.env.JWT_SECRET);
+  const canSign = Boolean(process.env.QUIZ_JWT_SECRET || process.env.JWT_SECRET);
+  const signed =
+    canSign && userId && !isPlaceholderDisplayName(userName)
+      ? signDevBearerToken(userId, userName)
+      : null;
 
-  if (autoToken) {
+  if (signed) {
+    headers.set("authorization", `Bearer ${signed}`);
+  } else if (incomingAuth) {
+    headers.set("authorization", incomingAuth);
+  } else if (
+    canSign &&
+    process.env.QUIZ_DEV_AUTO_TOKEN !== "false"
+  ) {
     const token = signDevBearerToken(userId, userName);
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
-    }
+    if (token) headers.set("authorization", `Bearer ${token}`);
   }
 
   return headers;
@@ -234,7 +262,11 @@ async function proxyQuiz(
     target.searchParams.set(key, value);
   });
 
-  const headers = resolveAuthHeaders(request);
+  const resolveName =
+    request.method === "POST" &&
+    segments.length === 1 &&
+    segments[0] === "sessions";
+  const headers = await resolveAuthHeaders(request, { resolveName });
   let body: string | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     const text = await request.text();
@@ -260,6 +292,17 @@ async function proxyQuiz(
         headers.get("x-user-id") || "dev-user-1",
         upstream.body,
       );
+      if (
+        request.method === "POST" &&
+        segments.length === 1 &&
+        segments[0] === "sessions"
+      ) {
+        after(() => {
+          void enforceQuestionBankCap().catch((error) => {
+            console.error("[quiz-bank-cap]", error);
+          });
+        });
+      }
     }
 
     return new NextResponse(upstream.body, {

@@ -28,6 +28,15 @@ export type QuizBankStats = {
   dailyNewCount?: number;
 };
 
+/** Live bank should hold one daily set, not stacked history. */
+export const DEFAULT_QUESTION_BANK_CAP = 600;
+
+export function questionBankCapFromStats(stats?: QuizBankStats | null) {
+  const daily = Number(stats?.dailyNewCount);
+  if (Number.isFinite(daily) && daily > 0 && daily <= 1000) return Math.round(daily);
+  return DEFAULT_QUESTION_BANK_CAP;
+}
+
 export type QuizScoringConfig = {
   pointsPerCorrect: number;
   fastAnswerBonus: number;
@@ -91,6 +100,149 @@ export type QuizTelemetryPlayer = {
   startedAt: string | Date;
   completedAt: string | Date | null;
 };
+
+const PLACEHOLDER_PLAYER_NAMES = new Set([
+  'player',
+  'potato player',
+  'anonymous',
+  'guest',
+  'user',
+  'unknown',
+  'dev-user-1',
+]);
+
+function isPlaceholderPlayerName(name?: string | null) {
+  const trimmed = name?.trim();
+  if (!trimmed) return true;
+  return PLACEHOLDER_PLAYER_NAMES.has(trimmed.toLowerCase());
+}
+
+function pickString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function displayNameFromUnknown(row: Record<string, unknown> | null | undefined): string | undefined {
+  if (!row) return undefined;
+  const nested =
+    row.user && typeof row.user === 'object'
+      ? (row.user as Record<string, unknown>)
+      : null;
+  const first = pickString(row.firstName, row.first_name, nested?.firstName);
+  const last = pickString(row.lastName, row.last_name, nested?.lastName);
+  const combined = `${first ?? ''} ${last ?? ''}`.trim();
+  const candidates = [
+    pickString(row.playerName, row.fullName, row.displayName, row.userName, row.name),
+    pickString(nested?.fullName, nested?.displayName, nested?.userName, nested?.name),
+    combined || undefined,
+  ];
+  for (const name of candidates) {
+    if (name && !isPlaceholderPlayerName(name)) return name;
+  }
+  return candidates.find((name) => Boolean(name));
+}
+
+function normalizeTelemetryPlayer(
+  row: Record<string, unknown>,
+  index: number,
+): QuizTelemetryPlayer {
+  const nested =
+    row.user && typeof row.user === 'object'
+      ? (row.user as Record<string, unknown>)
+      : null;
+  return {
+    rank: Number(row.rank ?? index + 1),
+    userId: String(row.userId ?? nested?.userId ?? row.id ?? ''),
+    sessionId: String(row.sessionId ?? row.id ?? ''),
+    playerName: displayNameFromUnknown(row) || 'Player',
+    status: String(row.status ?? ''),
+    correctCount: Number(row.correctCount ?? 0),
+    skippedCount: Number(row.skippedCount ?? 0),
+    wrongCount: Number(row.wrongCount ?? 0),
+    unansweredCount: Number(row.unansweredCount ?? 0),
+    answeredCount: Number(row.answeredCount ?? 0),
+    totalQuestions: Number(row.totalQuestions ?? 12),
+    sessionScore: Number(row.sessionScore ?? 0),
+    userPoints: Number(row.userPoints ?? 0),
+    percentage: Number(row.percentage ?? 0),
+    durationSeconds: Number(row.durationSeconds ?? 0),
+    startedAt: (row.startedAt as string | Date) ?? '',
+    completedAt: (row.completedAt as string | Date | null) ?? null,
+  };
+}
+
+async function fetchPlayerNameMap(): Promise<Record<string, string>> {
+  if (nameMapCache && Date.now() - nameMapCache.at < 60_000) {
+    return nameMapCache.map;
+  }
+
+  const map: Record<string, string> = {};
+
+  const remember = (userId?: string, name?: string) => {
+    if (!userId || !name || isPlaceholderPlayerName(name)) return;
+    if (!map[userId]) map[userId] = name;
+  };
+
+  try {
+    const plays = await adminFetch<
+      Array<{ userId?: string; userName?: string; name?: string; fullName?: string }>
+    >('/game-plays?limit=200');
+    for (const row of Array.isArray(plays.data) ? plays.data : []) {
+      remember(
+        row.userId ? String(row.userId) : undefined,
+        pickString(row.fullName, row.userName, row.name),
+      );
+    }
+  } catch {
+    // optional enrichment
+  }
+
+  try {
+    const res = await fetch('/api/leaderboard?period=overall&limit=200', {
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = (await res.json()) as {
+        data?: {
+          podium?: Array<{ userId?: string; name?: string }>;
+          rankings?: Array<{ userId?: string; name?: string }>;
+          me?: { userId?: string; name?: string };
+        };
+      };
+      const board = json.data ?? (json as typeof json.data);
+      const rows = [
+        ...(board?.podium ?? []),
+        ...(board?.rankings ?? []),
+        board?.me ? [board.me] : [],
+      ].flat();
+      for (const row of rows) {
+        remember(row.userId, row.name);
+      }
+    }
+  } catch {
+    // optional enrichment
+  }
+
+  nameMapCache = { at: Date.now(), map };
+  return map;
+}
+
+let nameMapCache: { at: number; map: Record<string, string> } | null = null;
+
+function applyNameMap(
+  players: QuizTelemetryPlayer[],
+  names: Record<string, string>,
+) {
+  return players.map((player) => {
+    const mapped = names[player.userId];
+    if (!mapped) return player;
+    if (!isPlaceholderPlayerName(player.playerName)) return player;
+    return { ...player, playerName: mapped };
+  });
+}
 
 export type QuizTelemetry = {
   questionsPerQuiz: number;
@@ -324,8 +476,60 @@ export async function fetchQuizPlayStats(): Promise<QuizPlayStats> {
 }
 
 export async function fetchQuizTelemetry(): Promise<QuizTelemetry> {
-  const payload = await adminFetch<QuizTelemetry>('/quiz-telemetry');
-  const data = payload.data;
+  try {
+    const res = await fetch('/api/quiz-player-telemetry', {
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { data?: QuizTelemetry | Record<string, unknown> };
+      const data = (json.data ?? json) as Record<string, unknown>;
+      const rawPlayers = Array.isArray(data.players)
+        ? (data.players as Record<string, unknown>[])
+        : [];
+      return {
+        questionsPerQuiz: Number(data?.questionsPerQuiz ?? 12),
+        playerCount: Number(data?.playerCount ?? 0),
+        sessionCount: Number(data?.sessionCount ?? 0),
+        completedSessions: Number(data?.completedSessions ?? 0),
+        winnersCount: Number(data?.winnersCount ?? 0),
+        winRatePercentage: Number(data?.winRatePercentage ?? 0),
+        completionRatePercentage: Number(data?.completionRatePercentage ?? 0),
+        averageScore: Number(data?.averageScore ?? 0),
+        averageTimeMinutes: Number(data?.averageTimeMinutes ?? 0),
+        topWinnerName: (data.topWinnerName as string | null) ?? null,
+        topWinnerPoints: Number(data?.topWinnerPoints ?? 0),
+        questionStats: Array.isArray(data?.questionStats)
+          ? (data.questionStats as QuizTelemetry['questionStats'])
+          : [],
+        players: rawPlayers.map((row, index) =>
+          row && typeof row === 'object' && 'playerName' in row && 'userId' in row
+            ? (row as unknown as QuizTelemetryPlayer)
+            : normalizeTelemetryPlayer(row, index),
+        ),
+      };
+    }
+  } catch {
+    // Fall through to the quiz admin API.
+  }
+
+  const payload = await adminFetch<QuizTelemetry | Record<string, unknown>>('/quiz-telemetry');
+  const data = (payload.data ?? {}) as Record<string, unknown>;
+  const rawPlayers = Array.isArray(data.players)
+    ? (data.players as Record<string, unknown>[])
+    : [];
+  const nameMap = await fetchPlayerNameMap();
+  const players = applyNameMap(
+    rawPlayers.map((row, index) => normalizeTelemetryPlayer(row, index)),
+    nameMap,
+  );
+  const topWinnerName =
+    pickString(data.topWinnerName) && !isPlaceholderPlayerName(String(data.topWinnerName))
+      ? String(data.topWinnerName)
+      : players.find((row) => !isPlaceholderPlayerName(row.playerName))?.playerName ??
+        (data.topWinnerName as string | null) ??
+        null;
+
   return {
     questionsPerQuiz: Number(data?.questionsPerQuiz ?? 12),
     playerCount: Number(data?.playerCount ?? 0),
@@ -336,10 +540,12 @@ export async function fetchQuizTelemetry(): Promise<QuizTelemetry> {
     completionRatePercentage: Number(data?.completionRatePercentage ?? 0),
     averageScore: Number(data?.averageScore ?? 0),
     averageTimeMinutes: Number(data?.averageTimeMinutes ?? 0),
-    topWinnerName: data?.topWinnerName ?? null,
+    topWinnerName,
     topWinnerPoints: Number(data?.topWinnerPoints ?? 0),
-    questionStats: Array.isArray(data?.questionStats) ? data.questionStats : [],
-    players: Array.isArray(data?.players) ? data.players : [],
+    questionStats: Array.isArray(data?.questionStats)
+      ? (data.questionStats as QuizTelemetry['questionStats'])
+      : [],
+    players,
   };
 }
 
@@ -359,7 +565,69 @@ export async function deleteBankQuestions(ids: string[]) {
   return payload.data;
 }
 
-export async function runDailyQuestionRefresh(newCount?: number) {
+function createdAtMs(row: QuizBankQuestion) {
+  if (!row.createdAt) return 0;
+  const ms = Date.parse(row.createdAt);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export function selectQuestionsToRetire(questions: QuizBankQuestion[], keep: number) {
+  if (keep <= 0 || questions.length <= keep) return [];
+  const hasDates = questions.some((row) => createdAtMs(row) > 0);
+  const ranked = hasDates
+    ? [...questions].sort((a, b) => {
+        const byDate = createdAtMs(b) - createdAtMs(a);
+        if (byDate !== 0) return byDate;
+        return String(b.id).localeCompare(String(a.id));
+      })
+    : [...questions];
+  const keepRows = hasDates ? ranked.slice(0, keep) : ranked.slice(-keep);
+  const keepIds = new Set(keepRows.map((row) => row.id));
+  return questions.filter((row) => row.id && !keepIds.has(row.id));
+}
+
+export async function pruneQuestionBankToLatest(
+  keep = DEFAULT_QUESTION_BANK_CAP,
+  questions?: QuizBankQuestion[],
+) {
+  const rows = questions ?? (await fetchAllQuestionBank({ isActive: true })).questions;
+  const toRemove = selectQuestionsToRetire(rows, keep);
+  if (toRemove.length === 0) {
+    return { kept: rows.length, pruned: 0, keep };
+  }
+
+  const ids = toRemove.map((row) => row.id);
+  const chunkSize = 80;
+  let pruned = 0;
+
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const result = await deleteBankQuestions(chunk);
+      pruned += Number(result.deleted ?? chunk.length);
+    } catch (err) {
+      if (!(err instanceof QuizBankApiError) || (err.status !== 404 && err.status !== 405)) {
+        throw err;
+      }
+      for (const id of chunk) {
+        await deleteBankQuestion(id);
+        pruned += 1;
+      }
+    }
+  }
+
+  return {
+    kept: Math.max(0, rows.length - toRemove.length),
+    pruned,
+    keep,
+  };
+}
+
+export async function runDailyQuestionRefresh(options?: {
+  newCount?: number;
+  replace?: boolean;
+}) {
+  const newCount = options?.newCount ?? DEFAULT_QUESTION_BANK_CAP;
   const payload = await adminFetch<{
     shuffled: number;
     before: number;
@@ -370,7 +638,11 @@ export async function runDailyQuestionRefresh(newCount?: number) {
     ranAt: string;
   }>('/quiz-question-bank/daily-refresh', {
     method: 'POST',
-    body: JSON.stringify(typeof newCount === 'number' ? { newCount } : {}),
+    body: JSON.stringify({
+      newCount,
+      replace: options?.replace ?? true,
+      keepLatest: newCount,
+    }),
   });
   return payload.data;
 }
