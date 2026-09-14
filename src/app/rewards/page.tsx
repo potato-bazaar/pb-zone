@@ -1,5 +1,5 @@
-import { RewardsPrizesScreen } from "@/components/rewards/RewardsPrizesScreen";
+import { PbRewardsScreen } from "@/components/pb/PbRewardsScreen";
 
 export default function RewardsPage() {
-  return <RewardsPrizesScreen />;
+  return <PbRewardsScreen />;
 }

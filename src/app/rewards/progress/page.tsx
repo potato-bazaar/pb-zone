@@ -1,5 +1,5 @@
-import { RewardsScreen } from "@/components/rewards/RewardsScreen";
+import { redirect } from "next/navigation";
 
 export default function RewardsProgressPage() {
-  return <RewardsScreen />;
+  redirect("/rewards");
 }

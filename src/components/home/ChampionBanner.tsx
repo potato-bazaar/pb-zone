@@ -1,80 +1,77 @@
 import Link from "next/link";
 
+const CONFETTI = ["#FF8A3D", "#F5C518", "#FF6BCB", "#5EEAD4", "#B39DFF", "#4ADE80"];
+
 export function ChampionBanner() {
   return (
-    <section className="relative mb-3 overflow-hidden rounded-[1.35rem] shadow-[0_8px_24px_rgba(27,20,100,0.3)]">
-      {/* Deep blue wavy background like Figma */}
-      <div className="absolute inset-0 bg-[#15206B]" aria-hidden />
-      <div
-        className="absolute inset-0"
-        aria-hidden
-        style={{
-          background: `
-            radial-gradient(ellipse 100% 80% at 100% 0%, rgba(74, 95, 200, 0.55) 0%, transparent 55%),
-            radial-gradient(ellipse 70% 90% at 90% 60%, rgba(58, 78, 180, 0.45) 0%, transparent 50%),
-            radial-gradient(ellipse 60% 50% at 0% 100%, rgba(40, 55, 140, 0.7) 0%, transparent 55%),
-            radial-gradient(ellipse 50% 40% at 20% 20%, rgba(90, 110, 210, 0.25) 0%, transparent 50%),
-            linear-gradient(145deg, #121A5C 0%, #1A2778 42%, #2438A0 100%)
-          `,
-        }}
-      />
-      {/* soft flowing light bands */}
-      <div
-        className="pointer-events-none absolute -right-10 top-[-20%] h-[140%] w-[70%] rotate-[-18deg] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(99,120,220,0.35)_0%,transparent_65%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute bottom-[-30%] left-[-10%] h-[80%] w-[60%] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(50,70,160,0.4)_0%,transparent_70%)]"
-        aria-hidden
-      />
+    <section className="home-banner relative mb-3 overflow-hidden rounded-[1.5rem]">
+      <div className="home-banner-shine" aria-hidden />
 
-      {/* confetti accents on right */}
-      <span className="pointer-events-none absolute right-[38%] top-4 h-1.5 w-2 rotate-45 bg-[#FF8A3D]" aria-hidden />
-      <span className="pointer-events-none absolute right-[28%] top-8 h-1.5 w-1.5 rounded-sm bg-[#F5C518]" aria-hidden />
-      <span className="pointer-events-none absolute bottom-10 right-[42%] h-1.5 w-2 rotate-12 bg-[#FF6BCB]" aria-hidden />
-      <span className="pointer-events-none absolute right-8 top-[42%] h-1 w-2.5 rounded-sm bg-[#5EEAD4]" aria-hidden />
+      {/* Confetti + sparkles */}
+      {CONFETTI.map((c, i) => (
+        <span
+          key={i}
+          className="home-banner-confetti pointer-events-none"
+          style={{
+            backgroundColor: c,
+            left: `${48 + ((i * 9) % 45)}%`,
+            top: `${12 + ((i * 23) % 70)}%`,
+            animationDelay: `${-i * 0.7}s`,
+            transform: `rotate(${i * 37}deg)`,
+          }}
+          aria-hidden
+        />
+      ))}
+      {[
+        [52, 14, 0],
+        [88, 26, 0.6],
+        [70, 82, 1.2],
+        [94, 68, 1.8],
+      ].map(([x, y, d], i) => (
+        <span key={i} className="home-banner-sparkle pointer-events-none text-[14px]" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${d}s` }} aria-hidden>
+          ✦
+        </span>
+      ))}
 
-      <div className="relative z-10 flex min-h-[12.5rem] items-center gap-2 p-5 sm:min-h-[13.5rem] sm:p-6">
+      <span className="pointer-events-none absolute bottom-3 right-3 z-20 text-right font-script text-[11px] leading-tight text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" aria-hidden>
+        Smarter
+        <br />
+        Players
+        <br />
+        Brighter
+        <br />
+        Tomorrows ♥
+      </span>
+
+      <div className="relative z-10 flex min-h-[13.5rem] items-center gap-2 p-5 pr-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-white sm:text-sm">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/85">Play more. Earn more.</p>
+          <h2 className="mt-1 font-display text-[24px] font-extrabold leading-[1.05] text-white">
             Become the
-          </p>
-          <h2 className="font-display text-[1.65rem] font-bold leading-[1.1] text-[#FBD85D] sm:text-[1.85rem]">
-            PB Champion
+            <br />
+            <span className="home-banner-title text-[30px]">PB Champion</span>
           </h2>
-          <p className="mt-1.5 max-w-[12rem] text-[11px] leading-snug text-white/90 sm:max-w-[13.5rem] sm:text-xs">
-            Play games, collect points, climb ranks &amp; win rewards!
+          <p className="mt-2 max-w-[12.5rem] text-[11.5px] leading-snug text-white/90">
+            Play games, collect points, climb ranks &amp; win amazing rewards!
           </p>
 
           <Link
-            href="/leaderboard"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#7B6CF0] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-black/25 transition active:scale-[0.97] sm:text-[13px]"
+            href="/pb"
+            className="home-cta mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 font-display text-[13px] font-extrabold text-white"
           >
             View Leaderboard
-            <svg
-              viewBox="0 0 24 24"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m9 18 6-6-6-6" />
             </svg>
           </Link>
         </div>
 
-        {/* Trophy — slightly bigger, left tilted */}
-        <div className="relative -mr-1 flex h-[12rem] w-[9.5rem] shrink-0 items-center justify-center overflow-visible sm:h-[13rem] sm:w-[10.5rem]">
+        <div className="relative flex h-[12.5rem] w-[10.5rem] shrink-0 items-end justify-center overflow-visible">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/home/trophy-pb-clean.png"
+            src="/games/champion-potato.png"
             alt=""
-            width={220}
-            height={220}
-            className="h-[110%] w-[110%] max-w-none -rotate-[12deg] object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.4)]"
+            className="home-champ h-[104%] w-auto max-w-none object-contain object-bottom"
             draggable={false}
           />
         </div>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { RewardTier } from "@/data/rewards";
-import { usePbCoins } from "@/components/providers/PbCoinsProvider";
+import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import {
   formatAddressBlock,
   loadRewardAddress,
@@ -20,7 +20,9 @@ export function ConfirmOrderScreen({
   tierId: string;
 }) {
   const router = useRouter();
-  const { coins, spendCoins } = usePbCoins();
+  const { state } = usePbPoints();
+  // Milestone rewards are unlocked by Lifetime PB. Coins are never spent to claim them (FRD §2).
+  const unlocked = state.lifetimePoints >= tier.points;
   const [address, setAddress] = useState<RewardAddress | null>(null);
 
   useEffect(() => {
@@ -44,8 +46,7 @@ export function ConfirmOrderScreen({
 
   function handlePlaceOrder() {
     if (!address) return;
-    if (coins < tier.points) return;
-    if (!spendCoins(tier.points)) return;
+    if (!unlocked) return;
     const order = placeRewardOrder(tier, address);
     router.push(`/rewards/claim/success?orderId=${encodeURIComponent(order.id)}`);
   }
@@ -160,7 +161,7 @@ export function ConfirmOrderScreen({
         <button
           type="button"
           onClick={handlePlaceOrder}
-          disabled={coins < tier.points}
+          disabled={!unlocked}
           className="mt-5 flex w-full items-center justify-center rounded-[0.95rem] bg-[#6A5AE0] py-3.5 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(106,90,224,0.35)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-[#C5C0E8] disabled:shadow-none"
         >
           Place Order
