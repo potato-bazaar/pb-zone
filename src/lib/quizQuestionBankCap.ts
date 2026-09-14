@@ -111,6 +111,25 @@ async function deleteQuestionIds(ids: string[]) {
 }
 
 export async function pruneQuestionBankToLatest(keep = QUESTION_BANK_CAP) {
+  try {
+    const payload = await quizAdminFetch<{ kept?: number; removed?: number; keep?: number }>(
+      "/quiz-question-bank/prune",
+      { method: "POST", body: { keep } },
+    );
+    return {
+      kept: Number(payload.data?.kept ?? keep),
+      pruned: Number(payload.data?.removed ?? 0),
+      cap: Number(payload.data?.keep ?? keep),
+    };
+  } catch (err) {
+    if (
+      !(err instanceof QuizAdminClientError) ||
+      (err.status !== 404 && err.status !== 405)
+    ) {
+      throw err;
+    }
+  }
+
   const { questions } = await fetchAllActiveQuestions();
   const ids = selectIdsToRetire(questions, keep);
   if (ids.length === 0) {
