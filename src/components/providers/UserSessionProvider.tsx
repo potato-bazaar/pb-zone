@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { identityFromJwt, isPlaceholderDisplayName } from "@/lib/playerIdentity";
 import {
   DEFAULT_USER_NAME,
   fetchUserProfile,
@@ -114,17 +115,27 @@ export function UserSessionProvider({ children }: { children: ReactNode }) {
   const profileFetchedFor = useRef<string | null>(null);
 
   const commitSession = useCallback((resolved: PbZoneSession) => {
-    setSession(resolved);
+    const fromJwt = identityFromJwt(resolved.token);
+    const next: PbZoneSession = {
+      ...resolved,
+      userId: resolved.userId || fromJwt.userId || null,
+      userName:
+        fromJwt.userName && !isPlaceholderDisplayName(fromJwt.userName)
+          ? fromJwt.userName
+          : resolved.userName,
+    };
 
-    if (isGuestSession(resolved)) return;
+    setSession(next);
 
-    storeSession(resolved);
+    if (isGuestSession(next)) return;
+
+    storeSession(next);
     stripAuthParamsFromUrl();
 
     console.info("[PB Zone] session:", {
-      userName: resolved.userName,
-      userId: resolved.userId,
-      hasToken: Boolean(resolved.token),
+      userName: next.userName,
+      userId: next.userId,
+      hasToken: Boolean(next.token),
     });
   }, []);
 

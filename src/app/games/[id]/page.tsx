@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { QuizTimeApp } from "@/components/quiz/QuizTimeApp";
+import { TaterMatchApp } from "@/components/tater-match/TaterMatchApp";
 import { ALL_GAMES } from "@/data/games";
 
 type Props = {
@@ -15,6 +16,10 @@ export default async function GameDetailPage({ params }: Props) {
 
   if (id === "quiz-time") {
     return <QuizTimeApp />;
+  }
+
+  if (id === "tater-match") {
+    return <TaterMatchApp />;
   }
 
   return (
