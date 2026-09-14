@@ -205,14 +205,13 @@ async function fetchPlayerNameMap(): Promise<Record<string, string>> {
       cache: 'no-store',
     });
     if (res.ok) {
-      const json = (await res.json()) as {
-        data?: {
-          podium?: Array<{ userId?: string; name?: string }>;
-          rankings?: Array<{ userId?: string; name?: string }>;
-          me?: { userId?: string; name?: string };
-        };
+      type LeaderboardBoard = {
+        podium?: Array<{ userId?: string; name?: string }>;
+        rankings?: Array<{ userId?: string; name?: string }>;
+        me?: { userId?: string; name?: string };
       };
-      const board = json.data ?? (json as typeof json.data);
+      const json = (await res.json()) as { data?: LeaderboardBoard } & LeaderboardBoard;
+      const board: LeaderboardBoard | undefined = json.data ?? json;
       const rows = [
         ...(board?.podium ?? []),
         ...(board?.rankings ?? []),
