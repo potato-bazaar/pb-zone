@@ -149,7 +149,7 @@ function GameCard({ game, earnedToday, index }: { game: GameItem; earnedToday: n
 
   return (
     <article
-      className={`game-card relative w-full overflow-hidden rounded-[1.4rem] bg-white shadow-[0_10px_26px_rgba(43,31,122,0.16)] ring-1 ring-white/80 ${game.featured ? "aspect-[1.9/1]" : "aspect-[2.1/1]"}`}
+      className={`game-card relative w-full overflow-hidden rounded-[1.4rem] bg-white shadow-[0_10px_26px_rgba(43,31,122,0.16)] ring-1 ring-white/80 ${game.featured ? "aspect-[1.62/1]" : "aspect-[1.7/1]"}`}
       style={{ animationDelay: `${index * 60}ms` }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -158,7 +158,7 @@ function GameCard({ game, earnedToday, index }: { game: GameItem; earnedToday: n
       <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.30) 36%, rgba(255,255,255,0) 60%)" }} aria-hidden />
       {game.featured ? <div className="game-card-shine pointer-events-none absolute inset-0" aria-hidden /> : null}
 
-      <div className="relative z-10 flex h-full flex-col justify-between p-3.5">
+      <div className="relative z-10 flex h-full flex-col justify-between p-3.5 pb-4">
         <div>
           {game.featured ? (
             <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-[#FFD84D] px-2 py-[3px] text-[9.5px] font-extrabold uppercase tracking-wider text-[#6B3A00] shadow-[0_2px_6px_rgba(0,0,0,0.2)] ring-1 ring-white/70">
@@ -184,11 +184,11 @@ function GameCard({ game, earnedToday, index }: { game: GameItem; earnedToday: n
               );
             })}
           </ul>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2.5 flex shrink-0 items-center gap-2 pb-1">
             <Link
               href={`/games/${game.id}`}
-              className="inline-flex items-center gap-2 rounded-full py-2 pl-3.5 pr-5 font-display text-[15px] font-extrabold text-white active:translate-y-[2px] active:shadow-none"
-              style={{ background: `linear-gradient(180deg, ${theme.button[0]} 0%, ${theme.button[1]} 100%)`, boxShadow: `0 4px 0 ${theme.shade}, 0 10px 18px rgba(0,0,0,0.25)` }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-4 font-display text-[14px] font-extrabold text-white active:translate-y-[2px] active:shadow-none"
+              style={{ background: `linear-gradient(180deg, ${theme.button[0]} 0%, ${theme.button[1]} 100%)`, boxShadow: `0 3px 0 ${theme.shade}` }}
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 ring-1 ring-white/40">
                 <svg viewBox="0 0 24 24" className="ml-0.5 h-3 w-3" fill="currentColor" aria-hidden>

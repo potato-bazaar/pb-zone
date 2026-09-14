@@ -5,6 +5,10 @@ import { QuestionRegenModal } from './QuestionRegenModal';
 import { QuestionEditModal } from './QuestionEditModal';
 import { ScoringPointsModal } from './ScoringPointsModal';
 import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
+import {
+  bankQuestionToQuizQuestion,
+  fetchQuestionBank,
+} from '../../services/quizBankApi';
 import { 
   Plus, 
   Search, 
@@ -91,6 +95,8 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   const [scoringSaving, setScoringSaving] = useState(false);
   const [scoringError, setScoringError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [remoteMatches, setRemoteMatches] = useState<QuizQuestion[] | null>(null);
+  const [searchingBank, setSearchingBank] = useState(false);
   const live = useLiveQuestionBank(liveFromApi);
 
   // Handle single question swap
@@ -195,7 +201,43 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
     onUpdateQuiz({ ...quiz, status: nextStatus });
   };
 
-  const sourceQuestions = liveFromApi ? live.questions : quiz.questions;
+  useEffect(() => {
+    if (!liveFromApi) return;
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setRemoteMatches(null);
+      setSearchingBank(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchingBank(true);
+    const timer = window.setTimeout(() => {
+      void fetchQuestionBank({ search: query, isActive: true, limit: 50 })
+        .then((page) => {
+          if (cancelled) return;
+          setRemoteMatches(
+            page.questions.map((row, index) =>
+              bankQuestionToQuizQuestion(row, index, live.settings),
+            ),
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setRemoteMatches(null);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchingBank(false);
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [liveFromApi, live.settings, searchQuery]);
+
+  const sourceQuestions =
+    liveFromApi && remoteMatches ? remoteMatches : liveFromApi ? live.questions : quiz.questions;
   const perQuiz = live.settings?.questionsPerQuiz ?? 12;
   const scoringValues = {
     pointsPerCorrect: Number(live.settings?.pointsPerCorrect ?? 20),
@@ -422,12 +464,16 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
       <div className="flex flex-col gap-1 px-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>
           Showing {showingFrom}–{showingTo} of {filteredQuestions.length}
-          {liveFromApi ? ` loaded · bank ${live.active || live.total}` : ' questions'}
+          {liveFromApi
+            ? remoteMatches
+              ? ` matching the live bank${searchingBank ? '…' : ''}`
+              : ` loaded · bank ${live.active || live.total}`
+            : ' questions'}
           {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ''}
         </span>
         <span>
           {liveFromApi
-            ? 'Older questions are retired when a new daily set lands. Delete one to soft-remove it from new quizzes.'
+            ? 'Generated bank questions with the correct answer marked. Option order is shuffled only in the Quiz Time game.'
             : 'Click "Swap Q#" on any question to regenerate it with AI'}
         </span>
       </div>

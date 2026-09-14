@@ -30,7 +30,7 @@ export type MirrorQuestionInput = {
   index?: number;
   total?: number;
   question?: string;
-  options?: Array<{ key?: string; id?: string; text?: string }>;
+  options?: Array<{ key?: string; id?: string; text?: string; label?: string }>;
 };
 
 export function emptyMirrorOptions(): QuizLiveMirrorOptions {
@@ -42,7 +42,7 @@ export function optionsFromApi(
 ): QuizLiveMirrorOptions {
   const mapped = emptyMirrorOptions();
   for (const opt of options ?? []) {
-    const key = String(opt.key || opt.id || "").toUpperCase();
+    const key = String(opt.key || opt.id || opt.label || "").toUpperCase();
     if (key === "A" || key === "B" || key === "C" || key === "D") {
       mapped[key] = opt.text ?? "";
     }
@@ -61,6 +61,7 @@ export function asMirrorQuestion(value: unknown): MirrorQuestionInput | null {
           key: item.key != null ? String(item.key) : undefined,
           id: item.id != null ? String(item.id) : undefined,
           text: item.text != null ? String(item.text) : undefined,
+          label: item.label != null ? String(item.label) : undefined,
         };
       })
     : undefined;

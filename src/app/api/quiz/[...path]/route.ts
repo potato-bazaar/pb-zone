@@ -285,12 +285,14 @@ async function proxyQuiz(
       responseHeaders.set("content-type", upstream.contentType);
     }
 
+    const responseBody = upstream.body;
+
     if (upstream.status >= 200 && upstream.status < 300) {
       recordQuizTraffic(
         request.method,
         segments,
         headers.get("x-user-id") || "dev-user-1",
-        upstream.body,
+        responseBody,
       );
       if (
         request.method === "POST" &&
@@ -305,7 +307,7 @@ async function proxyQuiz(
       }
     }
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(responseBody, {
       status: upstream.status,
       headers: responseHeaders,
     });

@@ -3,8 +3,11 @@
 export type QuizOptionKey = "A" | "B" | "C" | "D";
 
 export type QuizApiOption = {
+  /** Session key — submit this to the quiz API. */
   key: QuizOptionKey;
   text: string;
+  /** Admin bank letter, when it differs from the shuffled session key. */
+  label?: QuizOptionKey;
 };
 
 export type QuizApiQuestion = {
