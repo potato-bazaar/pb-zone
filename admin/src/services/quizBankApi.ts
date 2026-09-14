@@ -590,6 +590,24 @@ export async function pruneQuestionBankToLatest(
   keep = DEFAULT_QUESTION_BANK_CAP,
   questions?: QuizBankQuestion[],
 ) {
+  if (!questions) {
+    try {
+      const payload = await adminFetch<{ kept: number; removed: number; keep: number }>(
+        '/quiz-question-bank/prune',
+        { method: 'POST', body: JSON.stringify({ keep }) },
+      );
+      return {
+        kept: Number(payload.data?.kept ?? keep),
+        pruned: Number(payload.data?.removed ?? 0),
+        keep: Number(payload.data?.keep ?? keep),
+      };
+    } catch (err) {
+      if (!(err instanceof QuizBankApiError) || (err.status !== 404 && err.status !== 405)) {
+        throw err;
+      }
+    }
+  }
+
   const rows = questions ?? (await fetchAllQuestionBank({ isActive: true })).questions;
   const toRemove = selectQuestionsToRetire(rows, keep);
   if (toRemove.length === 0) {
