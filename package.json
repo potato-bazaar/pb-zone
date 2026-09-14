@@ -7,10 +7,10 @@
     "dev:web": "next dev -p 3000",
     "dev:admin": "npm --prefix admin run dev",
     "tunnel": "ngrok http 3000",
-    "build": "npm --prefix admin install && npm --prefix admin run build && next build",
+    "build": "npm --prefix admin install --include=dev && npm --prefix admin run build && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "npm --prefix admin install"
+    "postinstall": "npm --prefix admin install --include=dev"
   },
   "dependencies": {
     "gsap": "^3.15.0",
