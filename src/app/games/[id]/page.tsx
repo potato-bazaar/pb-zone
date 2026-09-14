@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { QuizTimeApp } from "@/components/quiz/QuizTimeApp";
+import { PotatoCrushApp } from "@/components/crush/PotatoCrushApp";
+import { PotatoNinjaApp } from "@/components/ninja/PotatoNinjaApp";
+import { PotatoSortApp } from "@/components/sort/PotatoSortApp";
+import { PotatoRunApp } from "@/components/run/PotatoRunApp";
 import { ALL_GAMES } from "@/data/games";
 
 type Props = {
@@ -15,6 +19,22 @@ export default async function GameDetailPage({ params }: Props) {
 
   if (id === "quiz-time") {
     return <QuizTimeApp />;
+  }
+
+  if (id === "potato-crush") {
+    return <PotatoCrushApp />;
+  }
+
+  if (id === "potato-ninja") {
+    return <PotatoNinjaApp />;
+  }
+
+  if (id === "potato-sort") {
+    return <PotatoSortApp />;
+  }
+
+  if (id === "potato-run") {
+    return <PotatoRunApp />;
   }
 
   return (
