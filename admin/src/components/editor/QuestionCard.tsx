@@ -34,7 +34,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const needsPicture = isPictureRound && !question.pictureUrl;
 
   return (
-    <div className="bg-white border border-[#E2E2E2] hover:border-black p-5 transition-all">
+    <div className="rounded-lg border bg-card p-5 shadow-none transition-colors hover:border-foreground/20">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#E2E2E2]">
         <div className="flex items-center gap-2.5">

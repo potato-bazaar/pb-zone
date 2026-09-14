@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { QuizQuestion } from '../types/quiz';
 import {
+  DEFAULT_QUESTION_BANK_CAP,
   QuizBankApiError,
   bankQuestionToQuizQuestion,
   deleteBankQuestion,
@@ -9,6 +10,8 @@ import {
   fetchQuizPlayStats,
   fetchQuizScoring,
   fetchQuizSettings,
+  pruneQuestionBankToLatest,
+  questionBankCapFromStats,
   runDailyQuestionRefresh,
   saveQuizScoring,
   type QuizApiSettings,
@@ -19,14 +22,17 @@ import {
 export function useLiveQuestionBank(enabled: boolean) {
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [total, setTotal] = useState(0);
   const [active, setActive] = useState(0);
+  const [target, setTarget] = useState(DEFAULT_QUESTION_BANK_CAP);
   const [settings, setSettings] = useState<QuizApiSettings | null>(null);
   const [upstream, setUpstream] = useState<string | null>(null);
   const [source, setSource] = useState<'bank' | 'unavailable'>('bank');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [refreshingDaily, setRefreshingDaily] = useState(false);
+  const [pruning, setPruning] = useState(false);
   const [playStats, setPlayStats] = useState<QuizPlayStats>({
     playerCount: 0,
     sessionCount: 0,
@@ -55,7 +61,9 @@ export function useLiveQuestionBank(enabled: boolean) {
             ...(quizScoring ?? {}),
           }
         : null;
+      const cap = questionBankCapFromStats(stats);
       setSettings(mergedSettings);
+      setTarget(cap);
       setActive(stats?.active ?? 0);
       setTotal(stats?.active ?? stats?.total ?? 0);
       if (nextPlayStats) setPlayStats(nextPlayStats);
@@ -115,11 +123,46 @@ export function useLiveQuestionBank(enabled: boolean) {
     }
   }, []);
 
+  const pruneToLatest = useCallback(async () => {
+    setPruning(true);
+    setError(null);
+    try {
+      const cap = target || DEFAULT_QUESTION_BANK_CAP;
+      const result = await pruneQuestionBankToLatest(cap);
+      if (result.pruned > 0) {
+        setStatus(
+          `Retired ${result.pruned} older questions. Live bank now keeps the latest ${result.kept}.`,
+        );
+      } else {
+        setStatus(`Live bank is already at ${result.kept} questions (cap ${cap}).`);
+      }
+      await refresh();
+    } catch (err) {
+      setError(
+        err instanceof QuizBankApiError || err instanceof Error
+          ? err.message
+          : 'Failed to trim the question bank to 600',
+      );
+      throw err;
+    } finally {
+      setPruning(false);
+    }
+  }, [refresh, target]);
+
   const runDailyRefresh = useCallback(async () => {
     setRefreshingDaily(true);
     setError(null);
     try {
-      await runDailyQuestionRefresh();
+      const cap = target || DEFAULT_QUESTION_BANK_CAP;
+      await runDailyQuestionRefresh({ newCount: cap, replace: true });
+      const result = await pruneQuestionBankToLatest(cap);
+      if (result.pruned > 0) {
+        setStatus(
+          `Daily set refreshed. Retired ${result.pruned} older questions so the live bank stays at ${result.kept}.`,
+        );
+      } else {
+        setStatus(`Daily set refreshed. Live bank stays at ${result.kept} questions.`);
+      }
       await refresh();
     } catch (err) {
       setError(
@@ -131,7 +174,7 @@ export function useLiveQuestionBank(enabled: boolean) {
     } finally {
       setRefreshingDaily(false);
     }
-  }, [refresh]);
+  }, [refresh, target]);
 
   const saveScoring = useCallback(
     async (payload: SaveQuizScoringPayload) => {
@@ -159,18 +202,22 @@ export function useLiveQuestionBank(enabled: boolean) {
   return {
     loading,
     error,
+    status,
     questions,
     total,
     active,
+    target,
     settings,
     upstream,
     source,
     sessionId: null as string | null,
     deletingId,
     refreshingDaily,
+    pruning,
     playStats,
     refresh,
     removeQuestion,
+    pruneToLatest,
     runDailyRefresh,
     saveScoring,
   };
