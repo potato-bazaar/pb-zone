@@ -35,10 +35,14 @@ const STEPS = [
   },
 ] as const;
 
+/** PB Points (leaderboard) and Coins (wallet) are separate rewards. */
 const SCORING = [
-  { label: "Correct Answer", value: "+20 PB" },
-  { label: "Fast Answer Bonus", value: "+5 PB" },
-  { label: "Complete Quiz Bonus", value: "+30 PB" },
+  { label: "Correct answer", value: "+5 to +20 PB Points" },
+  { label: "Fast answer", value: "up to +5 PB Points" },
+  { label: "Answer streak", value: "up to +12 PB Points" },
+  { label: "Complete the quiz", value: "+10 PB Points" },
+  { label: "Perfect quiz", value: "+25 PB Points" },
+  { label: "Every correct answer", value: "+2 to +5 Coins" },
 ] as const;
 
 export function QuizHowToPlay({

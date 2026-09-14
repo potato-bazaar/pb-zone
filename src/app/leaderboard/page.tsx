@@ -1,5 +1,5 @@
-import { LeaderboardScreen } from "@/components/leaderboard/LeaderboardScreen";
+import { redirect } from "next/navigation";
 
 export default function LeaderboardPage() {
-  return <LeaderboardScreen />;
+  redirect("/pb");
 }

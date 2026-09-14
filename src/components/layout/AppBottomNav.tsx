@@ -25,25 +25,32 @@ function HomeIcon({ active }: IconProps) {
 function GamesIcon({ active }: IconProps) {
   const c = active ? "#fff" : "#3D3A5C";
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-6 w-6"
-      fill="none"
-      stroke={c}
-      strokeWidth="1.85"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {/* Modern gamepad body with curved grips */}
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={c} strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M8.2 8.2h7.6c1.7 0 2.9 1.1 3.2 2.6l.85 4.1c.35 1.7-.7 3.2-2.4 3.55-.55.12-1.15-.05-1.55-.45l-1.35-1.35c-.35-.35-.85-.55-1.35-.55h-2.6c-.5 0-1 .2-1.35.55L7.7 18c-.4.4-1 .57-1.55.45-1.7-.35-2.75-1.85-2.4-3.55l.85-4.1C5.3 9.3 6.5 8.2 8.2 8.2Z" />
-      {/* D-pad diamond (left) */}
       <path d="M8.9 11.15 7.55 12.5l1.35 1.35 1.35-1.35-1.35-1.35Z" />
-      {/* Action buttons — 4 dots diamond (right) */}
       <circle cx="15.35" cy="11.35" r="0.85" fill={c} stroke="none" />
       <circle cx="14.15" cy="12.55" r="0.85" fill={c} stroke="none" />
       <circle cx="16.55" cy="12.55" r="0.85" fill={c} stroke="none" />
       <circle cx="15.35" cy="13.75" r="0.85" fill={c} stroke="none" />
+    </svg>
+  );
+}
+
+/** PB tab: trophy. The competitive layer gets its own home in the nav. */
+function PbIcon({ active }: IconProps) {
+  const c = active ? "#fff" : "#3D3A5C";
+  if (active) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="#fff" aria-hidden>
+        <path d="M7.2 3.5h9.6c.5 0 .9.4.9.9v1.1h2.1c.6 0 1.1.5 1.1 1.1 0 3-1.9 5.2-4.5 5.9-.7 1.6-2 2.7-3.5 3.1v2.2h2.3c.5 0 .9.4.9.9v1.3H7.9v-1.3c0-.5.4-.9.9-.9h2.3v-2.2c-1.5-.4-2.8-1.5-3.5-3.1C5 12 3.1 9.8 3.1 6.6c0-.6.5-1.1 1.1-1.1h2.1V4.4c0-.5.4-.9.9-.9Zm-.9 3.8H4.9c.2 1.5 1 2.6 2.1 3.2-.4-1-.6-2.1-.7-3.2Zm11.4 0c-.1 1.1-.3 2.2-.7 3.2 1.1-.6 1.9-1.7 2.1-3.2h-1.4Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M8 4.5h8v4.2c0 2.6-1.8 4.8-4 4.8s-4-2.2-4-4.8V4.5Z" />
+      <path d="M8 6.5H5.5c0 2.6 1.2 4.2 2.9 4.6M16 6.5h2.5c0 2.6-1.2 4.2-2.9 4.6" />
+      <path d="M12 13.5v3.2M9 19.5h6M10 16.7h4" />
     </svg>
   );
 }
@@ -68,33 +75,6 @@ function RewardsIcon({ active }: IconProps) {
   );
 }
 
-function OrderIcon({ active }: IconProps) {
-  const c = active ? "#fff" : "#3D3A5C";
-  if (active) {
-    return (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="#fff" aria-hidden>
-        <path d="M8 3.5h8a2 2 0 0 1 2 2V6h1.2A1.8 1.8 0 0 1 21 7.8v11.4A1.8 1.8 0 0 1 19.2 21H4.8A1.8 1.8 0 0 1 3 19.2V7.8A1.8 1.8 0 0 1 4.8 6H6v-.5a2 2 0 0 1 2-2Zm0 2.5v.5h8V6H8Zm-2.2 3v9.7c0 .1.1.3.2.3h11.8c.1 0 .2-.1.2-.3V9.5H5.8Zm3.2 2.2h6v1.6h-6v-1.6Zm0 3.2h4.5v1.6H9v-1.6Z" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-6 w-6"
-      fill="none"
-      stroke={c}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="5" y="4" width="14" height="17" rx="2" />
-      <path d="M9 4.5V3.8A1.3 1.3 0 0 1 10.3 2.5h3.4A1.3 1.3 0 0 1 15 3.8v.7" />
-      <path d="M9 11h6M9 15h4" />
-    </svg>
-  );
-}
-
 function ProfileIcon({ active }: IconProps) {
   const c = active ? "#fff" : "#3D3A5C";
   if (active) {
@@ -105,28 +85,23 @@ function ProfileIcon({ active }: IconProps) {
     );
   }
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-6 w-6"
-      fill="none"
-      stroke={c}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="8" r="3.4" />
       <path d="M5.2 19.5c1.5-3.2 3.9-4.8 6.8-4.8s5.3 1.6 6.8 4.8" />
     </svg>
   );
 }
 
+/**
+ * Home | Games | PB | Rewards | Profile.
+ * "Your Order" moved under Profile so the competitive PB layer gets a primary tab.
+ */
 const tabs = [
-  { href: "/home", label: "Home", Icon: HomeIcon },
-  { href: "/games", label: "Games", Icon: GamesIcon },
-  { href: "/rewards", label: "Rewards", Icon: RewardsIcon },
-  { href: "/orders", label: "Your Order", Icon: OrderIcon },
-  { href: "/profile", label: "Profile", Icon: ProfileIcon },
+  { href: "/home", label: "Home", Icon: HomeIcon, match: ["/home"] },
+  { href: "/games", label: "Games", Icon: GamesIcon, match: ["/games"] },
+  { href: "/pb", label: "PB", Icon: PbIcon, match: ["/pb", "/leaderboard"] },
+  { href: "/rewards", label: "Rewards", Icon: RewardsIcon, match: ["/rewards"] },
+  { href: "/profile", label: "Profile", Icon: ProfileIcon, match: ["/profile", "/orders"] },
 ] as const;
 
 export function AppBottomNav() {
@@ -171,16 +146,11 @@ export function AppBottomNav() {
     >
       <div className="mx-auto flex h-[4.25rem] w-full max-w-screen-sm items-center justify-around px-1.5 pt-1">
         {tabs.map((tab) => {
-          const active =
-            pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          const active = tab.match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
           const Icon = tab.Icon;
 
           return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className="flex min-w-0 flex-1 flex-col items-center justify-center"
-            >
+            <Link key={tab.href} href={tab.href} className="flex min-w-0 flex-1 flex-col items-center justify-center">
               <span
                 className={
                   active
@@ -189,13 +159,7 @@ export function AppBottomNav() {
                 }
               >
                 <Icon active={active} />
-                <span
-                  className={`max-w-full truncate text-[9px] font-semibold leading-none ${
-                    active ? "text-white" : "text-[#3D3A5C]"
-                  }`}
-                >
-                  {tab.label}
-                </span>
+                <span className={`max-w-full truncate text-[9px] font-semibold leading-none ${active ? "text-white" : "text-[#3D3A5C]"}`}>{tab.label}</span>
               </span>
             </Link>
           );

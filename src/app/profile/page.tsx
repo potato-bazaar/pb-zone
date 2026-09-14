@@ -1,5 +1,5 @@
-import PlaceholderScreen from "@/components/layout/PlaceholderScreen";
+import { PbProfileScreen } from "@/components/pb/PbProfileScreen";
 
 export default function ProfilePage() {
-  return <PlaceholderScreen title="Profile" />;
+  return <PbProfileScreen />;
 }

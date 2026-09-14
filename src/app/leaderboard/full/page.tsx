@@ -1,5 +1,5 @@
-import { FullLeaderboardScreen } from "@/components/leaderboard/FullLeaderboardScreen";
+import { redirect } from "next/navigation";
 
 export default function FullLeaderboardPage() {
-  return <FullLeaderboardScreen />;
+  redirect("/pb");
 }
