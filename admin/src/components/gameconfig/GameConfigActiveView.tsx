@@ -14,6 +14,7 @@ interface GameConfigActiveViewProps {
   onNavigateToSetup: () => void;
   onOpenPreview: () => void;
   onTogglePublish: () => void;
+  embedded?: boolean;
 }
 
 export const GameConfigActiveView: React.FC<GameConfigActiveViewProps> = ({
@@ -24,6 +25,7 @@ export const GameConfigActiveView: React.FC<GameConfigActiveViewProps> = ({
   onNavigateToSetup,
   onOpenPreview,
   onTogglePublish,
+  embedded = false,
 }) => {
   const labels = CONFIG_LABELS[config.kind];
   const items = getConfigItems(config);
@@ -43,8 +45,8 @@ export const GameConfigActiveView: React.FC<GameConfigActiveViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
+    <div className={embedded ? 'space-y-4' : 'space-y-6 pb-16'}>
+      {!embedded && (
       <div className="border-b border-[#E2E2E2] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -76,8 +78,9 @@ export const GameConfigActiveView: React.FC<GameConfigActiveViewProps> = ({
           </button>
         </div>
       </div>
+      )}
 
-      {/* KPIs */}
+      {!embedded && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-[#E2E2E2] p-4">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Content</div>
@@ -104,6 +107,7 @@ export const GameConfigActiveView: React.FC<GameConfigActiveViewProps> = ({
           <div className="text-[11px] text-[#6B6B6B] mt-0.5">{winRate !== null ? `${winRate}% win rate` : 'No sessions yet'}</div>
         </div>
       </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Settings summary */}
