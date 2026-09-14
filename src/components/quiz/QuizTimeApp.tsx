@@ -6,18 +6,22 @@ import { QuizHowToPlay } from "@/components/quiz/QuizHowToPlay";
 import { QuizPlayScreen } from "@/components/quiz/QuizPlayScreen";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useQuizScoring } from "@/hooks/useQuizScoring";
 import {
   QuizApiError,
   startQuizSession,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
+import { startLiveMirror } from "@/lib/quizLiveMirror";
+import { identityFromJwt, isPlaceholderDisplayName } from "@/lib/playerIdentity";
+import { fetchUserProfile } from "@/lib/pbZoneAuth";
 
 type Phase = "howto" | "play";
 
 export function QuizTimeApp() {
   const router = useRouter();
   const session = useUserSession();
-  const { setCoins } = usePbCoins();
+  const { setWallet } = usePbCoins();
   const [phase, setPhase] = useState<Phase>("howto");
   const [runId, setRunId] = useState(0);
   const [starting, setStarting] = useState(false);
@@ -25,6 +29,7 @@ export function QuizTimeApp() {
   const [quizSession, setQuizSession] = useState<QuizSessionStartData | null>(
     null,
   );
+  const scoring = useQuizScoring(phase !== "play");
 
   const auth = useMemo(
     () => ({
@@ -34,6 +39,7 @@ export function QuizTimeApp() {
     }),
     [session.token, session.userId, session.userName],
   );
+  const [playAuth, setPlayAuth] = useState(auth);
 
   async function beginQuiz() {
     if (starting) return;
@@ -41,8 +47,33 @@ export function QuizTimeApp() {
     setStartError(null);
 
     try {
-      const data = await startQuizSession(auth);
-      setCoins(data.user.points);
+      let userName =
+        identityFromJwt(session.token).userName || session.userName;
+      if (session.token) {
+        const profile = await fetchUserProfile(session.token);
+        if (profile?.userName && !isPlaceholderDisplayName(profile.userName)) {
+          userName = profile.userName;
+        }
+      }
+
+      const authWithName = {
+        ...auth,
+        userName,
+        userId: session.userId || identityFromJwt(session.token).userId || auth.userId,
+      };
+      setPlayAuth(authWithName);
+
+      const data = await startQuizSession(authWithName);
+      startLiveMirror({
+        userId: authWithName.userId || "dev-user-1",
+        sessionId: data.sessionId,
+        question: data.question,
+      });
+      setWallet({
+        coins: data.user.points,
+        earnedCoins: data.user.earnedPoints,
+        pbPoints: data.user.leaderboardPoints,
+      });
       setQuizSession(data);
       setRunId((n) => n + 1);
       setPhase("play");
@@ -65,6 +96,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError}
+        scoring={scoring}
       />
     );
   }
@@ -76,6 +108,7 @@ export function QuizTimeApp() {
         onStart={() => void beginQuiz()}
         starting={starting}
         error={startError ?? "Session missing. Tap Start Quiz again."}
+        scoring={scoring}
       />
     );
   }
@@ -83,7 +116,7 @@ export function QuizTimeApp() {
   return (
     <QuizPlayScreen
       key={runId}
-      auth={auth}
+      auth={playAuth}
       initialSession={quizSession}
       onExit={() => router.push("/games")}
       onHome={() => router.push("/home")}

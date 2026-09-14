@@ -214,4 +214,15 @@ export const ALL_GAMES: GameItem[] = [
     theme: { title: ["#FFFFFF", "#FFD23F"], shade: "#1D4E9E", button: ["#5C9BFF", "#2E64D6"], wash: "rgba(60, 130, 230, 0.40)" },
     playable: false,
   },
+  {
+    id: "tater-match",
+    title: "TATER MATCH",
+    description: "Match, collect and grow your PB Points!",
+    shortDescription: "Match & collect taters!",
+    image: "/images/home/game-tater-match.png",
+    cta: "Play",
+    bg: "#D6EEFF",
+    titleColor: "#1A5FA8",
+    buttonBg: "#2F7FD1",
+  },
 ];

@@ -1,46 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { Quiz, QuizAnalytics, QuizQuestion, WinnerRecord, Game } from './types/quiz';
 import { CONFIG_LABELS, ConfigKind, GameConfig, getGameKind, isConfigKind } from './types/gameConfig';
 import { storageService } from './services/storageService';
 import { getGroqModel, hasGroqKey } from './services/groqClient';
 import { Navbar } from './components/layout/Navbar';
-import { Sidebar, TabId } from './components/layout/Sidebar';
+import { Sidebar } from './components/layout/Sidebar';
+import { DashboardView } from './components/views/DashboardView';
+import { PlaceholderView } from './components/views/PlaceholderView';
+import { PlayersView } from './components/views/PlayersView';
 import { GameHubView } from './components/views/GameHubView';
+import { GameDetailView } from './components/views/GameDetailView';
 import { ActiveQuizView } from './components/views/ActiveQuizView';
-import { SetupQuizView } from './components/views/SetupQuizView';
-import { PreviousQuizzesView } from './components/views/PreviousQuizzesView';
 import { QuizDetailView } from './components/editor/QuizDetailView';
 import { QuestionRegenModal } from './components/editor/QuestionRegenModal';
 import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
-import { WebGameSimulator } from './components/simulator/WebGameSimulator';
 import { SettingsModal } from './components/settings/SettingsModal';
-import { GameConfigActiveView } from './components/gameconfig/GameConfigActiveView';
+import { GameWorkspace } from './components/layout/GameWorkspace';
 import { GameConfigEditorView } from './components/gameconfig/GameConfigEditorView';
 import { GameConfigSetupView } from './components/gameconfig/GameConfigSetupView';
 import { GameConfigLibraryView } from './components/gameconfig/GameConfigLibraryView';
 import { GameConfigTelemetryView } from './components/gameconfig/GameConfigTelemetryView';
 import { GameConfigPreviewModal } from './components/gameconfig/GameConfigPreviewModal';
 
+type GameSection = 'active' | 'edit' | 'setup' | 'library' | 'quiz-management' | 'questions' | 'telemetry';
+
+function fallbackQuizForGame(game: Game): Quiz {
+  return {
+    id: `${game.id}-live-bank`,
+    gameId: game.id,
+    title: game.name,
+    description: game.description,
+    topic: game.tagline || game.name,
+    subTheme: '',
+    difficulty: 'mixed',
+    tone: 'fun',
+    status: 'published',
+    questionsCount: 0,
+    passScore: 0,
+    timeLimitSeconds: 15,
+    createdAt: game.createdAt,
+    updatedAt: game.createdAt,
+    version: 1,
+    playsCount: game.totalPlays,
+    winnersCount: game.totalWinners,
+    tags: [],
+    questions: [],
+  };
+}
+
 export function App() {
+  const navigate = useNavigate();
   const [games, setGames] = useState<Game[]>([]);
   const [activeGameId, setActiveGameId] = useState<string>('');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuizId, setActiveQuizId] = useState<string>('');
   const [gameConfigs, setGameConfigs] = useState<GameConfig[]>([]);
   const [activeConfigIds, setActiveConfigIds] = useState<Record<string, string>>({});
-  const [currentTab, setCurrentTab] = useState<TabId>('games'); // Default to the Games Directory page
   const [winners, setWinners] = useState<WinnerRecord[]>([]);
   const [analytics, setAnalytics] = useState<QuizAnalytics | null>(null);
-
-  // Modals
-  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isConfigPreviewOpen, setIsConfigPreviewOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [regenTargetQuestion, setRegenTargetQuestion] = useState<QuizQuestion | null>(null);
-
-  // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  // Bumped when Settings closes so the AI engine label re-reads localStorage
   const [engineTick, setEngineTick] = useState(0);
 
   const showToast = (msg: string) => {
@@ -77,8 +100,6 @@ export function App() {
     loadData();
   }, []);
 
-  /* ---------------- Derived state ---------------- */
-
   const activeGame = games.find((g) => g.id === activeGameId) || games[0] || null;
   const activeKind = getGameKind(activeGame?.format);
   const configKind: ConfigKind | null = isConfigKind(activeKind) ? activeKind : null;
@@ -100,7 +121,6 @@ export function App() {
 
   void engineTick;
   const groqOn = hasGroqKey();
-  const aiEngineLabel = groqOn ? `Groq · ${getGroqModel()}` : 'Offline Engine';
 
   const getQuizCountForGame = (gameId: string) => quizzes.filter((q) => q.gameId === gameId).length;
   const getRotationCountForGame = (gameId: string) => {
@@ -111,24 +131,30 @@ export function App() {
   };
   const getConfigCountForGame = (gameId: string) => gameConfigs.filter((c) => c.gameId === gameId).length;
 
-  /* ---------------- Game selection ---------------- */
-
-  const handleSelectGame = (gameId: string) => {
+  const applyGameId = useCallback((gameId: string) => {
     setActiveGameId(gameId);
     storageService.setActiveGameId(gameId);
     const gameObj = games.find((g) => g.id === gameId);
     const kind = getGameKind(gameObj?.format);
-    setCurrentTab('active');
-
     if (kind === 'quiz') {
       const gameQuizzes = quizzes.filter((q) => q.gameId === gameId);
       const nextId = gameQuizzes[0]?.id || '';
       setActiveQuizId(nextId);
       storageService.setActiveQuizId(nextId);
+    }
+  }, [games, quizzes]);
+
+  const handleSelectGame = (gameId: string) => {
+    applyGameId(gameId);
+    const gameObj = games.find((g) => g.id === gameId);
+    const kind = getGameKind(gameObj?.format);
+    navigate(kind === 'quiz' ? `/games/${gameId}/questions` : `/games/${gameId}`);
+    if (kind === 'quiz') {
+      const gameQuizzes = quizzes.filter((q) => q.gameId === gameId);
       showToast(
         gameQuizzes.length
           ? `Selected "${gameObj?.name}". Managing this game's rounds.`
-          : `Selected "${gameObj?.name}". No decks yet, generate one in Setup.`
+          : `Selected "${gameObj?.name}". No decks yet.`,
       );
     } else {
       const cfgs = gameConfigs.filter((c) => c.gameId === gameId);
@@ -136,7 +162,7 @@ export function App() {
       showToast(
         cfgs.length
           ? `Selected "${gameObj?.name}". Managing its ${packs}.`
-          : `Selected "${gameObj?.name}". No ${packs} yet, generate one in Setup.`
+          : `Selected "${gameObj?.name}". No ${packs} yet, generate one in Setup.`,
       );
     }
   };
@@ -147,14 +173,6 @@ export function App() {
     setGames(updatedGames);
     handleSelectGame(newGame.id);
     showToast(`Created game: "${newGame.name}". Now set up its content with AI.`);
-  };
-
-  /* ---------------- Quiz handlers ---------------- */
-
-  const handleSelectQuiz = (id: string) => {
-    setActiveQuizId(id);
-    storageService.setActiveQuizId(id);
-    showToast(`Switched active quiz: ${quizzes.find((q) => q.id === id)?.title}`);
   };
 
   const handleUpdateQuiz = (updated: Quiz) => {
@@ -170,53 +188,6 @@ export function App() {
     showToast(newStatus === 'published' ? 'Quiz Published & Live' : 'Quiz Moved to Draft');
   };
 
-  const handleQuizCreated = (newQuiz: Quiz) => {
-    const scopedQuiz = { ...newQuiz, gameId: activeGameId };
-    storageService.saveQuiz(scopedQuiz);
-    setQuizzes((prev) => [scopedQuiz, ...prev]);
-    setActiveQuizId(scopedQuiz.id);
-    storageService.setActiveQuizId(scopedQuiz.id);
-    setCurrentTab('manage');
-    showToast(`New ${scopedQuiz.questions.length}-round deck generated!`);
-  };
-
-  const handleBatchCreated = (newPool: Quiz[]) => {
-    const scopedPool = newPool.map((q) => ({ ...q, gameId: activeGameId }));
-    const combined = [...scopedPool, ...quizzes];
-    storageService.saveQuizzes(combined);
-    setQuizzes(combined);
-    if (scopedPool.length > 0) {
-      setActiveQuizId(scopedPool[0].id);
-      storageService.setActiveQuizId(scopedPool[0].id);
-    }
-    setCurrentTab('previous');
-    showToast(`Generated ${scopedPool.length} decks in the pool for ${activeGame?.name}!`);
-  };
-
-  const handleToggleRotation = (id: string) => {
-    const updated = quizzes.map((q) => (q.id === id ? { ...q, inRotation: !q.inRotation } : q));
-    storageService.saveQuizzes(updated);
-    setQuizzes(updated);
-    const target = updated.find((q) => q.id === id);
-    showToast(target?.inRotation ? 'Added to rotation pool' : 'Removed from rotation pool');
-  };
-
-  const handleDeleteQuiz = (id: string) => {
-    if (currentGameQuizzes.length <= 1) {
-      alert('Cannot delete the last remaining quiz for this game.');
-      return;
-    }
-    storageService.deleteQuiz(id);
-    const remaining = quizzes.filter((q) => q.id !== id);
-    setQuizzes(remaining);
-    if (activeQuizId === id) {
-      const next = remaining.find((q) => q.gameId === activeGameId);
-      setActiveQuizId(next?.id || '');
-      storageService.setActiveQuizId(next?.id || '');
-    }
-    showToast('Quiz deleted');
-  };
-
   const handleApplySwap = (newQuestion: QuizQuestion) => {
     if (!activeQuiz) return;
     handleUpdateQuiz({
@@ -226,8 +197,6 @@ export function App() {
     setRegenTargetQuestion(null);
     showToast(`Swapped Question #${newQuestion.order}!`);
   };
-
-  /* ---------------- Game config handlers (Crush / Spin / Rush) ---------------- */
 
   const setActiveConfigFor = (gameId: string, configId: string) => {
     setActiveConfigIds((prev) => ({ ...prev, [gameId]: configId }));
@@ -240,12 +209,12 @@ export function App() {
     storageService.saveGameConfigs(combined);
     setGameConfigs(combined);
     if (scoped.length > 0) setActiveConfigFor(activeGameId, scoped[0].id);
-    setCurrentTab(scoped.length > 1 ? 'previous' : 'manage');
+    navigate(scoped.length > 1 ? `/games/${activeGameId}/library` : `/games/${activeGameId}/edit`);
     const labels = configKind ? CONFIG_LABELS[configKind] : null;
     showToast(
       scoped.length > 1
         ? `Generated ${scoped.length} ${labels?.packs.toLowerCase() || 'configs'} for ${activeGame?.name}!`
-        : `New ${labels?.pack.toLowerCase() || 'config'} ready: ${scoped[0]?.title}`
+        : `New ${labels?.pack.toLowerCase() || 'config'} ready: ${scoped[0]?.title}`,
     );
   };
 
@@ -294,14 +263,7 @@ export function App() {
     showToast('Configuration deleted');
   };
 
-  /* ---------------- Shared ---------------- */
-
-  const openSimulator = () => {
-    if (isQuizGame) setIsSimulatorOpen(true);
-    else setIsConfigPreviewOpen(true);
-  };
-
-  const renderEmptyState = () => {
+  const renderEmptyState = (gameId: string) => {
     const noun = configKind ? CONFIG_LABELS[configKind].packs : 'Quizzes';
     return (
       <div className="bg-white border border-[#E2E2E2] p-12 text-center space-y-4">
@@ -312,195 +274,292 @@ export function App() {
         <p className="text-xs text-[#6B6B6B] max-w-md mx-auto">
           {configKind
             ? `Generate a ${CONFIG_LABELS[configKind].pack.toLowerCase()} with the AI designer. Every ${CONFIG_LABELS[configKind].item.toLowerCase()} can be hand-edited afterwards.`
-            : 'Generate an initial 20-question challenge or a batch pool of up to 200 quizzes for this game.'}
+            : 'This game has no quiz decks yet. Open Manage to work with the live question bank.'}
         </p>
         <button
-          onClick={() => setCurrentTab('setup')}
+          onClick={() => navigate(configKind ? `/games/${gameId}/setup` : `/games/${gameId}/questions`)}
           className="px-5 py-2.5 bg-black text-white text-xs font-bold hover:bg-[#262626]"
         >
-          Go to Setup
+          {configKind ? 'Go to Setup' : 'Go to Questions'}
         </button>
       </div>
     );
   };
 
-  const switcherItems = isQuizGame
-    ? currentGameQuizzes.map((q) => ({ id: q.id, title: q.title, status: q.status }))
-    : currentGameConfigs.map((c) => ({ id: c.id, title: c.title, status: c.status }));
-  const activeItem = isQuizGame ? activeQuiz : activeConfig;
+  const wrapGame = (content: React.ReactNode, sectionLabel?: string) => {
+    if (!activeGame) return content;
+    return (
+      <GameWorkspace game={activeGame} sectionLabel={sectionLabel}>
+        {content}
+      </GameWorkspace>
+    );
+  };
+
+  const renderGameSection = (section: GameSection, gameId: string) => {
+    if (isQuizGame) {
+      if (!activeGame) return renderEmptyState(gameId);
+      const liveFromApi = activeGame.format === 'pb-quiz';
+      const quiz = activeQuiz || fallbackQuizForGame(activeGame);
+
+      if (section === 'edit' || section === 'questions') {
+        if (section === 'edit') return <Navigate to={`/games/${gameId}/questions`} replace />;
+        return wrapGame(
+          <QuizDetailView quiz={quiz} onUpdateQuiz={handleUpdateQuiz} liveFromApi={liveFromApi} />,
+          'Questions',
+        );
+      }
+
+      if (section === 'quiz-management') {
+        return wrapGame(
+          <ActiveQuizView
+            quiz={quiz}
+            onNavigateToManage={() => navigate(`/games/${gameId}/questions`)}
+            onRegenerateQuestion={(q) => setRegenTargetQuestion(q)}
+            onTogglePublish={handleTogglePublish}
+            liveFromApi={liveFromApi}
+          />,
+          'Quiz Management',
+        );
+      }
+
+      if (section === 'telemetry') {
+        return wrapGame(
+          <AnalyticsDashboard
+            quiz={quiz}
+            analytics={
+              analytics || {
+                quizId: quiz.id,
+                totalPlays: 0,
+                completedPlays: 0,
+                totalWinners: 0,
+                winRatePercentage: 0,
+                completionRatePercentage: 0,
+                averageScore: 0,
+                averageTimeMinutes: 0,
+                questionStats: [],
+              }
+            }
+            winners={winners}
+            onRefresh={loadData}
+            liveFromApi={liveFromApi}
+          />,
+          'Telemetry',
+        );
+      }
+
+      if (section === 'setup' || section === 'library') {
+        return <Navigate to={`/games/${gameId}`} replace />;
+      }
+
+      return wrapGame(
+        <GameDetailView
+          game={activeGame}
+          quiz={quiz}
+          liveFromApi={liveFromApi}
+          onNavigateToManage={() => navigate(`/games/${gameId}/questions`)}
+          onUpdateQuiz={handleUpdateQuiz}
+          onTogglePublish={handleTogglePublish}
+        />,
+      );
+    }
+
+    if (!configKind || !activeGame) return renderEmptyState(gameId);
+
+    if (section === 'questions' || section === 'quiz-management' || section === 'telemetry') {
+      return <Navigate to={`/games/${gameId}`} replace />;
+    }
+
+    if (section === 'setup') {
+      return wrapGame(
+        <GameConfigSetupView
+          key={activeGame.id}
+          game={activeGame}
+          kind={configKind}
+          activeConfig={activeConfig}
+          hasKey={groqOn}
+          model={getGroqModel()}
+          onOpenSettings={() => navigate('/settings')}
+          onConfigsCreated={handleConfigsCreated}
+        />,
+        'Setup',
+      );
+    }
+
+    if (section === 'library') {
+      return wrapGame(
+        <GameConfigLibraryView
+          configs={currentGameConfigs}
+          activeConfigId={activeConfig?.id || ''}
+          kind={configKind}
+          onSelectActive={handleSelectConfig}
+          onToggleRotation={handleToggleConfigRotation}
+          onDelete={handleDeleteConfig}
+          onNavigateToSetup={() => navigate(`/games/${gameId}/setup`)}
+          onNavigateToManage={(id) => {
+            handleSelectConfig(id);
+            navigate(`/games/${gameId}/edit`);
+          }}
+        />,
+        'Library',
+      );
+    }
+
+    if (section === 'edit') {
+      return wrapGame(
+        activeConfig ? (
+          <GameConfigEditorView
+            key={activeConfig.id}
+            config={activeConfig}
+            game={activeGame}
+            onSave={handleUpdateConfig}
+            onNavigateToSetup={() => navigate(`/games/${gameId}/setup`)}
+            onOpenPreview={() => setIsConfigPreviewOpen(true)}
+          />
+        ) : (
+          renderEmptyState(gameId)
+        ),
+        'Editor',
+      );
+    }
+
+    return wrapGame(
+      <GameDetailView
+        game={activeGame}
+        config={activeConfig}
+        configKind={configKind}
+        rotationCount={rotationPoolCount}
+        onNavigateToManage={() => navigate(`/games/${gameId}/edit`)}
+        onNavigateToSetup={() => navigate(`/games/${gameId}/setup`)}
+        onOpenPreview={() => setIsConfigPreviewOpen(true)}
+        onTogglePublish={handleToggleConfigPublish}
+      />,
+    );
+  };
+
+  const renderWinnersOrAnalytics = (kind: 'winners' | 'analytics') => {
+    if (isQuizGame) {
+      return activeQuiz && analytics ? (
+        <AnalyticsDashboard
+          quiz={activeQuiz}
+          analytics={analytics}
+          winners={winners}
+          onRefresh={loadData}
+          liveFromApi={activeGame?.format === 'pb-quiz'}
+        />
+      ) : (
+        <PlaceholderView
+          title={kind === 'winners' ? 'Winners' : 'Analytics'}
+          description="Play data appears after a quiz game is available."
+        />
+      );
+    }
+    if (configKind && activeGame) {
+      return <GameConfigTelemetryView configs={currentGameConfigs} game={activeGame} kind={configKind} />;
+    }
+    return (
+      <PlaceholderView
+        title={kind === 'winners' ? 'Winners' : 'Analytics'}
+        description="Select a game to see performance."
+      />
+    );
+  };
+
+  const shellSidebar = <Sidebar onNavigate={() => setMobileNavOpen(false)} />;
 
   return (
-    <div className="min-h-screen bg-[#F6F6F6] text-black flex flex-col font-sans">
-      <Navbar
-        activeGame={activeGame}
-        switcherLabel={isQuizGame ? 'Quiz' : CONFIG_LABELS[configKind].pack}
-        switcherItems={switcherItems}
-        activeItemId={activeItem?.id || ''}
-        onSelectItem={isQuizGame ? handleSelectQuiz : handleSelectConfig}
-        onOpenGameSelector={() => setCurrentTab('games')}
-        onOpenSimulator={openSimulator}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onTogglePublish={isQuizGame ? handleTogglePublish : handleToggleConfigPublish}
-        isPublished={activeItem?.status === 'published'}
-        showPublish={Boolean(activeItem)}
-        activeRotationCount={rotationPoolCount}
-        simulatorLabel={isQuizGame ? 'Play Simulator' : 'Preview'}
-        aiEngineLabel={aiEngineLabel}
-        aiEngineOnline={groqOn}
-      />
+    <div className="flex h-screen w-full bg-background text-foreground">
+      <div className="hidden h-full md:flex">{shellSidebar}</div>
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close navigation"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="relative h-full w-72 max-w-[18rem]">{shellSidebar}</div>
+        </div>
+      )}
 
-      <div className="flex-1 flex flex-col md:flex-row">
-        <Sidebar
-          currentTab={currentTab}
-          onSelectTab={(tab) => {
-            if (tab === 'simulator') openSimulator();
-            else setCurrentTab(tab);
-          }}
-          activeGame={activeGame}
-          kind={activeKind}
-          activeItemTitle={activeItem?.title || (isQuizGame ? 'No Quizzes Yet' : 'No Configuration Yet')}
-          totalItemsCount={isQuizGame ? currentGameQuizzes.length : currentGameConfigs.length}
-          rotationPoolCount={rotationPoolCount}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Navbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
         />
 
-        <main className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          {currentTab === 'games' && (
-            <GameHubView
-              games={games}
-              activeGameId={activeGameId}
-              onSelectGame={handleSelectGame}
-              onCreateGame={handleCreateGame}
-              getQuizCountForGame={getQuizCountForGame}
-              getRotationCountForGame={getRotationCountForGame}
-              getConfigCountForGame={getConfigCountForGame}
+        <main className="flex-1 overflow-y-auto p-3">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/dashboard"
+              element={
+                <DashboardView
+                  games={games}
+                  winners={winners}
+                  searchQuery={searchQuery}
+                  onOpenGame={handleSelectGame}
+                />
+              }
             />
-          )}
-
-          {/* ---------- Quiz-style games ---------- */}
-          {isQuizGame && currentTab === 'active' && (
-            activeQuiz ? (
-              <ActiveQuizView
-                quiz={activeQuiz}
-                onNavigateToManage={() => setCurrentTab('manage')}
-                onOpenSimulator={() => setIsSimulatorOpen(true)}
-                onRegenerateQuestion={(q) => setRegenTargetQuestion(q)}
-                onTogglePublish={handleTogglePublish}
-              />
-            ) : (
-              renderEmptyState()
-            )
-          )}
-
-          {isQuizGame && currentTab === 'manage' && (
-            activeQuiz ? (
-              <QuizDetailView
-                quiz={activeQuiz}
-                onUpdateQuiz={handleUpdateQuiz}
-                onNavigateToSetup={() => setCurrentTab('setup')}
-                onOpenSimulator={() => setIsSimulatorOpen(true)}
-              />
-            ) : (
-              renderEmptyState()
-            )
-          )}
-
-          {isQuizGame && currentTab === 'setup' && (
-            <SetupQuizView
-              activeGame={activeGame}
-              onQuizCreated={handleQuizCreated}
-              onBatchCreated={handleBatchCreated}
-              onNavigateToManage={() => setCurrentTab('manage')}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+            <Route
+              path="/games"
+              element={
+                <GameHubView
+                  games={games}
+                  activeGameId={activeGameId}
+                  searchQuery={searchQuery}
+                  onSelectGame={handleSelectGame}
+                  onCreateGame={handleCreateGame}
+                  getQuizCountForGame={getQuizCountForGame}
+                  getRotationCountForGame={getRotationCountForGame}
+                  getConfigCountForGame={getConfigCountForGame}
+                />
+              }
             />
-          )}
-
-          {isQuizGame && currentTab === 'previous' && (
-            <PreviousQuizzesView
-              quizzes={currentGameQuizzes}
-              activeQuizId={activeQuiz?.id || ''}
-              onSelectActiveQuiz={handleSelectQuiz}
-              onToggleRotation={handleToggleRotation}
-              onDeleteQuiz={handleDeleteQuiz}
-              onNavigateToSetup={() => setCurrentTab('setup')}
-              onNavigateToManage={(id) => {
-                handleSelectQuiz(id);
-                setCurrentTab('manage');
-              }}
+            <Route path="/games/:gameId" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('active', id)} />} />
+            <Route path="/games/:gameId/quiz-management" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('quiz-management', id)} />} />
+            <Route path="/games/:gameId/questions" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('questions', id)} />} />
+            <Route path="/games/:gameId/telemetry" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('telemetry', id)} />} />
+            <Route path="/games/:gameId/edit" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('edit', id)} />} />
+            <Route path="/games/:gameId/setup" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('setup', id)} />} />
+            <Route path="/games/:gameId/library" element={<GameRouteSync activeGameId={activeGameId} onSync={applyGameId} render={(id) => renderGameSection('library', id)} />} />
+            <Route
+              path="/rewards"
+              element={
+                <PlaceholderView
+                  title="Rewards"
+                  description="Prize tiers and gift fulfillment for PB Zone games."
+                />
+              }
             />
-          )}
-
-          {isQuizGame && currentTab === 'analytics' && (
-            activeQuiz && analytics ? (
-              <AnalyticsDashboard quiz={activeQuiz} analytics={analytics} winners={winners} onRefresh={loadData} />
-            ) : (
-              renderEmptyState()
-            )
-          )}
-
-          {/* ---------- Config-style games (Crush / Spin / Rush) ---------- */}
-          {configKind && activeGame && currentTab === 'active' && (
-            activeConfig ? (
-              <GameConfigActiveView
-                config={activeConfig}
-                game={activeGame}
-                rotationCount={rotationPoolCount}
-                onNavigateToManage={() => setCurrentTab('manage')}
-                onNavigateToSetup={() => setCurrentTab('setup')}
-                onOpenPreview={() => setIsConfigPreviewOpen(true)}
-                onTogglePublish={handleToggleConfigPublish}
-              />
-            ) : (
-              renderEmptyState()
-            )
-          )}
-
-          {configKind && activeGame && currentTab === 'manage' && (
-            activeConfig ? (
-              <GameConfigEditorView
-                key={activeConfig.id}
-                config={activeConfig}
-                game={activeGame}
-                onSave={handleUpdateConfig}
-                onNavigateToSetup={() => setCurrentTab('setup')}
-                onOpenPreview={() => setIsConfigPreviewOpen(true)}
-              />
-            ) : (
-              renderEmptyState()
-            )
-          )}
-
-          {configKind && activeGame && currentTab === 'setup' && (
-            <GameConfigSetupView
-              key={activeGame.id}
-              game={activeGame}
-              kind={configKind}
-              activeConfig={activeConfig}
-              hasKey={groqOn}
-              model={getGroqModel()}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onConfigsCreated={handleConfigsCreated}
+            <Route path="/players" element={<PlayersView searchQuery={searchQuery} />} />
+            <Route path="/winners" element={renderWinnersOrAnalytics('winners')} />
+            <Route
+              path="/orders"
+              element={
+                <PlaceholderView
+                  title="Orders / Claims"
+                  description="Reward orders and pending prize claims."
+                />
+              }
             />
-          )}
-
-          {configKind && currentTab === 'previous' && (
-            <GameConfigLibraryView
-              configs={currentGameConfigs}
-              activeConfigId={activeConfig?.id || ''}
-              kind={configKind}
-              onSelectActive={handleSelectConfig}
-              onToggleRotation={handleToggleConfigRotation}
-              onDelete={handleDeleteConfig}
-              onNavigateToSetup={() => setCurrentTab('setup')}
-              onNavigateToManage={(id) => {
-                handleSelectConfig(id);
-                setCurrentTab('manage');
-              }}
+            <Route path="/analytics" element={renderWinnersOrAnalytics('analytics')} />
+            <Route
+              path="/settings"
+              element={
+                <SettingsModal
+                  isOpen
+                  onClose={() => {
+                    setEngineTick((t) => t + 1);
+                    navigate('/dashboard');
+                  }}
+                  onResetData={loadData}
+                />
+              }
             />
-          )}
-
-          {configKind && activeGame && currentTab === 'analytics' && (
-            <GameConfigTelemetryView configs={currentGameConfigs} game={activeGame} kind={configKind} />
-          )}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
       </div>
 
@@ -521,15 +580,6 @@ export function App() {
         />
       )}
 
-      {isQuizGame && activeQuiz && (
-        <WebGameSimulator
-          quiz={activeQuiz}
-          isOpen={isSimulatorOpen}
-          onClose={() => setIsSimulatorOpen(false)}
-          onGameCompleted={loadData}
-        />
-      )}
-
       {configKind && (
         <GameConfigPreviewModal
           config={activeConfig}
@@ -538,17 +588,27 @@ export function App() {
           onClose={() => setIsConfigPreviewOpen(false)}
         />
       )}
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => {
-          setIsSettingsOpen(false);
-          setEngineTick((t) => t + 1);
-        }}
-        onResetData={loadData}
-      />
     </div>
   );
+}
+
+function GameRouteSync({
+  activeGameId,
+  onSync,
+  render,
+}: {
+  activeGameId: string;
+  onSync: (gameId: string) => void;
+  render: (gameId: string) => React.ReactNode;
+}) {
+  const { gameId = '' } = useParams();
+
+  useEffect(() => {
+    if (gameId && gameId !== activeGameId) onSync(gameId);
+  }, [gameId, activeGameId, onSync]);
+
+  if (!gameId) return <Navigate to="/games" replace />;
+  return <>{render(gameId)}</>;
 }
 
 export default App;

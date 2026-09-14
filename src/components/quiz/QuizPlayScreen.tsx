@@ -22,6 +22,10 @@ import {
   type QuizResultData,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
+import {
+  revealLiveMirrorAnswer,
+  upsertLiveMirrorCurrent,
+} from "@/lib/quizLiveMirror";
 
 type QuizPlayScreenProps = {
   auth: QuizAuth;
@@ -114,25 +118,35 @@ export function QuizPlayScreen({
   onHome,
   onPlayAgain,
 }: QuizPlayScreenProps) {
-  const { coins, setCoins } = usePbCoins();
+  const { coins, setWallet } = usePbCoins();
   const { awardPoints } = usePbPoints();
   const sessionId = initialSession.sessionId;
-  // Per-question facts for PB Point scoring (correctness + time band).
   const answersRef = useRef<QuizAnswerRecord[]>([]);
   const timeLeftRef = useRef(0);
   const [pbReceipt, setPbReceipt] = useState<PbReceipt | null>(null);
-  // Coin pill shows the start balance plus points earned this session (settled on result)
-  const [displayCoins] = useState(initialSession.user.points);
+  const [displayCoins, setDisplayCoins] = useState(initialSession.user.points);
 
   const [question, setQuestion] = useState<QuizApiQuestion>(initialSession.question);
   const [lifelines] = useState<QuizLifelineSettings>(
     initialSession.settings.lifelines ?? defaultLifelineSettings(),
   );
-  const pointsPerCorrect = Number(initialSession.settings.pointsPerCorrect ?? 5);
+  const pointsPerCorrect = Number(
+    initialSession.settings.pointsPerCorrect ?? 20,
+  );
   const [selected, setSelected] = useState<QuizOptionKey | null>(null);
   const [timeLeft, setTimeLeft] = useState(
-    initialSession.question.timerSeconds || initialSession.settings.timerSeconds || 8,
+    initialSession.question.timerSeconds ||
+      initialSession.settings.timerSeconds ||
+      15,
   );
+
+  useEffect(() => {
+    upsertLiveMirrorCurrent({
+      sessionId,
+      userId: auth.userId || "dev-user-1",
+      question,
+    });
+  }, [auth.userId, question, sessionId]);
   const [hiddenIds, setHiddenIds] = useState<QuizOptionKey[]>([]);
   const [used5050, setUsed5050] = useState(false);
   const [usedExtra, setUsedExtra] = useState(false);
@@ -153,13 +167,28 @@ export function QuizPlayScreen({
   const progressPct = (question.index / total) * 100;
   const mascotLine = MASCOT_LINES[(question.index - 1) % MASCOT_LINES.length];
   const subtitle = SUBTITLES[(question.index - 1) % SUBTITLES.length];
-  const timerTotal = question.timerSeconds || initialSession.settings.timerSeconds || 8;
+  const timerTotal = question.timerSeconds || initialSession.settings.timerSeconds || 15;
   const timerUrgent = timeLeft <= 3 && !feedback && !locked;
   timeLeftRef.current = timeLeft;
 
   function recordAnswer(correct: boolean, timedOut = false) {
     const seconds = timedOut ? timerTotal : Math.max(0, timerTotal - timeLeftRef.current);
     answersRef.current = [...answersRef.current, { correct, seconds }];
+  }
+
+  function applyWallet(
+    nextPoints: number,
+    nextEarned?: number,
+    nextPbPoints?: number,
+  ) {
+    if (!Number.isFinite(nextPoints)) return;
+    const coins = Math.max(0, Math.floor(nextPoints));
+    setDisplayCoins(coins);
+    setWallet({
+      coins,
+      earnedCoins: typeof nextEarned === "number" ? nextEarned : undefined,
+      pbPoints: typeof nextPbPoints === "number" ? nextPbPoints : undefined,
+    });
   }
 
   useEffect(() => {
@@ -180,6 +209,12 @@ export function QuizPlayScreen({
 
   function applyAnswerData(data: QuizAnswerData, fromQuestion: QuizApiQuestion) {
     recordAnswer(data.correct);
+    revealLiveMirrorAnswer({
+      sessionId,
+      question: fromQuestion,
+      correctOption: data.correctOption ?? null,
+      nextQuestion: data.nextQuestion,
+    });
     setSessionScore(data.sessionScore);
     if (data.correct) {
       setCorrectCount((c) => c + 1);
@@ -254,7 +289,15 @@ export function QuizPlayScreen({
     recordAnswer(false, true);
 
     try {
-      const data = await callQuizLifeline(auth, sessionId, "skip");
+      const data = await submitQuizAnswer(auth, sessionId, null, {
+        timedOut: true,
+      });
+      revealLiveMirrorAnswer({
+        sessionId,
+        question: currentQuestion,
+        correctOption: null,
+        nextQuestion: data.nextQuestion,
+      });
       const done =
         data.status === "completed" || data.nextQuestion == null || currentQuestion.index >= currentQuestion.total;
       sounds.play("invalid");
@@ -306,7 +349,9 @@ export function QuizPlayScreen({
     setLocked(false);
     setFeedback(null);
     setError(null);
-    setTimeLeft(next.timerSeconds || initialSession.settings.timerSeconds || 8);
+    setTimeLeft(
+      next.timerSeconds || initialSession.settings.timerSeconds || 15,
+    );
     sounds.play("swap");
   }
 
@@ -340,7 +385,7 @@ export function QuizPlayScreen({
               ? data.correctCount * pointsPerCorrect
               : 0;
 
-      setCoins(data.userPoints);
+      applyWallet(data.userPoints, data.earnedPoints, data.leaderboardPoints);
       setResult({
         ...data,
         sessionScore: data.sessionScore > 0 ? data.sessionScore : earned,
@@ -394,12 +439,25 @@ export function QuizPlayScreen({
     if (type === "fifty_fifty" && used5050) return;
     if (type === "extra_time" && usedExtra) return;
 
+    const cost =
+      type === "fifty_fifty"
+        ? lifelines.fiftyFiftyCost
+        : type === "extra_time"
+          ? lifelines.extraTimeCost
+          : lifelines.skipCost;
+
+    if (displayCoins < cost) {
+      setError(`Need ${cost} PB to use this lifeline.`);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     sounds.play("special");
 
     try {
       const data = await callQuizLifeline(auth, sessionId, type);
+      applyWallet(data.userPoints, data.earnedPoints, data.leaderboardPoints);
 
       if (type === "fifty_fifty") {
         if (data.options?.length) {
@@ -419,6 +477,12 @@ export function QuizPlayScreen({
       }
 
       if (type === "skip") {
+        revealLiveMirrorAnswer({
+          sessionId,
+          question,
+          correctOption: null,
+          nextQuestion: data.nextQuestion,
+        });
         if (data.nextQuestion) {
           const done = data.status === "completed";
           if (done) {
@@ -708,7 +772,13 @@ export function QuizPlayScreen({
             <LifelineButton
               label="50:50"
               cost={lifelines.fiftyFiftyCost}
-              disabled={used5050 || locked || submitting || !!feedback}
+              disabled={
+                used5050 ||
+                locked ||
+                submitting ||
+                !!feedback ||
+                displayCoins < lifelines.fiftyFiftyCost
+              }
               onClick={() => void onLifeline("fifty_fifty")}
               icon={
                 <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="url(#quizLifeGrad)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -727,7 +797,13 @@ export function QuizPlayScreen({
             <LifelineButton
               label="Extra Time"
               cost={lifelines.extraTimeCost}
-              disabled={usedExtra || locked || submitting || !!feedback}
+              disabled={
+                usedExtra ||
+                locked ||
+                submitting ||
+                !!feedback ||
+                displayCoins < lifelines.extraTimeCost
+              }
               onClick={() => void onLifeline("extra_time")}
               icon={
                 <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="url(#quizLifeGrad)" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
@@ -740,7 +816,12 @@ export function QuizPlayScreen({
             <LifelineButton
               label="Skip Question"
               cost={lifelines.skipCost}
-              disabled={locked || submitting || !!feedback}
+              disabled={
+                locked ||
+                submitting ||
+                !!feedback ||
+                displayCoins < lifelines.skipCost
+              }
               onClick={() => void onLifeline("skip")}
               icon={
                 <svg viewBox="0 0 24 24" className="h-8 w-8" fill="url(#quizLifeGrad)" aria-hidden>

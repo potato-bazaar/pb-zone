@@ -5,6 +5,14 @@ type HowToPlayProps = {
   onBack: () => void;
   starting?: boolean;
   error?: string | null;
+  scoring?: {
+    pointsPerCorrect: number;
+    fastAnswerBonus: number;
+    completeQuizBonus: number;
+    timerSeconds?: number;
+    questionsPerQuiz?: number;
+    fastAnswerSeconds?: number;
+  };
 };
 
 const STEPS = [
@@ -35,22 +43,41 @@ const STEPS = [
   },
 ] as const;
 
-/** PB Points (leaderboard) and Coins (wallet) are separate rewards. */
-const SCORING = [
-  { label: "Correct answer", value: "+5 to +20 PB Points" },
-  { label: "Fast answer", value: "up to +5 PB Points" },
-  { label: "Answer streak", value: "up to +12 PB Points" },
-  { label: "Complete the quiz", value: "+10 PB Points" },
-  { label: "Perfect quiz", value: "+25 PB Points" },
-  { label: "Every correct answer", value: "+2 to +5 Coins" },
-] as const;
+const DEFAULT_SCORING = {
+  pointsPerCorrect: 20,
+  fastAnswerBonus: 5,
+  completeQuizBonus: 30,
+  timerSeconds: 15,
+};
 
 export function QuizHowToPlay({
   onStart,
   onBack,
   starting = false,
   error = null,
+  scoring,
 }: HowToPlayProps) {
+  const points = {
+    pointsPerCorrect: Number(scoring?.pointsPerCorrect ?? DEFAULT_SCORING.pointsPerCorrect),
+    fastAnswerBonus: Number(scoring?.fastAnswerBonus ?? DEFAULT_SCORING.fastAnswerBonus),
+    completeQuizBonus: Number(
+      scoring?.completeQuizBonus ?? DEFAULT_SCORING.completeQuizBonus,
+    ),
+    timerSeconds: Number(scoring?.timerSeconds ?? DEFAULT_SCORING.timerSeconds),
+  };
+  const steps = STEPS.map((step) =>
+    step.title === "Time Limit"
+      ? {
+          ...step,
+          body: `You have ${points.timerSeconds}s for each question. Answer faster to score higher!`,
+        }
+      : step,
+  );
+  const scoringRows = [
+    { label: "Correct Answer", value: `+${points.pointsPerCorrect} PB` },
+    { label: "Fast Answer Bonus", value: `+${points.fastAnswerBonus} PB` },
+    { label: "Complete Quiz Bonus", value: `+${points.completeQuizBonus} PB` },
+  ];
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
       <div
@@ -86,7 +113,7 @@ export function QuizHowToPlay({
 
         <div className="mx-auto flex w-full flex-1 flex-col">
           <ul className="mt-5 flex flex-col gap-4">
-            {STEPS.map((step) => (
+            {steps.map((step) => (
               <li key={step.title} className="flex gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6A5AE0] text-lg font-bold text-white">
                   {step.icon}
@@ -108,7 +135,7 @@ export function QuizHowToPlay({
               SCORING SYSTEM
             </h3>
             <ul className="mt-3 flex flex-col gap-2.5">
-              {SCORING.map((row) => (
+              {scoringRows.map((row) => (
                 <li
                   key={row.label}
                   className="flex items-center justify-between gap-3 border-b border-[#E0D9F5] pb-2 last:border-0 last:pb-0"

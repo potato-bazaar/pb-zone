@@ -6,6 +6,7 @@ import { PotatoCrushApp } from "@/components/crush/PotatoCrushApp";
 import { PotatoNinjaApp } from "@/components/ninja/PotatoNinjaApp";
 import { PotatoSortApp } from "@/components/sort/PotatoSortApp";
 import { PotatoRunApp } from "@/components/run/PotatoRunApp";
+import { TaterMatchApp } from "@/components/tater-match/TaterMatchApp";
 import { ALL_GAMES } from "@/data/games";
 
 type Props = {
@@ -35,6 +36,10 @@ export default async function GameDetailPage({ params }: Props) {
 
   if (id === "potato-run") {
     return <PotatoRunApp />;
+  }
+
+  if (id === "tater-match") {
+    return <TaterMatchApp />;
   }
 
   return (

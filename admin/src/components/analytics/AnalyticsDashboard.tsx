@@ -1,21 +1,15 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Quiz, QuizAnalytics, WinnerRecord } from '../../types/quiz';
 import { storageService } from '../../services/storageService';
-import { 
-  Trophy, 
-  Users, 
-  Target, 
-  TrendingUp, 
-  Clock, 
-  Search, 
-  Check 
-} from 'lucide-react';
+import { useQuizTelemetry } from '../../hooks/useQuizTelemetry';
+import { RefreshCw } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
   quiz: Quiz;
   analytics: QuizAnalytics;
   winners: WinnerRecord[];
   onRefresh: () => void;
+  liveFromApi?: boolean;
 }
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
@@ -23,17 +17,36 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   analytics,
   winners,
   onRefresh,
+  liveFromApi = false,
 }) => {
+  const live = useQuizTelemetry(liveFromApi);
   const [winnerSearch, setWinnerSearch] = useState('');
-  const [tierFilter, setTierFilter] = useState('all');
   const [selectedStatQuestion, setSelectedStatQuestion] = useState<number | null>(null);
+
+  const questionsPerQuiz = liveFromApi ? live.data.questionsPerQuiz || 12 : 20;
+  const totalPlays = liveFromApi ? live.data.playerCount : analytics.totalPlays;
+  const totalWinners = liveFromApi ? live.data.winnersCount : analytics.totalWinners;
+  const winRate = liveFromApi ? live.data.winRatePercentage : analytics.winRatePercentage;
+  const completion = liveFromApi ? live.data.completionRatePercentage : analytics.completionRatePercentage;
+  const averageScore = liveFromApi ? live.data.averageScore : analytics.averageScore;
+  const averageTime = liveFromApi ? live.data.averageTimeMinutes : analytics.averageTimeMinutes;
+  const questionStats = liveFromApi ? live.data.questionStats : analytics.questionStats;
+
+  const players = useMemo(() => {
+    if (liveFromApi) {
+      const q = winnerSearch.trim().toLowerCase();
+      return live.data.players.filter((player) =>
+        q ? player.playerName.toLowerCase().includes(q) : true,
+      );
+    }
+    return [];
+  }, [liveFromApi, live.data.players, winnerSearch]);
 
   const filteredWinners = winners.filter((w) => {
     const matchesSearch =
       w.playerName.toLowerCase().includes(winnerSearch.toLowerCase()) ||
       (w.rewardVoucherCode && w.rewardVoucherCode.toLowerCase().includes(winnerSearch.toLowerCase()));
-    const matchesTier = tierFilter === 'all' || w.prizeTier === tierFilter;
-    return matchesSearch && matchesTier;
+    return matchesSearch;
   });
 
   const handleToggleClaim = (winnerId: string) => {
@@ -44,70 +57,102 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     onRefresh();
   };
 
+  const loadingNumbers = liveFromApi && live.loading && live.data.players.length === 0;
+
   return (
     <div className="space-y-6 pb-16">
-      {/* Overview Title */}
-      <div className="border-b border-[#E2E2E2] pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-black">
-          Winners & Player Telemetry
-        </h1>
-        <p className="text-xs text-[#6B6B6B] mt-0.5">
-          Performance metrics, winner fulfillment, and question accuracy for <strong className="text-black">{quiz.title}</strong>.
-        </p>
+      <div className="border-b border-[#E2E2E2] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-black">
+            Winners & Player Telemetry
+          </h1>
+          <p className="text-xs text-[#6B6B6B] mt-0.5">
+            {liveFromApi
+              ? `Live ${questionsPerQuiz}-question Quiz Time leaderboard. Highest points stay on top.`
+              : `Performance metrics, winner fulfillment, and question accuracy for ${quiz.title}.`}
+          </p>
+        </div>
+        {liveFromApi && (
+          <button
+            onClick={() => void live.refresh(false)}
+            disabled={live.loading || live.refreshing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black text-black text-xs font-bold hover:bg-[#F6F6F6] disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${live.loading || live.refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        )}
       </div>
 
-      {/* KPI Cards Grid */}
+      {liveFromApi && live.error && (
+        <div className="bg-[#FDECEC] border border-[#C62828] text-[#C62828] text-xs px-4 py-3">
+          {live.error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         <div className="bg-white border border-[#E2E2E2] p-4">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Total Plays</div>
           <div className="text-2xl font-bold text-black font-mono mt-1">
-            {analytics.totalPlays.toLocaleString()}
+            {loadingNumbers ? '—' : totalPlays.toLocaleString()}
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Web UI sessions</p>
+          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
+            {liveFromApi ? 'Unique players who played' : 'Web UI sessions'}
+          </p>
         </div>
 
         <div className="bg-white border border-[#E2E2E2] p-4">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Winners</div>
           <div className="text-2xl font-bold text-black font-mono mt-1">
-            {analytics.totalWinners.toLocaleString()}
+            {loadingNumbers ? '—' : totalWinners.toLocaleString()}
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Scored ≥ {quiz.passScore}/20</p>
+          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
+            {liveFromApi
+              ? `Finished all ${questionsPerQuiz} Qs`
+              : `Scored ≥ ${quiz.passScore}/20`}
+          </p>
         </div>
 
         <div className="bg-white border border-[#E2E2E2] p-4">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Win Rate</div>
           <div className="text-2xl font-bold text-black font-mono mt-1">
-            {analytics.winRatePercentage}%
+            {loadingNumbers ? '—' : `${winRate}%`}
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Target: 30%</p>
+          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
+            {liveFromApi ? 'Winners / unique players' : 'Target: 30%'}
+          </p>
         </div>
 
         <div className="bg-white border border-[#E2E2E2] p-4">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Completion</div>
           <div className="text-2xl font-bold text-black font-mono mt-1">
-            {analytics.completionRatePercentage}%
+            {loadingNumbers ? '—' : `${completion}%`}
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Finished all 20 Qs</p>
+          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
+            Finished all {questionsPerQuiz} Qs
+          </p>
         </div>
 
         <div className="bg-white border border-[#E2E2E2] p-4 col-span-2 lg:col-span-1">
           <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Average Score</div>
           <div className="text-2xl font-bold text-black font-mono mt-1">
-            {analytics.averageScore} <span className="text-xs text-[#6B6B6B]">/ 20</span>
+            {loadingNumbers ? '—' : averageScore}{' '}
+            <span className="text-xs text-[#6B6B6B]">/ {questionsPerQuiz}</span>
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Avg duration: {analytics.averageTimeMinutes}m</p>
+          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Avg duration: {averageTime}m</p>
         </div>
       </div>
 
-      {/* 20-Question Accuracy Heatmap */}
       <div className="bg-white border border-[#E2E2E2] p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E2E2] pb-4">
           <div>
             <h3 className="text-sm font-bold text-black uppercase tracking-wider">
-              20-Question Accuracy Breakdown
+              {questionsPerQuiz}-Question Accuracy Breakdown
             </h3>
             <p className="text-xs text-[#6B6B6B]">
-              Identifies which questions are too difficult or causing drop-offs. Click any bar to inspect telemetry.
+              {liveFromApi
+                ? `Accuracy by question slot (Q1–Q${questionsPerQuiz}) across live player sessions.`
+                : 'Identifies which questions are too difficult or causing drop-offs. Click any bar to inspect telemetry.'}
             </p>
           </div>
 
@@ -127,9 +172,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
         </div>
 
-        {/* 20 Question Columns */}
-        <div className="grid grid-cols-5 sm:grid-cols-10 lg:grid-cols-20 gap-1.5 pt-2">
-          {analytics.questionStats.map((stat) => {
+        <div className={`grid grid-cols-4 sm:grid-cols-6 ${questionsPerQuiz <= 12 ? 'lg:grid-cols-12' : 'lg:grid-cols-20'} gap-1.5 pt-2`}>
+          {questionStats.map((stat) => {
             const isSelected = selectedStatQuestion === stat.questionNumber;
             const barBg =
               stat.correctPercentage >= 70
@@ -153,7 +197,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <div className="w-full bg-[#EEEEEE] h-12 flex flex-col justify-end">
                   <div
                     className={`w-full transition-all ${barBg}`}
-                    style={{ height: `${stat.correctPercentage}%` }}
+                    style={{ height: `${Math.max(stat.correctPercentage, 0)}%` }}
                   />
                 </div>
 
@@ -165,11 +209,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           })}
         </div>
 
-        {/* Selected Q details */}
         {selectedStatQuestion !== null && (
           <div className="p-3 bg-[#F6F6F6] border border-[#E2E2E2] flex items-center justify-between text-xs">
             {(() => {
-              const qStat = analytics.questionStats.find((s) => s.questionNumber === selectedStatQuestion);
+              const qStat = questionStats.find((s) => s.questionNumber === selectedStatQuestion);
               if (!qStat) return null;
               return (
                 <>
@@ -180,6 +223,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <div className="text-[#545454] space-x-3">
                       <span>Correct: <strong>{qStat.correctPercentage}%</strong></span>
                       <span>Incorrect: <strong>{qStat.wrongPercentage}%</strong></span>
+                      {'skipPercentage' in qStat && (
+                        <span>Skipped: <strong>{(qStat as { skipPercentage?: number }).skipPercentage ?? 0}%</strong></span>
+                      )}
                       <span>Drop-off Rate: <strong>{qStat.dropoffPercentage}%</strong></span>
                     </div>
                   </div>
@@ -196,15 +242,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         )}
       </div>
 
-      {/* Winners Roster Table */}
       <div className="bg-white border border-[#E2E2E2] p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E2E2] pb-4">
           <div>
             <h3 className="text-sm font-bold text-black uppercase tracking-wider">
-              Winning Players & Reward Fulfillment
+              {liveFromApi ? 'Players Leaderboard' : 'Winning Players & Reward Fulfillment'}
             </h3>
             <p className="text-xs text-[#6B6B6B]">
-              Players who reached or exceeded the {quiz.passScore}/20 pass threshold.
+              {liveFromApi
+                ? 'Live players ranked by total points. Correct, skipped, wrong, score, and points for the latest session.'
+                : `Players who reached or exceeded the ${quiz.passScore}/20 pass threshold.`}
             </p>
           </div>
 
@@ -213,56 +260,98 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               type="text"
               value={winnerSearch}
               onChange={(e) => setWinnerSearch(e.target.value)}
-              placeholder="Search winner name..."
+              placeholder={liveFromApi ? 'Search player name...' : 'Search winner name...'}
               className="px-3 py-1.5 border border-[#E2E2E2] text-xs text-black focus:border-black focus:outline-none"
             />
           </div>
         </div>
 
         <div className="overflow-x-auto border border-[#E2E2E2]">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
-              <tr>
-                <th className="py-3 px-4">Player</th>
-                <th className="py-3 px-4">Score</th>
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-4">Tier Badge</th>
-                <th className="py-3 px-4">Reward Code</th>
-                <th className="py-3 px-4 text-center">Fulfillment</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E2E2E2]">
-              {filteredWinners.map((w) => (
-                <tr key={w.id} className="hover:bg-[#FAFAFA]">
-                  <td className="py-3 px-4 font-semibold text-black">{w.playerName}</td>
-                  <td className="py-3 px-4 font-mono font-bold text-black">
-                    {w.score} / {w.totalQuestions} ({w.percentage}%)
-                  </td>
-                  <td className="py-3 px-4 font-mono text-[#6B6B6B]">{w.timeSpentSeconds}s</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-[#EEEEEE] text-black">
-                      {w.prizeTier}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 font-mono font-bold text-black">
-                    {w.rewardVoucherCode || 'None'}
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <button
-                      onClick={() => handleToggleClaim(w.id)}
-                      className={`px-3 py-1 text-[10px] font-bold border transition-colors ${
-                        w.prizeClaimed
-                          ? 'bg-[#EBF7EE] border-[#0E8345] text-[#0E8345]'
-                          : 'bg-white border-[#E2E2E2] text-black hover:border-black'
-                      }`}
-                    >
-                      {w.prizeClaimed ? '✓ Claimed' : 'Pending'}
-                    </button>
-                  </td>
+          {liveFromApi ? (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
+                <tr>
+                  <th className="py-3 px-4">#</th>
+                  <th className="py-3 px-4">Player</th>
+                  <th className="py-3 px-4">Correct</th>
+                  <th className="py-3 px-4">Skipped</th>
+                  <th className="py-3 px-4">Wrong</th>
+                  <th className="py-3 px-4">Score</th>
+                  <th className="py-3 px-4">Points</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#E2E2E2]">
+                {players.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 px-4 text-center text-[#6B6B6B]">
+                      {live.loading ? 'Loading live players…' : 'No players have started Quiz Time yet.'}
+                    </td>
+                  </tr>
+                ) : (
+                  players.map((player) => (
+                    <tr key={player.userId} className="hover:bg-[#FAFAFA]">
+                      <td className="py-3 px-4 font-mono font-bold text-black">{player.rank}</td>
+                      <td className="py-3 px-4 font-semibold text-black">{player.playerName}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-black">
+                        {player.correctCount}/{player.totalQuestions}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-[#6B6B6B]">{player.skippedCount}</td>
+                      <td className="py-3 px-4 font-mono text-[#6B6B6B]">{player.wrongCount}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-black">
+                        {player.sessionScore}{' '}
+                        <span className="text-[#6B6B6B] font-normal">({player.percentage}%)</span>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-black">{player.userPoints}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
+                <tr>
+                  <th className="py-3 px-4">Player</th>
+                  <th className="py-3 px-4">Score</th>
+                  <th className="py-3 px-4">Time</th>
+                  <th className="py-3 px-4">Tier Badge</th>
+                  <th className="py-3 px-4">Reward Code</th>
+                  <th className="py-3 px-4 text-center">Fulfillment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E2E2]">
+                {filteredWinners.map((w) => (
+                  <tr key={w.id} className="hover:bg-[#FAFAFA]">
+                    <td className="py-3 px-4 font-semibold text-black">{w.playerName}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-black">
+                      {w.score} / {w.totalQuestions} ({w.percentage}%)
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[#6B6B6B]">{w.timeSpentSeconds}s</td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-[#EEEEEE] text-black">
+                        {w.prizeTier}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-black">
+                      {w.rewardVoucherCode || 'None'}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => handleToggleClaim(w.id)}
+                        className={`px-3 py-1 text-[10px] font-bold border transition-colors ${
+                          w.prizeClaimed
+                            ? 'bg-[#EBF7EE] border-[#0E8345] text-[#0E8345]'
+                            : 'bg-white border-[#E2E2E2] text-black hover:border-black'
+                        }`}
+                      >
+                        {w.prizeClaimed ? '✓ Claimed' : 'Pending'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

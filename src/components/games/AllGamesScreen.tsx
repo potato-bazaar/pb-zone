@@ -213,7 +213,7 @@ function GameCard({ game, earnedToday, index }: { game: GameItem; earnedToday: n
 
 export function AllGamesScreen() {
   const { state: pb } = usePbPoints();
-  const { coins, setCoins } = usePbCoins();
+  const { coins, setWallet } = usePbCoins();
   const session = useUserSession();
   const [filter, setFilter] = useState<"all" | GameCategory>("all");
 
@@ -227,7 +227,13 @@ export function AllGamesScreen() {
     })
       .then((data) => {
         if (cancelled) return;
-        if (typeof data.points === "number") setCoins(data.points);
+        if (typeof data.points === "number") {
+          setWallet({
+            coins: data.points,
+            earnedCoins: data.earnedPoints,
+            pbPoints: data.leaderboardPoints,
+          });
+        }
       })
       .catch((error) => {
         console.warn("[quiz] me/points failed", error);
@@ -236,7 +242,7 @@ export function AllGamesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [session.token, session.userId, session.userName, setCoins]);
+  }, [session.token, session.userId, session.userName, setWallet]);
 
   const games = filter === "all" ? ALL_GAMES : ALL_GAMES.filter((g) => g.category === filter);
   const coinsDisplay = Number.isFinite(coins) ? Math.max(0, Math.floor(coins)).toLocaleString("en-IN") : "0";
