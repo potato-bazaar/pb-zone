@@ -9,6 +9,11 @@ export type QuizBankOptionMap = {
   D: string;
 };
 
+export type QuizBankLocale = {
+  question?: string;
+  options?: Partial<QuizBankOptionMap>;
+};
+
 export type QuizBankQuestion = {
   id: string;
   question: string;
@@ -19,7 +24,15 @@ export type QuizBankQuestion = {
   isActive: boolean;
   timesUsed: number;
   createdAt?: string;
+  /** Localized copy from BE (`hi` / `gu`). English is the top-level fields. */
+  locales?: {
+    hi?: QuizBankLocale;
+    gu?: QuizBankLocale;
+  };
 };
+
+export type AdminQuizLanguage = 'en' | 'hi' | 'gu';
+
 
 export type QuizBankStats = {
   total: number;
@@ -200,24 +213,15 @@ async function fetchPlayerNameMap(): Promise<Record<string, string>> {
   }
 
   try {
-    const res = await fetch('/api/leaderboard?period=overall&limit=200', {
+    const res = await fetch('/api/leaderboard/points?limit=200', {
       headers: { accept: 'application/json' },
       cache: 'no-store',
     });
     if (res.ok) {
-      type LeaderboardBoard = {
-        podium?: Array<{ userId?: string; name?: string }>;
-        rankings?: Array<{ userId?: string; name?: string }>;
-        me?: { userId?: string; name?: string };
+      const json = (await res.json()) as {
+        data?: Array<{ userId?: string; name?: string }>;
       };
-      const json = (await res.json()) as { data?: LeaderboardBoard } & LeaderboardBoard;
-      const board: LeaderboardBoard | undefined = json.data ?? json;
-      const rows = [
-        ...(board?.podium ?? []),
-        ...(board?.rankings ?? []),
-        board?.me ? [board.me] : [],
-      ].flat();
-      for (const row of rows) {
+      for (const row of json.data ?? []) {
         remember(row.userId, row.name);
       }
     }
@@ -286,7 +290,12 @@ async function adminFetch<T>(
   message?: string;
   upstream?: string;
 }> {
-  const url = `${quizApiBase()}/v1/admin${path.startsWith('/') ? path : `/${path}`}`;
+  // Same-origin Next proxy → /v1/admin/... (avoids browser CORS to ngrok/remote BE)
+  const root =
+    typeof window !== 'undefined'
+      ? '/api/admin'
+      : `${quizApiBase()}/v1/admin`;
+  const url = `${root}${path.startsWith('/') ? path : `/${path}`}`;
   const headers: Record<string, string> = {
     accept: 'application/json',
     ...(init?.headers as Record<string, string> | undefined),
@@ -548,6 +557,150 @@ export async function fetchQuizTelemetry(): Promise<QuizTelemetry> {
   };
 }
 
+export const STORED_GAME_KEYS = [
+  'quiz_time',
+  'potato_crush',
+  'spud_run',
+  'potato_sort',
+  'potato_ninja',
+  'word_scramble',
+  'guess_disease',
+  'fix_puzzle',
+] as const;
+
+export type StoredGameKey = (typeof STORED_GAME_KEYS)[number];
+
+export type StoredBoardPlayer = {
+  userId: string;
+  name: string;
+  points: number;
+  wallet: number;
+  games: Partial<Record<StoredGameKey, number>>;
+  coins: Partial<Record<StoredGameKey, number>>;
+};
+
+function gameKeyOf(value: unknown): StoredGameKey | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const key = value.trim().toLowerCase().replace(/-/g, '_');
+  return (STORED_GAME_KEYS as readonly string[]).includes(key) ? (key as StoredGameKey) : null;
+}
+
+function readNumberMap(value: unknown): Partial<Record<StoredGameKey, number>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Partial<Record<StoredGameKey, number>> = {};
+  for (const [rawKey, rawValue] of Object.entries(value as Record<string, unknown>)) {
+    const key = gameKeyOf(rawKey);
+    const amount = Number(rawValue);
+    if (!key || !Number.isFinite(amount)) continue;
+    out[key] = Math.max(0, Math.floor(amount));
+  }
+  return out;
+}
+
+function mergeMaps(
+  left: Partial<Record<StoredGameKey, number>>,
+  right: Partial<Record<StoredGameKey, number>>,
+) {
+  const out = { ...left };
+  for (const key of STORED_GAME_KEYS) {
+    if (right[key] == null) continue;
+    out[key] = Math.max(out[key] ?? 0, right[key] ?? 0);
+  }
+  return out;
+}
+
+function rememberStoredPlayer(
+  map: Map<string, StoredBoardPlayer>,
+  row: Record<string, unknown>,
+) {
+  const userId = pickString(row.userId, row.id);
+  if (!userId) return;
+  const name = pickString(row.name, row.userName, row.fullName, row.playerName) || 'Player';
+  const current = map.get(userId) ?? {
+    userId,
+    name,
+    points: 0,
+    wallet: 0,
+    games: {},
+    coins: {},
+  };
+  if (!isPlaceholderPlayerName(name)) current.name = name;
+  const points = Number(row.points ?? row.pbPoints ?? row.leaderboardPoints);
+  if (Number.isFinite(points)) current.points = Math.max(current.points, Math.floor(points));
+  const wallet = Number(row.walletPoints ?? row.wallet);
+  if (Number.isFinite(wallet)) current.wallet = Math.max(current.wallet, Math.floor(wallet));
+  current.games = mergeMaps(current.games, readNumberMap(row.games));
+  current.coins = mergeMaps(current.coins, readNumberMap(row.coins));
+  const gameKey = gameKeyOf(row.gameKey);
+  const playCoins = Number(row.coinsEarned ?? row.coinAwarded ?? row.coinsAwarded);
+  if (gameKey && Number.isFinite(playCoins) && playCoins > 0) {
+    current.coins[gameKey] = Math.max(current.coins[gameKey] ?? 0, Math.floor(playCoins));
+  }
+  map.set(userId, current);
+}
+
+async function fetchPointsPage(page: number) {
+  const res = await fetch(`/api/leaderboard/points?limit=200&page=${page}`, {
+    headers: { accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new QuizBankApiError(`Leaderboard points failed (${res.status})`, res.status);
+  }
+  const json = (await res.json()) as {
+    data?: unknown;
+    pagination?: { totalPages?: number };
+  };
+  const rows = Array.isArray(json.data) ? (json.data as Record<string, unknown>[]) : [];
+  return { rows, totalPages: Number(json.pagination?.totalPages ?? 1) };
+}
+
+/** Stored leadership points for every player. Coins are merged when the payload includes them. */
+export async function fetchStoredBoardPlayers(): Promise<StoredBoardPlayer[]> {
+  const map = new Map<string, StoredBoardPlayer>();
+  const first = await fetchPointsPage(1);
+  for (const row of first.rows) rememberStoredPlayer(map, row);
+  const pages = Math.min(Math.max(first.totalPages, 1), 5);
+  for (let page = 2; page <= pages; page += 1) {
+    const next = await fetchPointsPage(page);
+    for (const row of next.rows) rememberStoredPlayer(map, row);
+  }
+
+  try {
+    const plays = await adminFetch<Array<Record<string, unknown>>>('/game-plays?limit=200');
+    for (const row of Array.isArray(plays.data) ? plays.data : []) {
+      rememberStoredPlayer(map, row);
+    }
+  } catch {
+    // Points board is the source of rank. Play rows only add coin totals when present.
+  }
+
+  return [...map.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+}
+
+export async function removePlayer(userId: string) {
+  const payload = await adminFetch<{
+    userId: string;
+    name: string;
+    removed: boolean;
+    starterPointsOnNextLogin: number;
+  }>(`/players/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+  return payload.data;
+}
+
+export async function addPlayerPoints(userId: string, amount: number) {
+  const payload = await adminFetch<{
+    userId: string;
+    name: string;
+    added: number;
+    points: number;
+  }>(`/players/${encodeURIComponent(userId)}/points`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+  return payload.data;
+}
+
 export async function deleteBankQuestion(questionId: string) {
   const payload = await adminFetch<QuizBankQuestion>(
     `/quiz-question-bank/questions/${encodeURIComponent(questionId)}`,
@@ -719,5 +872,48 @@ export function bankQuestionToQuizQuestion(
     topicTag: row.topic || 'Potato',
     points: Number(settings?.pointsPerCorrect ?? 20),
     timeLimitSeconds: Number(settings?.timerSeconds ?? 15),
+    locales: row.locales
+      ? {
+          hi: row.locales.hi
+            ? {
+                question: row.locales.hi.question,
+                options: row.locales.hi.options
+                  ? { ...row.locales.hi.options }
+                  : undefined,
+              }
+            : undefined,
+          gu: row.locales.gu
+            ? {
+                question: row.locales.gu.question,
+                options: row.locales.gu.options
+                  ? { ...row.locales.gu.options }
+                  : undefined,
+              }
+            : undefined,
+        }
+      : undefined,
+  };
+}
+
+/** View helper — English is default; hi/gu overlay from `locales` when present. */
+export function localizeQuizQuestion(
+  question: QuizQuestion,
+  language: AdminQuizLanguage = 'en',
+): QuizQuestion {
+  if (language === 'en') return question;
+  const locale = question.locales?.[language];
+  if (!locale) return question;
+
+  const options = question.options.map((opt) => {
+    const key = String(opt.id).toUpperCase() as keyof QuizBankOptionMap;
+    const text = locale.options?.[key];
+    return text && text.trim() ? { ...opt, text } : opt;
+  });
+
+  return {
+    ...question,
+    question:
+      locale.question && locale.question.trim() ? locale.question : question.question,
+    options,
   };
 }

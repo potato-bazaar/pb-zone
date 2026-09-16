@@ -349,11 +349,11 @@ body {
 }
 .crush-node-check {
   position: absolute;
-  right: -4px;
-  bottom: -2px;
+  right: -3px;
+  bottom: -1px;
   display: flex;
-  height: 24px;
-  width: 24px;
+  height: 18px;
+  width: 18px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
@@ -362,17 +362,17 @@ body {
 }
 .crush-node-ring {
   position: absolute;
-  inset: -8px;
+  inset: -6px;
   border-radius: 999px;
-  border: 3px solid rgba(255, 255, 255, 0.95);
+  border: 2.5px solid rgba(255, 255, 255, 0.95);
   animation: crush-ring 1.6s ease-out infinite;
 }
 .crush-node-glow {
   position: absolute;
   left: 50%;
-  top: 38px;
-  width: 150px;
-  height: 150px;
+  top: 30px;
+  width: 110px;
+  height: 110px;
   transform: translate(-50%, -50%);
   border-radius: 999px;
   background: radial-gradient(circle, rgba(255, 220, 90, 0.65) 0%, rgba(255, 200, 60, 0.25) 45%, transparent 72%);
@@ -381,16 +381,16 @@ body {
 }
 .crush-play-tag {
   position: absolute;
-  top: -34px;
+  top: -28px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
   background: linear-gradient(180deg, #fff, #ffe9b0);
   color: #a24d00;
   font-family: var(--font-fredoka), sans-serif;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25), 0 0 0 2px #ffb020;
   animation: crush-bounce-tag 1.4s ease-in-out infinite;
@@ -614,30 +614,24 @@ body {
 }
 
 .quiz-glass-pill {
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 6px 16px -6px rgba(43, 31, 122, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 0 2px rgba(106, 90, 224, 0.16);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px -4px rgba(43, 31, 122, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   position: relative;
 }
-.quiz-timer-ring {
-  position: absolute;
-  inset: -3px;
-  border-radius: 999px;
-  background: conic-gradient(#6a5ae0 calc(var(--p, 1) * 360deg), transparent 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  opacity: 0.9;
-  transition: background 0.9s linear;
-  pointer-events: none;
+.quiz-timer-pill {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 3px 10px -3px rgba(43, 31, 122, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
 }
 .quiz-timer-urgent {
   animation: quiz-urgent 0.7s ease-in-out infinite;
+  box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.45), 0 3px 10px -3px rgba(239, 68, 68, 0.25);
 }
-.quiz-timer-urgent .quiz-timer-ring { background: conic-gradient(#ef4444 calc(var(--p, 1) * 360deg), transparent 0); }
 .quiz-timer-urgent span, .quiz-timer-urgent svg { color: #ef4444 !important; }
 @keyframes quiz-urgent {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
-  50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
 }
 
 .quiz-progress {
@@ -967,7 +961,7 @@ body {
     radial-gradient(70% 90% at 95% 10%, rgba(123, 92, 255, 0.7) 0%, rgba(123, 92, 255, 0) 60%),
     radial-gradient(60% 70% at 10% 100%, rgba(255, 95, 162, 0.35) 0%, rgba(255, 95, 162, 0) 60%),
     linear-gradient(120deg, #1a1560 0%, #2a1f8f 45%, #4a2fc4 100%);
-  box-shadow: 0 18px 40px -16px rgba(27, 20, 100, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 0 3px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 18px 40px -16px rgba(27, 20, 100, 0.6);
 }
 .home-banner-shine {
   position: absolute;
@@ -1038,7 +1032,8 @@ body {
 .home-toast { animation: crush-toast 1.8s ease-out both; }
 
 .home-feature {
-  box-shadow: 0 16px 36px -16px rgba(43, 31, 122, 0.5), 0 0 0 3px rgba(255, 255, 255, 0.6);
+  background: transparent;
+  box-shadow: none;
 }
 .home-tag {
   background: rgba(0, 0, 0, 0.35);
@@ -1401,8 +1396,8 @@ body {
 @keyframes run-shipment { from { opacity: 0; transform: scale(0.4) rotate(-6deg); } to { opacity: 1; transform: none; } }
 .run-cheer { animation: run-cheer 1.4s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes run-cheer { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-12px) scale(1.04); } }
-.run-power { animation: run-power-in 0.4s cubic-bezier(0.22, 1.5, 0.36, 1) both; }
-@keyframes run-power-in { from { opacity: 0; transform: translateY(18px) scale(0.85); } to { opacity: 1; transform: none; } }
+.run-power { animation: run-power-in 0.28s ease-out both; }
+@keyframes run-power-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .run-combo { animation: run-combo 0.35s cubic-bezier(0.22, 1.6, 0.36, 1) both; }
 @keyframes run-combo { from { transform: scale(0.6); } to { transform: scale(1); } }
 .run-step { animation: game-card-in 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both; }

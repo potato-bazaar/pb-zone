@@ -120,13 +120,212 @@ async function leaderboardFetch<T>(
   return json as T;
 }
 
-export function fetchLeaderboard(
-  auth: QuizAuth,
-  options?: { period?: LeaderboardPeriod; limit?: number },
+export type StoredPlayerPoints = {
+  userId: string;
+  name: string;
+  points: number;
+  games: Record<string, number>;
+};
+
+export function gamePointsFromRow(row: StoredPlayerPoints, gameKey: string) {
+  const want = gameKey.replace(/-/g, "_");
+  for (const [key, value] of Object.entries(row.games ?? {})) {
+    if (key.replace(/-/g, "_") === want) return Math.max(0, Number(value) || 0);
+  }
+  return 0;
+}
+
+/** Current-season total = sum of per-game stored points. */
+export function seasonPointsFromRow(row: StoredPlayerPoints) {
+  return Object.values(row.games ?? {}).reduce(
+    (sum, value) => sum + Math.max(0, Number(value) || 0),
+    0,
+  );
+}
+
+const PLACEHOLDER_NAMES = new Set(["player", "potato player", "you", "anonymous", "guest"]);
+
+/** Sort the existing player list. Higher points rank first. */
+export function rankStoredPlayers(
+  players: StoredPlayerPoints[],
+  me: { userId: string; name: string },
+  options?: { gameKey?: string | null; mode?: "season" | "lifetime" },
 ) {
-  return leaderboardFetch<LeaderboardBoard>("", auth, {
-    period: options?.period ?? "overall",
-    limit: options?.limit ?? 20,
+  const mode = options?.mode ?? "lifetime";
+  const gameKey = options?.gameKey ?? null;
+  const rows = players.map((player) => {
+    const points = gameKey
+      ? gamePointsFromRow(player, gameKey)
+      : mode === "season"
+        ? seasonPointsFromRow(player)
+        : Math.max(0, Number(player.points) || 0);
+    return {
+      id: player.userId,
+      name: player.name || "Player",
+      points,
+      isYou: false,
+    };
+  });
+
+  const ranked = rows
+    .filter((row) => row.points > 0)
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+
+  let youIndex = me.userId
+    ? ranked.findIndex((row) => String(row.id) === String(me.userId))
+    : -1;
+
+  if (youIndex < 0 && me.name.trim()) {
+    const mine = me.name.trim().toLowerCase();
+    if (!PLACEHOLDER_NAMES.has(mine)) {
+      const matches = ranked
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => row.name.trim().toLowerCase() === mine);
+      if (matches.length === 1) youIndex = matches[0].index;
+    }
+  }
+
+  if (youIndex >= 0) ranked[youIndex].isYou = true;
+
+  return ranked.map((row, index) => ({ ...row, rank: index + 1, movement: 0 }));
+}
+
+/** Leadership board: stored PB points, not coins. Rank on the FE. */
+export function fetchLeaderboardPoints(
+  auth: QuizAuth,
+  options?: { gameKey?: string; page?: number; limit?: number },
+) {
+  return leaderboardFetch<StoredPlayerPoints[]>("/points", auth, {
+    gameKey: options?.gameKey,
+    page: options?.page ?? 1,
+    limit: options?.limit ?? 200,
+  });
+}
+
+export type PerformanceMetric = {
+  key?: string;
+  value: number;
+  max: number;
+};
+
+export type GameScoreResult = {
+  coinsAwarded: number;
+  coins: Record<string, number>;
+  totalCoins: number;
+  averagePerformancePercent: number;
+  leadershipPointsAwarded: number;
+  pbPoints: number;
+};
+
+type ScoreListener = (
+  result: GameScoreResult,
+  meta: { gameKey: string; applyWallet: boolean },
+) => void;
+
+let scoreListener: ScoreListener | null = null;
+
+/** Lets the wallet pick up pbPoints (and server coin total) after a game ends. */
+export function subscribeGameScore(listener: ScoreListener) {
+  scoreListener = listener;
+  return () => {
+    if (scoreListener === listener) scoreListener = null;
+  };
+}
+
+function asNumber(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeScoreResult(json: unknown): GameScoreResult {
+  const raw =
+    json && typeof json === "object" && "data" in json
+      ? (json as { data: unknown }).data
+      : json;
+  const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const coinsRaw = data.coins;
+  const coins: Record<string, number> = {};
+  if (coinsRaw && typeof coinsRaw === "object" && !Array.isArray(coinsRaw)) {
+    for (const [key, value] of Object.entries(coinsRaw as Record<string, unknown>)) {
+      coins[key] = Math.max(0, asNumber(value) ?? 0);
+    }
+  }
+  const summed = Object.values(coins).reduce((sum, value) => sum + value, 0);
+  return {
+    coinsAwarded: asNumber(data.coinsAwarded) ?? asNumber(data.coinsAdded) ?? 0,
+    coins,
+    totalCoins: asNumber(data.totalCoins) ?? summed,
+    averagePerformancePercent: asNumber(data.averagePerformancePercent) ?? 0,
+    leadershipPointsAwarded:
+      asNumber(data.leadershipPointsAwarded) ?? asNumber(data.lpAwarded) ?? 0,
+    pbPoints: asNumber(data.pbPoints) ?? asNumber(data.leaderboardPoints) ?? 0,
+  };
+}
+
+/** One game-over call: POST /v1/leaderboard/score. Coins for this game + average points on the board. */
+export async function submitGameScore(
+  auth: QuizAuth,
+  input: {
+    gameKey: string;
+    sessionId: string;
+    coins?: number;
+    applyWallet?: boolean;
+    metrics: PerformanceMetric[];
+  },
+): Promise<GameScoreResult> {
+  const applyWallet = input.applyWallet !== false;
+  const base = leaderboardBaseUrl();
+  const res = await fetch(`${base}/score`, {
+    method: "POST",
+    headers: {
+      ...buildHeaders(auth),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      gameKey: input.gameKey,
+      sessionId: input.sessionId.slice(0, 64),
+      coins: Math.max(0, Math.floor(input.coins ?? 0)),
+      applyWallet,
+      metrics: input.metrics,
+    }),
+    cache: "no-store",
+  });
+
+  let json: unknown = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
+  if (!res.ok) {
+    let msg = `Scoring API error (${res.status})`;
+    if (json && typeof json === "object") {
+      const payload = json as { message?: unknown; error?: unknown };
+      const fromApi = payload.message ?? payload.error;
+      if (typeof fromApi === "string" && fromApi.trim()) msg = fromApi;
+    }
+    throw new QuizApiError(msg, res.status, json);
+  }
+  const result = normalizeScoreResult(json);
+  scoreListener?.(result, { gameKey: input.gameKey, applyWallet });
+  return result;
+}
+
+/** Fire-and-forget. Game over still shows if the score API is down. */
+export function recordGameLeaderboard(
+  auth: QuizAuth,
+  input: {
+    gameKey: string;
+    sessionId: string;
+    coins?: number;
+    applyWallet?: boolean;
+    metrics: PerformanceMetric[];
+  },
+) {
+  const metrics = input.metrics.filter((metric) => metric.max > 0);
+  if (metrics.length === 0) return;
+  void submitGameScore(auth, { ...input, metrics }).catch((err) => {
+    console.warn("[scoring] game score not stored", input.gameKey, err);
   });
 }
 

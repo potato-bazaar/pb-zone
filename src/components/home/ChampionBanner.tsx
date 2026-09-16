@@ -33,16 +33,6 @@ export function ChampionBanner() {
         </span>
       ))}
 
-      <span className="pointer-events-none absolute bottom-3 right-3 z-20 text-right font-script text-[11px] leading-tight text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" aria-hidden>
-        Smarter
-        <br />
-        Players
-        <br />
-        Brighter
-        <br />
-        Tomorrows ♥
-      </span>
-
       <div className="relative z-10 flex min-h-[13.5rem] items-center gap-2 p-5 pr-2">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/85">Play more. Earn more.</p>

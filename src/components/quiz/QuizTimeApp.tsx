@@ -10,6 +10,7 @@ import { useQuizScoring } from "@/hooks/useQuizScoring";
 import {
   QuizApiError,
   startQuizSession,
+  type QuizLanguage,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
 import { startLiveMirror } from "@/lib/quizLiveMirror";
@@ -26,6 +27,7 @@ export function QuizTimeApp() {
   const [runId, setRunId] = useState(0);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<QuizLanguage>("en");
   const [quizSession, setQuizSession] = useState<QuizSessionStartData | null>(
     null,
   );
@@ -41,10 +43,11 @@ export function QuizTimeApp() {
   );
   const [playAuth, setPlayAuth] = useState(auth);
 
-  async function beginQuiz() {
+  async function beginQuiz(selectedLang: QuizLanguage = language) {
     if (starting) return;
     setStarting(true);
     setStartError(null);
+    setLanguage(selectedLang);
 
     try {
       let userName =
@@ -63,7 +66,7 @@ export function QuizTimeApp() {
       };
       setPlayAuth(authWithName);
 
-      const data = await startQuizSession(authWithName);
+      const data = await startQuizSession(authWithName, { language: selectedLang });
       startLiveMirror({
         userId: authWithName.userId || "dev-user-1",
         sessionId: data.sessionId,
@@ -93,7 +96,7 @@ export function QuizTimeApp() {
     return (
       <QuizHowToPlay
         onBack={() => router.push("/games")}
-        onStart={() => void beginQuiz()}
+        onStart={(lang) => void beginQuiz(lang)}
         starting={starting}
         error={startError}
         scoring={scoring}
@@ -105,7 +108,7 @@ export function QuizTimeApp() {
     return (
       <QuizHowToPlay
         onBack={() => router.push("/games")}
-        onStart={() => void beginQuiz()}
+        onStart={(lang) => void beginQuiz(lang)}
         starting={starting}
         error={startError ?? "Session missing. Tap Start Quiz again."}
         scoring={scoring}
@@ -120,7 +123,7 @@ export function QuizTimeApp() {
       initialSession={quizSession}
       onExit={() => router.push("/games")}
       onHome={() => router.push("/home")}
-      onPlayAgain={() => void beginQuiz()}
+      onPlayAgain={() => void beginQuiz(language)}
     />
   );
 }

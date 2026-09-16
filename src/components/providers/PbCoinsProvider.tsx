@@ -18,6 +18,7 @@ import {
 } from "@/lib/pbCoins";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { fetchQuizPoints } from "@/lib/quizApi";
+import { subscribeGameScore } from "@/lib/leaderboardApi";
 
 type PbCoinsContextValue = {
   coins: number;
@@ -94,7 +95,17 @@ export function PbCoinsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [session.token, session.userId, session.userName, commit]);
+    // userName changes (profile hydrate) shouldn't re-hit points
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.token, session.userId, commit]);
+
+  useEffect(() => {
+    return subscribeGameScore((result) => {
+      const current = walletRef.current;
+      if (!Number.isFinite(result.pbPoints)) return;
+      commit({ ...current, pbPoints: result.pbPoints });
+    });
+  }, [commit]);
 
   const addCoins = useCallback(
     (amount: number) => {

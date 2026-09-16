@@ -123,15 +123,13 @@ function upstreamRequest(
   });
 }
 
-async function proxyLeaderboard(
+async function proxyCrush(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
   const { path } = await context.params;
   const segments = path ?? [];
-  // POST /api/leaderboard/score → POST /v1/leaderboard/score
-  const isScore = segments.length === 1 && segments[0] === "score";
-  const upstreamPath = `/v1/leaderboard${segments.length ? `/${segments.join("/")}` : ""}`;
+  const upstreamPath = `/v1/crush${segments.length ? `/${segments.join("/")}` : ""}`;
   const target = new URL(`${quizUpstreamBase()}${upstreamPath}`);
   request.nextUrl.searchParams.forEach((value, key) => {
     target.searchParams.set(key, value);
@@ -143,28 +141,13 @@ async function proxyLeaderboard(
     const text = await request.text();
     if (text) {
       body = text;
-      if (isScore) {
-        try {
-          const parsed = JSON.parse(text) as Record<string, unknown>;
-          delete parsed.userId;
-          delete parsed.user_id;
-          body = JSON.stringify(parsed);
-        } catch {
-          body = text;
-        }
-      }
       headers.set("content-type", request.headers.get("content-type") || "application/json");
       headers.set("content-length", String(Buffer.byteLength(body)));
     }
   }
 
   try {
-    const upstream = await upstreamRequest(
-      target,
-      request.method,
-      headers,
-      body,
-    );
+    const upstream = await upstreamRequest(target, request.method, headers, body);
     const responseHeaders = new Headers();
     if (upstream.contentType) {
       responseHeaders.set("content-type", upstream.contentType);
@@ -174,12 +157,11 @@ async function proxyLeaderboard(
       headers: responseHeaders,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to reach leaderboard API";
-    console.error("[leaderboard proxy]", target.toString(), error);
+    const message = error instanceof Error ? error.message : "Failed to reach crush API";
+    console.error("[crush proxy]", target.toString(), error);
     return NextResponse.json(
       {
-        error: "Leaderboard API unreachable",
+        error: "Crush API unreachable",
         message,
         upstream: target.toString(),
       },
@@ -192,12 +174,19 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
-  return proxyLeaderboard(request, context);
+  return proxyCrush(request, context);
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyCrush(request, context);
 }
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
-  return proxyLeaderboard(request, context);
+  return proxyCrush(request, context);
 }

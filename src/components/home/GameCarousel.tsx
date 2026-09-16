@@ -86,18 +86,16 @@ export function GameCarousel({ games }: GameCarouselProps) {
     <div>
       <div
         ref={scrollerRef}
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 pt-1 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth bg-transparent [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {games.map((game, i) => (
           <article
             key={game.id}
-            className={`home-feature relative w-[86%] shrink-0 snap-start overflow-hidden rounded-[1.5rem] transition-transform duration-500 ${
-              i === active ? "scale-100" : "scale-[0.96]"
-            }`}
+            className="home-feature relative w-full shrink-0 snap-start overflow-hidden rounded-[1.6rem] bg-transparent shadow-none [transform:translateZ(0)]"
           >
-            <div className="relative aspect-[16/11] w-full">
+            <div className="relative aspect-[16/11] w-full overflow-hidden rounded-[1.6rem] bg-transparent">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={game.image} alt="" className="absolute inset-0 h-full w-full object-cover object-[70%_50%]" draggable={false} />
+              <img src={game.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" draggable={false} />
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d0733]/80 via-[#0d0733]/35 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0d0733]/60 via-transparent to-transparent" />
 

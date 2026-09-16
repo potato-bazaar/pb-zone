@@ -5,6 +5,7 @@ import { useState, useSyncExternalStore } from "react";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { recordGameLeaderboard } from "@/lib/leaderboardApi";
 import { scorePotatoNinja } from "@/lib/pb/scoring";
 import { sounds } from "@/components/crush/render/sound";
 import { CHALLENGES, MODES, POWERUPS, SKINS, coinsFor, type Boosts, type Challenge, type NinjaMode, type PowerKind, type RunStats } from "./engine/ninja";
@@ -27,7 +28,8 @@ export function PotatoNinjaApp() {
   const router = useRouter();
   const { coins, addCoins, spendCoins } = usePbCoins();
   const { awardPoints } = usePbPoints();
-  const { userName } = useUserSession();
+  const session = useUserSession();
+  const { userName } = session;
   const progress = useSyncExternalStore(subscribeNinja, getNinjaSnapshot, getNinjaServerSnapshot);
 
   const [screen, setScreen] = useState<Screen>("splash");
@@ -90,6 +92,16 @@ export function PotatoNinjaApp() {
       lines: score.lines,
       perfect: score.perfect,
       label: `Potato Ninja · ${MODES.find((m) => m.id === run.mode)?.name ?? run.mode}`,
+    });
+    recordGameLeaderboard(session, {
+      gameKey: "potato-ninja",
+      sessionId: `ninja-${run.key}`,
+      coins: earned,
+      metrics: [
+        { key: "slices", value: Math.min(stats.sliced, 60), max: 60 },
+        { key: "clean", value: stats.bombsHit === 0 ? 1 : 0, max: 1 },
+        { key: "combo", value: Math.min(stats.maxCombo, 10), max: 10 },
+      ],
     });
     updateNinja((p) => ({
       ...p,
@@ -392,14 +404,27 @@ export function PotatoNinjaApp() {
           ))}
         </div>
         <ol className="flex flex-col gap-2">
-          {rows.map((r, i) => (
-            <li key={r.name} className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${r.name === "You" ? "bg-[#6A5AE0] text-white" : i === 0 ? "nj-row-gold" : "nj-panel-light text-[#3a2410]"}`}>
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] font-extrabold ${i < 3 ? "bg-[#FFC107] text-[#4a2d00]" : "bg-black/15"}`}>{i + 1}</span>
-              <SkinFace cell={r.cell} size={34} className="rounded-full bg-black/20" />
-              <span className="flex-1 font-display text-[15px] font-extrabold">{r.name}</span>
-              <span className="font-display text-[15px] font-extrabold tabular-nums">{r.score.toLocaleString("en-IN")}</span>
-            </li>
-          ))}
+          {rows.map((r, i) =>
+            r.name === "You" ? (
+              <li key={r.name}>
+                <div className="rounded-full bg-white p-[2px] shadow-[0_2px_10px_rgba(106,90,224,0.14)]">
+                  <div className="flex items-center gap-3 rounded-full bg-[#EDE7FF] px-3 py-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6A5AE0]/15 font-display text-[13px] font-extrabold text-[#241A5E]">{i + 1}</span>
+                    <SkinFace cell={r.cell} size={34} className="rounded-full bg-white ring-2 ring-[#6A5AE0]/55" />
+                    <span className="flex-1 font-display text-[15px] font-extrabold text-[#241A5E]">You</span>
+                    <span className="font-display text-[15px] font-extrabold tabular-nums text-[#6A5AE0]">{r.score.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              </li>
+            ) : (
+              <li key={r.name} className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${i === 0 ? "nj-row-gold" : "nj-panel-light text-[#3a2410]"}`}>
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] font-extrabold ${i < 3 ? "bg-[#FFC107] text-[#4a2d00]" : "bg-black/15"}`}>{i + 1}</span>
+                <SkinFace cell={r.cell} size={34} className="rounded-full bg-black/20" />
+                <span className="flex-1 font-display text-[15px] font-extrabold">{r.name}</span>
+                <span className="font-display text-[15px] font-extrabold tabular-nums">{r.score.toLocaleString("en-IN")}</span>
+              </li>
+            ),
+          )}
         </ol>
       </div>,
     );

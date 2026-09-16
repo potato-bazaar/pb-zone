@@ -1,20 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { fetchCrushProgress, putCrushProgress } from "@/lib/crushApi";
+import { recordGameLeaderboard } from "@/lib/leaderboardApi";
 import { scoreTaterMatch } from "@/lib/pb/scoring";
 import { BOOSTER_INFO, LEVELS, MAX_LIVES } from "./engine/levels";
 import {
   commitProgress,
   getProgressSnapshot,
+  getProgressUpdatedAt,
   getServerProgressSnapshot,
   loseLife,
+  mergeRemoteProgress,
   msToNextLife,
   recordWin,
   refillLives,
   subscribeProgress,
+  toCrushPutBody,
+  touchProgressUpdatedAt,
   type CrushProgress,
 } from "./engine/progress";
 import { randomSeed } from "./engine/rng";
@@ -31,6 +38,7 @@ export function PotatoCrushApp() {
   const router = useRouter();
   const { coins, addCoins, spendCoins } = usePbCoins();
   const { awardPoints } = usePbPoints();
+  const session = useUserSession();
 
   const progress = useSyncExternalStore(subscribeProgress, getProgressSnapshot, getServerProgressSnapshot);
   const [screen, setScreen] = useState<"map" | "play">("map");
@@ -41,6 +49,65 @@ export function PotatoCrushApp() {
   const [shopType, setShopType] = useState<BoosterType | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedFor = useRef<string | null>(null);
+
+  const auth = {
+    token: session.token,
+    userId: session.userId,
+    userName: session.userName,
+  };
+
+  // Same as quiz/leaderboard: always sync — crushApi headers fall back to DEV_USER_ID.
+  const pushProgress = useCallback(
+    (p: CrushProgress) => {
+      const clientUpdatedAt = getProgressUpdatedAt() || touchProgressUpdatedAt();
+      void putCrushProgress(auth, toCrushPutBody(p, clientUpdatedAt)).catch((err) => {
+        console.warn("[crush] progress not saved", err);
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.token, session.userId, session.userName],
+  );
+
+  const schedulePush = useCallback(
+    (p: CrushProgress) => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => pushProgress(p), 400);
+    },
+    [pushProgress],
+  );
+
+  // Hydrate from BE on mount / user change
+  useEffect(() => {
+    const key = `${session.userId ?? "dev"}:${session.token ?? "none"}`;
+    if (hydratedFor.current === key) return;
+    hydratedFor.current = key;
+    let cancelled = false;
+    void fetchCrushProgress(auth)
+      .then((remote) => {
+        if (cancelled) return;
+        const local = getProgressSnapshot();
+        const merged = mergeRemoteProgress(local, remote);
+        commitProgress(merged, { touch: false });
+        // Bump client clock so PUT accepts the merged snapshot.
+        touchProgressUpdatedAt();
+        pushProgress(merged);
+      })
+      .catch((err) => {
+        console.warn("[crush] progress not loaded", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.token, session.userId, session.userName, pushProgress]);
+
+  useEffect(() => {
+    return () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (progress) sounds.enabled = progress.sound;
@@ -54,14 +121,22 @@ export function PotatoCrushApp() {
       setNow(Date.now());
       const p = getProgressSnapshot();
       const next = refillLives(p);
-      if (next.lives !== p.lives) commitProgress(next);
+      if (next.lives !== p.lives) {
+        commitProgress(next);
+        schedulePush(next);
+      }
     }, 1000);
     return () => clearInterval(t);
-  }, [livesFull]);
+  }, [livesFull, schedulePush]);
 
-  const update = useCallback((fn: (p: CrushProgress) => CrushProgress) => {
-    commitProgress(fn(getProgressSnapshot()));
-  }, []);
+  const update = useCallback(
+    (fn: (p: CrushProgress) => CrushProgress) => {
+      const next = fn(getProgressSnapshot());
+      commitProgress(next);
+      schedulePush(next);
+    },
+    [schedulePush],
+  );
 
   const countdown = useCountdown(progress ? msToNextLife(progress, now) : 0);
 
@@ -90,7 +165,13 @@ export function PotatoCrushApp() {
     addCoins(reward);
 
     // PB Points are independent of Coins (FRD §1). One credit per attempt (level + seed).
-    const score = scoreTaterMatch({ stats: summary.stats, stars: summary.stars, perfect: summary.stars >= 3, firstClear, previousStars });
+    const score = scoreTaterMatch({
+      stats: summary.stats,
+      stars: summary.stars,
+      perfect: summary.stars >= 3,
+      firstClear,
+      previousStars,
+    });
     const pb = awardPoints({
       eventId: `crush:${activeLevel.id}:${seed}`,
       gameId: "potato-crush",
@@ -98,6 +179,21 @@ export function PotatoCrushApp() {
       lines: score.lines,
       perfect: score.perfect,
       label: `Potato Crush · Level ${activeLevel.order}`,
+    });
+    const matches = summary.stats.match3 + summary.stats.match4 + summary.stats.match5;
+    const matchQuality =
+      matches === 0
+        ? 0
+        : (summary.stats.match3 + summary.stats.match4 * 2 + summary.stats.match5 * 3) / (matches * 3);
+    recordGameLeaderboard(session, {
+      gameKey: "potato-crush",
+      sessionId: `crush-${activeLevel.order}-${seed}`,
+      coins: reward,
+      metrics: [
+        { key: "stars", value: summary.stars, max: 3 },
+        { key: "matches", value: matchQuality, max: 1 },
+        { key: "complete", value: 1, max: 1 },
+      ],
     });
 
     update((p) => recordWin(p, activeLevel.order, summary.stars, summary.score, reward, LEVELS.length));
@@ -109,7 +205,6 @@ export function PotatoCrushApp() {
   };
 
   const handleQuit = () => {
-    // Quitting mid-level costs a life; leaving from a result screen does not.
     goMap();
   };
 
@@ -157,7 +252,10 @@ export function PotatoCrushApp() {
   };
 
   const useBooster = (type: BoosterType) => {
-    update((p) => ({ ...p, boosters: { ...p.boosters, [type]: Math.max(0, (p.boosters[type] ?? 0) - 1) } }));
+    update((p) => ({
+      ...p,
+      boosters: { ...p.boosters, [type]: Math.max(0, (p.boosters[type] ?? 0) - 1) },
+    }));
   };
 
   const refillLivesWithCoins = () => {

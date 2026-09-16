@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { YouHighlightRow } from "@/components/leaderboard/LeaderboardRankRow";
 import { PlayerAvatar } from "@/components/pb/PbUi";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
-import { buildBoard, type BoardRow } from "@/data/leaderboard";
+import type { BoardRow } from "@/data/leaderboard";
+import { fetchLeaderboardPoints, rankStoredPlayers, type StoredPlayerPoints } from "@/lib/leaderboardApi";
 import { REWARD_TIERS } from "@/data/rewards";
 
 const ART = "/games/run";
@@ -25,20 +27,41 @@ export function RunBoard({ tab: initialTab, onClose }: { tab: BoardTab; onClose:
   const session = useUserSession();
   const [tab, setTab] = useState<BoardTab>(initialTab);
   const [period, setPeriod] = useState<Period>("week");
+  const [stored, setStored] = useState<StoredPlayerPoints[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const rows = useMemo(() => {
-    const you = {
-      name: session.userName || "You",
-      seasonPoints: state.seasonPoints,
-      lifetimePoints: state.lifetimePoints,
-      gameSeasonPoints: state.gameSeasonPoints,
-      movement: state.lastMovement ? state.lastMovement.from - state.lastMovement.to : 0,
-      gameMovement: Object.fromEntries(Object.entries(state.gameMovement).map(([k, v]) => [k, v ? v.from - v.to : 0])),
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchLeaderboardPoints(session, { limit: 200 })
+      .then((players) => {
+        if (!cancelled) setStored(Array.isArray(players) ? players : []);
+      })
+      .catch(() => {
+        if (!cancelled) setStored([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-    if (period === "week") return buildBoard("season", you, "spud-run");
-    if (period === "month") return buildBoard("season", you, null);
-    return buildBoard("lifetime", you);
-  }, [period, session.userName, state.seasonPoints, state.lifetimePoints, state.gameSeasonPoints, state.lastMovement, state.gameMovement]);
+  }, [period, session.token, session.userId, session.userName]);
+
+  const rows = useMemo(
+    () =>
+      loading && stored.length === 0
+        ? []
+        : rankStoredPlayers(
+          stored,
+          { userId: session.userId || "", name: session.userName || "You" },
+          {
+            mode: period === "month" ? "lifetime" : "season",
+            gameKey: period === "month" ? null : "spud-run",
+          },
+        ),
+    [loading, stored, session.userId, session.userName, period],
+  );
 
   const top = rows.slice(0, 6);
   const youRow = rows.find((r) => r.isYou);
@@ -83,6 +106,9 @@ export function RunBoard({ tab: initialTab, onClose }: { tab: BoardTab; onClose:
               ))}
             </div>
             <ol className="run-result mt-3 space-y-1.5 rounded-[1.4rem] bg-white p-2 text-[#241A5E] shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
+              {loading && top.length === 0 ? (
+                <li className="px-2 py-4 text-center text-[13px] font-bold text-[#8B84A8]">Loading points…</li>
+              ) : null}
               {top.map((r) => (
                 <BoardLine key={r.id} row={r} />
               ))}
@@ -94,7 +120,7 @@ export function RunBoard({ tab: initialTab, onClose }: { tab: BoardTab; onClose:
               ) : null}
             </ol>
             <p className="mt-2 text-center text-[11px] font-bold text-white/70">
-              {period === "week" ? "Ranked by Potato Run PB this season" : period === "month" ? "Ranked by season PB across all games" : "Ranked by lifetime PB"}
+              {period === "month" ? "Ranked by stored points across all games" : "Ranked by stored Potato Run points"}
             </p>
           </>
         ) : (
@@ -135,13 +161,22 @@ export function RunBoard({ tab: initialTab, onClose }: { tab: BoardTab; onClose:
 }
 
 function BoardLine({ row }: { row: BoardRow }) {
+  if (row.isYou) {
+    return (
+      <li>
+        <YouHighlightRow rank={row.rank} points={row.points} />
+      </li>
+    );
+  }
   const medal = row.rank === 1 ? "bg-[#FFD84D] text-[#6B3A00]" : row.rank === 2 ? "bg-[#E2E6EF] text-[#3D4658]" : row.rank === 3 ? "bg-[#F2B27A] text-[#6B3A00]" : "bg-[#F5F3FF] text-[#6A5AE0]";
   return (
-    <li className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${row.isYou ? "bg-gradient-to-r from-[#8B6CFF] to-[#5A3ED6] text-white shadow-[0_6px_16px_rgba(90,62,214,0.4)]" : row.rank === 1 ? "bg-[#FFF3C4]" : "bg-[#F8F7FD]"}`}>
-      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-display text-[13px] font-extrabold ${row.isYou ? "bg-white/25 text-white" : medal}`}>{row.rank}</span>
-      <PlayerAvatar size="sm" ringClass={row.isYou ? "ring-white/70" : "ring-white"} />
-      <span className="min-w-0 flex-1 truncate font-display text-[14px] font-extrabold">{row.isYou ? "You" : row.name}</span>
-      <span className="shrink-0 font-display text-[14px] font-extrabold tabular-nums">{row.points.toLocaleString("en-IN")} PB</span>
+    <li className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${row.rank === 1 ? "bg-[#FFF3C4]" : "bg-[#F8F7FD]"}`}>
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-display text-[13px] font-extrabold ${medal}`}>{row.rank}</span>
+      <PlayerAvatar size="sm" ringClass="ring-white" />
+      <span className="min-w-0 flex-1 truncate font-display text-[14px] font-extrabold text-[#241A5E]">{row.name}</span>
+      <span className="shrink-0 font-display text-[14px] font-extrabold tabular-nums text-[#241A5E]">
+        {row.points.toLocaleString("en-IN")} <span className="text-[#6A5AE0]">PB</span>
+      </span>
     </li>
   );
 }

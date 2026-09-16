@@ -9,9 +9,10 @@ import { GameCarousel, type FeaturedGame } from "@/components/home/GameCarousel"
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
-import { MilestoneProgressBar, MovementBadge, PbStarIcon } from "@/components/pb/PbUi";
+import { MilestoneProgressBar, PbStarIcon } from "@/components/pb/PbUi";
 import { ALL_GAMES } from "@/data/games";
 import { pbTitleFor } from "@/data/pbEconomy";
+import { fetchLeaderboardPoints, rankStoredPlayers } from "@/lib/leaderboardApi";
 import { sounds, haptic } from "@/components/crush/render/sound";
 
 const featuredGames: FeaturedGame[] = ALL_GAMES.map((game) => ({
@@ -70,27 +71,16 @@ function loadDaily(): DailyState {
 
 function Coin({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="homeCoin" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FFE566" />
-          <stop offset="0.5" stopColor="#F5C518" />
-          <stop offset="1" stopColor="#D4A017" />
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#homeCoin)" stroke="#C4920A" strokeWidth="1.2" />
-      <circle cx="12" cy="12" r="7" fill="none" stroke="#FFF3A8" strokeWidth="1" opacity="0.7" />
-      <text x="12" y="15.3" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#8B6914" fontFamily="system-ui, sans-serif">
-        PB
-      </text>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/images/home/coin.png" alt="" className={`${className} object-contain`} draggable={false} />
   );
 }
 
 export function HomeScreen() {
-  const { userName } = useUserSession();
+  const { userName, userId, token } = useUserSession();
   const { coins, addCoins } = usePbCoins();
   const { state: pb, seasonRank } = usePbPoints();
+  const [liveBoard, setLiveBoard] = useState<{ points: number; rank: number } | null>(null);
   const pbTitle = useMemo(() => pbTitleFor(pb.lifetimePoints), [pb.lifetimePoints]);
 
   const [daily, setDaily] = useState<DailyState>({ lastClaim: null, streak: 0 });
@@ -106,6 +96,26 @@ export function HomeScreen() {
     }, 0);
     return () => window.clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLeaderboardPoints({ token, userId, userName }, { limit: 200 })
+      .then((players) => {
+        if (cancelled) return;
+        const ranked = rankStoredPlayers(Array.isArray(players) ? players : [], {
+          userId: userId || "",
+          name: userName || "You",
+        }, { mode: "season" });
+        const me = ranked.find((row) => row.isYou);
+        if (me) setLiveBoard({ points: me.points, rank: me.rank });
+      })
+      .catch(() => {
+        if (!cancelled) setLiveBoard(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, userId, userName]);
 
   useEffect(() => {
     if (!toast) return;
@@ -163,7 +173,7 @@ export function HomeScreen() {
   );
 
   return (
-    <div className="home-bg relative mx-auto h-dvh w-full max-w-screen-sm">
+    <div className="home-bg relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden">
       <div className="home-farm-peek pointer-events-none" aria-hidden />
 
       {flying.map((c) => (
@@ -182,12 +192,7 @@ export function HomeScreen() {
         </div>
       ) : null}
 
-      <div
-        className="relative h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
-      >
-        {/* Header */}
-        <header className="relative z-30 flex items-center justify-between gap-3 px-4 pb-3" style={{ paddingTop: "var(--header-top)" }}>
+      <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 px-4 pb-3" style={{ paddingTop: "var(--header-top)" }}>
           <div className="home-rise flex min-w-0 items-center gap-3">
             <div className="home-avatar-ring relative shrink-0 rounded-full">
               <Image src="/images/home/avatar.png" alt="" width={56} height={56} className="h-14 w-14 rounded-full object-cover ring-2 ring-white" unoptimized />
@@ -204,20 +209,19 @@ export function HomeScreen() {
               </span>
             </div>
           </div>
-          <div id="home-coin-pill" className="home-pill home-rise flex h-11 shrink-0 items-center gap-1.5 rounded-full pl-2 pr-1.5" style={{ animationDelay: "0.1s" }} role="status" aria-label={`${coins} coins`}>
-            <Coin className="h-6 w-6" />
+          <div id="home-coin-pill" className="home-pill home-rise flex h-11 shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3" style={{ animationDelay: "0.1s" }} role="status" aria-label={`${coins} coins`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/home/coin.png" alt="" className="h-6 w-6 shrink-0 object-contain" draggable={false} />
             <span key={coinPop} className={`text-[15px] font-extrabold tabular-nums text-[#1a1a2e] ${coinPop ? "quiz-pop" : ""}`}>
               {coins.toLocaleString("en-IN")}
             </span>
-            <Link href="/rewards" aria-label="Rewards" className="ml-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#6A5AE0] text-white shadow-[0_2px_0_#4a3bb8] active:scale-95">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                <path d="M12 6v12M6 12h12" />
-              </svg>
-            </Link>
           </div>
-        </header>
+      </header>
 
-        <div className="relative z-10 px-4">
+      <div
+        className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
+        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+      >
           {/* PB score card: Season PB + rank (compete) and lifetime milestone (achieve). Coins live in the wallet pill above. */}
           <section className="home-card home-rise mb-3 rounded-[1.35rem] px-3.5 py-3" style={{ animationDelay: "0.15s" }}>
             <div className="flex items-center gap-3">
@@ -228,7 +232,7 @@ export function HomeScreen() {
                 <span className="min-w-0">
                   <span className="block text-[10.5px] font-extrabold uppercase tracking-wider text-[#8B84A8]">Season PB</span>
                   <span className="block font-display text-[18px] font-extrabold leading-tight tabular-nums text-[#241A5E]">
-                    {pb.seasonPoints.toLocaleString("en-IN")} <span className="text-[13px] text-[#6A5AE0]">PB</span>
+                    {(liveBoard?.points ?? pb.seasonPoints).toLocaleString("en-IN")} <span className="text-[13px] text-[#6A5AE0]">PB</span>
                   </span>
                 </span>
               </Link>
@@ -239,8 +243,7 @@ export function HomeScreen() {
                 <span className="leading-tight">
                   <span className="block text-[10.5px] font-extrabold uppercase tracking-wider text-[#8B84A8]">Rank</span>
                   <span className="flex items-center gap-1.5 font-display text-[18px] font-extrabold text-[#241A5E]">
-                    #{seasonRank}
-                    {pb.lastMovement ? <MovementBadge delta={pb.lastMovement.from - pb.lastMovement.to} /> : null}
+                    #{liveBoard?.rank ?? seasonRank}
                   </span>
                 </span>
               </Link>
@@ -321,7 +324,6 @@ export function HomeScreen() {
             <QuickLink href="/rewards" title="Rewards" body="Lifetime PB milestones" emoji="🎁" />
             <QuickLink href="/orders" title="Your Orders" body="Track your purchases" emoji="🛍️" />
           </section>
-        </div>
       </div>
 
       <AppBottomNav />

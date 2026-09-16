@@ -191,6 +191,242 @@ function unwrapData(body: string): Record<string, unknown> | null {
   }
 }
 
+type QuizLang = "en" | "hi" | "gu";
+
+/** sessionId → chosen language (BE often stores lang but still returns English copy). */
+const sessionLanguage = new Map<string, QuizLang>();
+
+type BankLocaleCache = {
+  loadedAt: number;
+  byNormText: Map<string, Record<string, unknown>>;
+  withLocale: { hi: number; gu: number; total: number };
+};
+
+let bankLocaleCache: BankLocaleCache | null = null;
+const BANK_CACHE_TTL_MS = 60_000;
+
+function asQuizLang(value: unknown): QuizLang | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "hi" || raw === "gu" || raw === "en") return raw;
+  return null;
+}
+
+function normalizeQuestionText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[?.!,;:]+$/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function hasLocale(row: Record<string, unknown>, lang: QuizLang) {
+  if (lang === "en") return true;
+  const locales = row.locales;
+  if (!locales || typeof locales !== "object") return false;
+  const loc = (locales as Record<string, unknown>)[lang];
+  if (!loc || typeof loc !== "object") return false;
+  const question = (loc as { question?: unknown }).question;
+  return typeof question === "string" && question.trim().length > 0;
+}
+
+function adminAuthHeaders(): Headers {
+  const headers = new Headers();
+  headers.set("accept", "application/json");
+  headers.set("ngrok-skip-browser-warning", "true");
+  const key = process.env.QUIZ_ADMIN_API_KEY || process.env.ADMIN_API_KEY || "";
+  if (key) headers.set("x-admin-key", key);
+  const secret = process.env.QUIZ_JWT_SECRET || process.env.JWT_SECRET || "";
+  if (secret) {
+    const token = signDevBearerToken("pb-zone-admin-panel", "PB Zone Admin");
+    if (token) headers.set("authorization", `Bearer ${token}`);
+  }
+  return headers;
+}
+
+async function loadBankLocaleCache(force = false): Promise<BankLocaleCache> {
+  if (
+    !force &&
+    bankLocaleCache &&
+    Date.now() - bankLocaleCache.loadedAt < BANK_CACHE_TTL_MS
+  ) {
+    return bankLocaleCache;
+  }
+
+  const byNormText = new Map<string, Record<string, unknown>>();
+  let withHi = 0;
+  let withGu = 0;
+  let total = 0;
+
+  for (let page = 1; page <= 8; page += 1) {
+    const target = new URL(
+      `${quizUpstreamBase()}/v1/admin/quiz-question-bank/questions`,
+    );
+    target.searchParams.set("page", String(page));
+    target.searchParams.set("limit", "200");
+    target.searchParams.set("isActive", "true");
+    const upstream = await upstreamRequest(target, "GET", adminAuthHeaders());
+    if (upstream.status < 200 || upstream.status >= 300) break;
+    const parsed = JSON.parse(upstream.body) as { data?: unknown; pagination?: { totalPages?: number } };
+    const rows = Array.isArray(parsed.data) ? parsed.data : [];
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const rec = row as Record<string, unknown>;
+      const text = String(rec.question ?? "");
+      if (!text.trim()) continue;
+      total += 1;
+      if (hasLocale(rec, "hi")) withHi += 1;
+      if (hasLocale(rec, "gu")) withGu += 1;
+      byNormText.set(normalizeQuestionText(text), rec);
+    }
+    const totalPages = Number(parsed.pagination?.totalPages ?? page);
+    if (page >= totalPages) break;
+  }
+
+  bankLocaleCache = {
+    loadedAt: Date.now(),
+    byNormText,
+    withLocale: { hi: withHi, gu: withGu, total },
+  };
+  console.info(
+    "[quiz locale] bank cache",
+    bankLocaleCache.withLocale,
+  );
+  return bankLocaleCache;
+}
+
+async function resolveBankRowForQuestion(
+  question: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  const cache = await loadBankLocaleCache();
+  const text = String(question.question ?? "");
+  const fromCache = cache.byNormText.get(normalizeQuestionText(text));
+  if (fromCache) return fromCache;
+
+  const id = String(question.id ?? "");
+  if (!id) return null;
+  const target = new URL(
+    `${quizUpstreamBase()}/v1/admin/quiz-question-bank/questions/${encodeURIComponent(id)}`,
+  );
+  try {
+    const upstream = await upstreamRequest(target, "GET", adminAuthHeaders());
+    if (upstream.status < 200 || upstream.status >= 300) return null;
+    return unwrapData(upstream.body);
+  } catch {
+    return null;
+  }
+}
+
+function isIndicText(value: unknown) {
+  return /[\u0900-\u097F\u0A80-\u0AFF]/.test(String(value ?? ""));
+}
+
+function localizeQuestionPayload(
+  question: unknown,
+  bank: Record<string, unknown> | null,
+  lang: QuizLang,
+): unknown {
+  if (!question || typeof question !== "object" || lang === "en" || !bank) return question;
+  if (!hasLocale(bank, lang)) return question;
+
+  const locObj = ((bank.locales as Record<string, unknown>)[lang] ||
+    {}) as Record<string, unknown>;
+  const bankOptions =
+    bank.options && typeof bank.options === "object"
+      ? (bank.options as Record<string, unknown>)
+      : {};
+  const locOptions =
+    locObj.options && typeof locObj.options === "object"
+      ? (locObj.options as Record<string, unknown>)
+      : {};
+
+  const englishToLetter = new Map<string, string>();
+  for (const [letter, text] of Object.entries(bankOptions)) {
+    if (typeof text !== "string") continue;
+    englishToLetter.set(text.trim().toLowerCase(), letter.toUpperCase());
+  }
+
+  const q = { ...(question as Record<string, unknown>) };
+  if (typeof locObj.question === "string" && locObj.question.trim()) {
+    q.question = locObj.question;
+  }
+
+  if (Array.isArray(q.options)) {
+    q.options = q.options.map((opt) => {
+      if (!opt || typeof opt !== "object") return opt;
+      const row = { ...(opt as Record<string, unknown>) };
+      const english = typeof row.text === "string" ? row.text.trim().toLowerCase() : "";
+      const letter =
+        englishToLetter.get(english) ||
+        String(row.label ?? row.key ?? "")
+          .trim()
+          .toUpperCase();
+      const localized = letter ? locOptions[letter] ?? locOptions[letter.toLowerCase()] : null;
+      if (typeof localized === "string" && localized.trim()) {
+        row.text = localized;
+      }
+      return row;
+    });
+  }
+
+  return q;
+}
+
+async function enrichQuizPayloadWithLocales(
+  responseBody: string,
+  langHint: QuizLang | null,
+  sessionIdHint?: string,
+): Promise<{ body: string; localized: boolean; lang: QuizLang }> {
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(responseBody) as Record<string, unknown>;
+  } catch {
+    return { body: responseBody, localized: false, lang: langHint ?? "en" };
+  }
+
+  const data =
+    json.data && typeof json.data === "object"
+      ? ({ ...(json.data as Record<string, unknown>) } as Record<string, unknown>)
+      : null;
+  if (!data) {
+    return { body: responseBody, localized: false, lang: langHint ?? "en" };
+  }
+
+  const sessionId = String(data.sessionId ?? data.id ?? sessionIdHint ?? "");
+  const lang =
+    asQuizLang(data.language) ||
+    langHint ||
+    (sessionId ? sessionLanguage.get(sessionId) ?? null : null) ||
+    "en";
+
+  if (sessionId && lang) sessionLanguage.set(sessionId, lang);
+  if (lang === "en") {
+    return { body: responseBody, localized: true, lang };
+  }
+
+  const localizeOne = async (rawQ: unknown) => {
+    if (!rawQ || typeof rawQ !== "object") return rawQ;
+    if (isIndicText((rawQ as { question?: unknown }).question)) return rawQ;
+    const bank = await resolveBankRowForQuestion(rawQ as Record<string, unknown>);
+    return localizeQuestionPayload(rawQ, bank, lang);
+  };
+
+  if (data.question) data.question = await localizeOne(data.question);
+  if (data.nextQuestion) data.nextQuestion = await localizeOne(data.nextQuestion);
+
+  const localized = isIndicText(
+    (data.question as { question?: unknown } | undefined)?.question,
+  ) || isIndicText(
+    (data.nextQuestion as { question?: unknown } | undefined)?.question,
+  );
+
+  return {
+    body: JSON.stringify({ ...json, data }),
+    localized,
+    lang,
+  };
+}
+
 function recordQuizTraffic(
   method: string,
   segments: string[],
@@ -268,9 +504,21 @@ async function proxyQuiz(
     segments[0] === "sessions";
   const headers = await resolveAuthHeaders(request, { resolveName });
   let body: string | undefined;
+  let requestLang: QuizLang | null = null;
   if (request.method !== "GET" && request.method !== "HEAD") {
     const text = await request.text();
-    if (text) body = text;
+    if (text) {
+      body = text;
+      try {
+        const parsed = JSON.parse(text) as Record<string, unknown>;
+        requestLang = asQuizLang(parsed.language);
+        if (requestLang) {
+          headers.set("accept-language", requestLang);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   try {
@@ -285,20 +533,80 @@ async function proxyQuiz(
       responseHeaders.set("content-type", upstream.contentType);
     }
 
-    const responseBody = upstream.body;
+    let responseBody = upstream.body;
+    let responseStatus = upstream.status;
 
     if (upstream.status >= 200 && upstream.status < 300) {
+      const isSessionStart =
+        request.method === "POST" &&
+        segments.length === 1 &&
+        segments[0] === "sessions";
+      const isSessionAction =
+        request.method === "POST" &&
+        segments[0] === "sessions" &&
+        segments.length >= 3 &&
+        (segments[2] === "answer" || segments[2] === "lifeline");
+
+      if (isSessionStart || isSessionAction) {
+        const sessionIdHint =
+          isSessionAction && segments.length >= 2 ? segments[1] : undefined;
+
+        // Warm bank locale cache (same source admin uses for HI/GU view).
+        if (requestLang === "hi" || requestLang === "gu") {
+          await loadBankLocaleCache().catch((error) => {
+            console.warn("[quiz locale] cache warm failed", error);
+          });
+        }
+
+        let enriched = await enrichQuizPayloadWithLocales(
+          responseBody,
+          requestLang,
+          sessionIdHint,
+        );
+        responseBody = enriched.body;
+
+        // Session start: if player asked for hi/gu but BE picked a question
+        // without locales, retry until we get one that matches admin's HI/GU set.
+        if (
+          isSessionStart &&
+          (requestLang === "hi" || requestLang === "gu") &&
+          !enriched.localized
+        ) {
+          for (let attempt = 0; attempt < 24; attempt += 1) {
+            const retry = await upstreamRequest(
+              target,
+              request.method,
+              headers,
+              body,
+            );
+            if (retry.status < 200 || retry.status >= 300) continue;
+            enriched = await enrichQuizPayloadWithLocales(
+              retry.body,
+              requestLang,
+            );
+            if (enriched.localized) {
+              responseBody = enriched.body;
+              responseStatus = retry.status;
+              break;
+            }
+          }
+          if (!enriched.localized) {
+            console.warn(
+              "[quiz locale] could not find localized starter question",
+              requestLang,
+              bankLocaleCache?.withLocale,
+            );
+          }
+        }
+      }
+
       recordQuizTraffic(
         request.method,
         segments,
         headers.get("x-user-id") || "dev-user-1",
         responseBody,
       );
-      if (
-        request.method === "POST" &&
-        segments.length === 1 &&
-        segments[0] === "sessions"
-      ) {
+      if (isSessionStart) {
         after(() => {
           void enforceQuestionBankCap().catch((error) => {
             console.error("[quiz-bank-cap]", error);
@@ -308,7 +616,7 @@ async function proxyQuiz(
     }
 
     return new NextResponse(responseBody, {
-      status: upstream.status,
+      status: responseStatus,
       headers: responseHeaders,
     });
   } catch (error) {

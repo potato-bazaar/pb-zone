@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sounds } from "@/components/crush/render/sound";
-import { PbBreakdownCard, RewardPills } from "@/components/pb/PbUi";
 import type { PbReceipt } from "@/components/providers/PbPointsProvider";
 import { scorePotatoRun } from "@/lib/pb/scoring";
 import { FINISH_M, MISSIONS, POWERS, RunGame, type MissionId, type PowerKind, type RunEvent, type RunFacts } from "../engine/run";
@@ -265,69 +264,66 @@ export function RunPlay({ seed, best, onFinish, onRestart, onMenu, onHome }: Pro
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm select-none overflow-hidden bg-[#8fd0ff] text-white">
       <div ref={hostRef} className="absolute inset-0 touch-none" />
 
-      {/* ---- HUD ---- */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3" style={{ paddingTop: "max(0.75rem, calc(var(--header-top) - 2.4rem))" }}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col items-start">
-            <button type="button" onClick={pause} aria-label="Pause" className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#111A2F]/80 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/25">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
-                <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-              </svg>
-            </button>
-            <img src={`${ART}/logo.webp`} alt="Potato Run" draggable={false} className="-mt-1 w-[34vw] max-w-[150px] object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]" />
-          </div>
+      {/* ---- HUD — one aligned row ---- */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3"
+        style={{ paddingTop: "var(--header-top)" }}
+      >
+        <div className="flex h-10 items-center gap-2">
+          <button
+            type="button"
+            onClick={pause}
+            aria-label="Pause"
+            className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#111A2F]/80 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/25"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+              <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+            </svg>
+          </button>
 
-          <div className="mt-0.5 min-w-0 flex-1 rounded-2xl bg-[#111A2F]/80 px-2.5 py-1.5 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/20 backdrop-blur-[2px]">
-            <div className="flex items-center gap-2">
-              <img src={`${ART}/crate.webp`} alt="" draggable={false} className="h-7 w-7 shrink-0 object-contain" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-extrabold leading-tight">{mission.label}</p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/15">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#7CFF9A] to-[#2fb14a] transition-[width]" style={{ width: `${missionPct}%` }} />
-                  </div>
-                  <span className="shrink-0 text-[10.5px] font-extrabold tabular-nums">
-                    {hud.missionValue} / {mission.target}
-                  </span>
-                </div>
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-[#111A2F]/80 px-2.5 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/20 backdrop-blur-[2px]">
+            <img src={`${ART}/crate.webp`} alt="" draggable={false} className="h-6 w-6 shrink-0 object-contain" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-[11px] font-extrabold leading-none">{mission.label}</p>
+                <span className="shrink-0 text-[10px] font-extrabold tabular-nums text-white/90">
+                  {hud.missionValue}/{mission.target}
+                </span>
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/15">
+                <div className="h-full rounded-full bg-gradient-to-r from-[#7CFF9A] to-[#2fb14a] transition-[width]" style={{ width: `${missionPct}%` }} />
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5 rounded-2xl bg-[#111A2F]/80 px-3 py-1.5 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/20">
-              <StarIcon className="h-5 w-5" />
-              <span className="font-display text-[17px] font-extrabold tabular-nums">{hud.pb.toLocaleString("en-IN")} PB</span>
-            </div>
-            <div className="rounded-xl bg-[#111A2F]/80 px-3 py-1 font-display text-[15px] font-extrabold tabular-nums ring-1 ring-white/20">{hud.distance.toLocaleString("en-IN")} m</div>
+          <div className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#111A2F]/80 px-2.5 shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/20">
+            <StarIcon className="h-3.5 w-3.5" />
+            <span className="font-display text-[13px] font-extrabold tabular-nums leading-none">{hud.pb.toLocaleString("en-IN")} PB</span>
+            <span className="text-white/35" aria-hidden>|</span>
+            <span className="font-display text-[12px] font-extrabold tabular-nums leading-none text-white/90">{hud.distance.toLocaleString("en-IN")} m</span>
           </div>
         </div>
       </div>
 
-      {/* side stats */}
-      <div className="pointer-events-none absolute left-3 top-[26%] z-20 flex flex-col gap-2 rounded-2xl bg-[#111A2F]/75 px-3 py-2.5 ring-1 ring-white/20 backdrop-blur-[2px]">
-        <Stat icon={`${ART}/potato.webp`} value={hud.potatoes} target={50} />
-        <Stat icon={`${ART}/star.webp`} value={hud.stars} target={15} />
-        <Stat icon={`${ART}/box.webp`} value={hud.boxes} target={3} />
-      </div>
-
-      {/* combo */}
-      {hud.combo >= 5 ? (
-        <div key={hud.combo} className="run-combo pointer-events-none absolute right-3 top-[26%] z-20 rounded-2xl bg-[#FFC53D] px-3 py-1.5 font-display text-[16px] font-extrabold text-[#4A3300] shadow-[0_6px_14px_rgba(0,0,0,0.35)]">
-          Combo x{hud.combo}
-        </div>
-      ) : null}
-
-      {/* active power-up */}
+      {/* Power — single centered strip under HUD (keyed once per power pickup) */}
       {power && hud.power ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[8.4rem] z-20 flex justify-center px-4">
-          <div className={`run-power flex w-full max-w-[19rem] items-center gap-3 rounded-2xl px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,0.4)] ring-2 ${POWER_STYLE[hud.power].ring}`} style={{ background: POWER_STYLE[hud.power].bg }}>
-            <img src={`${ART}/${hud.power}.webp`} alt="" draggable={false} className="h-10 w-10 shrink-0 object-contain drop-shadow" />
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-[15px] font-extrabold uppercase leading-none tracking-wide">{power.label}</p>
-              <p className="mt-0.5 text-[11px] font-bold text-white/90">{power.blurb}</p>
+        <div
+          key={hud.power}
+          className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4"
+          style={{ top: "calc(var(--header-top) + 3rem)" }}
+        >
+          <div
+            className={`run-power flex w-fit max-w-[calc(100%-2rem)] items-center gap-2 rounded-full px-3 py-1.5 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] ring-2 ${POWER_STYLE[hud.power].ring}`}
+            style={{ background: POWER_STYLE[hud.power].bg }}
+          >
+            <img src={`${ART}/${hud.power}.webp`} alt="" draggable={false} className="h-7 w-7 shrink-0 object-contain drop-shadow" />
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-[12px] font-extrabold uppercase leading-none tracking-wide">{power.label}</p>
+                <p className="text-[9px] font-bold text-white/85">{power.blurb}</p>
+              </div>
               {hud.power !== "shield" ? (
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/25">
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-black/25">
                   <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${hud.powerPct}%`, background: POWER_STYLE[hud.power].bar }} />
                 </div>
               ) : null}
@@ -336,33 +332,55 @@ export function RunPlay({ seed, best, onFinish, onRestart, onMenu, onHome }: Pro
         </div>
       ) : null}
 
-      {/* bottom controls */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between px-3" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
-        <div className="flex flex-col items-center gap-1">
-          <div className="run-swipe flex h-[4.6rem] w-[4.6rem] flex-col items-center justify-center rounded-full bg-black/25 ring-2 ring-white/40 backdrop-blur-[2px]">
-            <svg viewBox="0 0 24 24" className="-mb-3 h-7 w-7 text-white/85" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {/* side stats — vertical center-left, clear of HUD / controls */}
+      <div className="pointer-events-none absolute left-3 top-1/2 z-20 -translate-y-1/2">
+        <div className="flex flex-col gap-2 rounded-2xl bg-[#111A2F]/80 px-2.5 py-2.5 ring-1 ring-white/20 backdrop-blur-[2px]">
+          <Stat icon={`${ART}/potato.webp`} value={hud.potatoes} target={50} />
+          <Stat icon={`${ART}/star.webp`} value={hud.stars} target={15} />
+          <Stat icon={`${ART}/box.webp`} value={hud.boxes} target={3} />
+        </div>
+      </div>
+
+      {/* combo — mirror side, mid-right */}
+      {hud.combo >= 5 ? (
+        <div
+          key={hud.combo}
+          className="run-combo pointer-events-none absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-2xl bg-[#FFC53D] px-3 py-1.5 font-display text-[16px] font-extrabold text-[#4A3300] shadow-[0_6px_14px_rgba(0,0,0,0.35)]"
+        >
+          Combo x{hud.combo}
+        </div>
+      ) : null}
+
+      {/* bottom controls — lifted for gesture safe-area */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between px-3"
+        style={{ paddingBottom: "max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.75rem))" }}
+      >
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="run-swipe flex h-[3.5rem] w-[3.5rem] flex-col items-center justify-center rounded-full bg-black/25 ring-2 ring-white/40 backdrop-blur-[2px]">
+            <svg viewBox="0 0 24 24" className="-mb-2 h-5 w-5 text-white/85" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m6 14 6-6 6 6" />
             </svg>
-            <svg viewBox="0 0 24 24" className="h-7 w-7 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m6 14 6-6 6 6" />
             </svg>
           </div>
-          <span className="text-[11px] font-extrabold drop-shadow">Swipe to Move</span>
+          <span className="text-[10px] font-extrabold drop-shadow">Swipe to Move</span>
         </div>
-        <div className="pointer-events-auto flex flex-col items-center gap-2">
-          <button type="button" onPointerDown={(e) => { e.preventDefault(); jump(); }} aria-label="Jump" className="flex h-[4.4rem] w-[4.4rem] flex-col items-center justify-center rounded-full bg-black/35 ring-2 ring-white/45 backdrop-blur-[2px] active:scale-95 active:bg-black/55">
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+          <button type="button" onPointerDown={(e) => { e.preventDefault(); jump(); }} aria-label="Jump" className="flex h-[3.4rem] w-[3.4rem] flex-col items-center justify-center rounded-full bg-black/35 ring-2 ring-white/45 backdrop-blur-[2px] active:scale-95 active:bg-black/55">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 16l3-6 3 2 3-1 2 2h4a3 3 0 0 1 3 3v1H3z" />
               <path d="M3 17h18" />
             </svg>
-            <span className="text-[10.5px] font-extrabold">Jump</span>
+            <span className="text-[9px] font-extrabold">Jump</span>
           </button>
-          <button type="button" onPointerDown={(e) => { e.preventDefault(); slide(); }} aria-label="Slide" className="flex h-[4.4rem] w-[4.4rem] flex-col items-center justify-center rounded-full bg-black/35 ring-2 ring-white/45 backdrop-blur-[2px] active:scale-95 active:bg-black/55">
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <button type="button" onPointerDown={(e) => { e.preventDefault(); slide(); }} aria-label="Slide" className="flex h-[3.4rem] w-[3.4rem] flex-col items-center justify-center rounded-full bg-black/35 ring-2 ring-white/45 backdrop-blur-[2px] active:scale-95 active:bg-black/55">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <circle cx="17" cy="6" r="2" />
               <path d="M4 18h16M6 17l4-5 4 1 2-3M10 12l-2 5" />
             </svg>
-            <span className="text-[10.5px] font-extrabold">Slide</span>
+            <span className="text-[9px] font-extrabold">Slide</span>
           </button>
         </div>
       </div>
@@ -410,10 +428,11 @@ export function RunPlay({ seed, best, onFinish, onRestart, onMenu, onHome }: Pro
 
 function Stat({ icon, value, target }: { icon: string; value: number; target: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <img src={icon} alt="" draggable={false} className="h-7 w-7 object-contain" />
-      <span className="font-display text-[15px] font-extrabold tabular-nums">
-        {value} <span className="text-white/60">/ {target}</span>
+    <div className="grid w-full grid-cols-[1.75rem_1fr] items-center gap-x-2">
+      <img src={icon} alt="" draggable={false} className="h-7 w-7 justify-self-center object-contain" />
+      <span className="text-right font-display text-[14px] font-extrabold tabular-nums leading-none">
+        {value}
+        <span className="text-white/55"> / {target}</span>
       </span>
     </div>
   );
@@ -436,28 +455,53 @@ const CONFETTI = Array.from({ length: 28 }, (_, i) => ({
   spin: (i % 2 === 0 ? 1 : -1) * (360 + (i * 47) % 360),
 }));
 
-/** "Shipment complete" (finish) or "Run over" (crash) card from the mockup. */
+/** "Shipment complete" (finish) or "Run over" (crash) — single screen, no scroll. */
 function ResultOverlay({ facts, reward, onRestart, onHome }: { facts: RunFacts; reward: RunReward; onRestart: () => void; onHome: () => void }) {
   const finished = facts.finished;
   const pbApplied = reward.pb?.applied ?? 0;
+  const receipt = reward.pb;
+  const moved =
+    receipt &&
+    receipt.applied > 0 &&
+    (receipt.rankAfter !== receipt.rankBefore || receipt.gameRankAfter !== receipt.gameRankBefore);
+
   return (
-    <div className="absolute inset-0 z-50 flex flex-col overflow-y-auto bg-[#0B1020]/78 px-4 backdrop-blur-[3px] [-webkit-overflow-scrolling:touch]" style={{ paddingTop: "max(1.5rem, calc(var(--header-top) - 1rem))", paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}>
+    <div
+      className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#0B1020]/82 px-3 backdrop-blur-[3px]"
+      style={{
+        paddingTop: "var(--header-top)",
+        paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))",
+      }}
+    >
       {finished ? (
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           {CONFETTI.map((c, i) => (
-            <i key={i} className="run-confetti absolute top-[-4%] block rounded-[2px]" style={{ left: `${c.left}%`, width: c.size, height: c.size * 1.6, background: c.color, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, ["--spin" as string]: `${c.spin}deg` }} />
+            <i
+              key={i}
+              className="run-confetti absolute top-[-4%] block rounded-[2px]"
+              style={{
+                left: `${c.left}%`,
+                width: c.size,
+                height: c.size * 1.6,
+                background: c.color,
+                animationDelay: `${c.delay}s`,
+                animationDuration: `${c.dur}s`,
+                ["--spin" as string]: `${c.spin}deg`,
+              }}
+            />
           ))}
         </div>
       ) : null}
 
-      <div className="run-result relative mx-auto w-full max-w-[22rem]">
-        <div className="text-center">
-          <h1 className={`run-shipment font-display text-[34px] font-extrabold uppercase leading-[0.95] ${finished ? "text-white" : "text-[#FFC53D]"}`} style={{ WebkitTextStroke: finished ? "0px" : "1.5px #5A2E0F" }}>
+      <div className="relative mx-auto flex h-full w-full max-w-[22rem] -translate-y-4 flex-col justify-center gap-2.5">
+        <div className="shrink-0 text-center">
+          <h1
+            className={`run-shipment font-display text-[26px] font-extrabold uppercase leading-none ${finished ? "text-white" : "text-[#FFC53D]"}`}
+            style={{ WebkitTextStroke: finished ? "0px" : "1.2px #5A2E0F" }}
+          >
             {finished ? (
               <>
-                Shipment
-                <br />
-                <span className="text-[#FFD23F]">Complete!</span>
+                Shipment <span className="text-[#FFD23F]">Complete!</span>
               </>
             ) : reward.newBest ? (
               "New Best!"
@@ -465,83 +509,96 @@ function ResultOverlay({ facts, reward, onRestart, onHome }: { facts: RunFacts; 
               "Run Over"
             )}
           </h1>
-          <img src={`${ART}/${finished ? "cheer" : "hero"}.webp`} alt="" draggable={false} className={`mx-auto mt-2 h-[120px] w-auto object-contain drop-shadow-[0_12px_14px_rgba(0,0,0,0.5)] ${finished ? "run-cheer" : ""}`} />
+          <img
+            src={`${ART}/${finished ? "cheer" : "hero"}.webp`}
+            alt=""
+            draggable={false}
+            className={`mx-auto mt-1 h-[136px] w-auto object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.45)] ${finished ? "run-cheer" : ""}`}
+          />
         </div>
 
-        <div className="mt-1 rounded-2xl bg-white px-4 py-3 text-center text-[#241A5E] shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center justify-center gap-2">
-            <img src={`${ART}/crate.webp`} alt="" draggable={false} className="h-9 w-9 object-contain" />
-            <p className="text-[13px] font-bold text-[#6B6488]">
-              You collected
-              <br />
-              <span className="font-display text-[19px] font-extrabold text-[#241A5E]">{facts.potatoes} Potatoes!</span>
-            </p>
-          </div>
+        <div className="rounded-2xl bg-white/95 px-3 py-2 text-center text-[#241A5E] shadow-[0_10px_28px_rgba(0,0,0,0.3)]">
+          <p className="text-[12px] font-bold text-[#6B6488]">
+            <span className="font-display text-[17px] font-extrabold text-[#241A5E]">{facts.potatoes}</span> potatoes
+            <span className="mx-1.5 text-[#C8C0E8]">·</span>
+            <span className="font-display text-[17px] font-extrabold text-[#6A5AE0]">+{pbApplied}</span> PB
+            {reward.coins > 0 ? (
+              <>
+                <span className="mx-1.5 text-[#C8C0E8]">·</span>
+                <span className="font-display text-[17px] font-extrabold text-[#8A5A00]">+{reward.coins}</span> coins
+              </>
+            ) : null}
+          </p>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2">
-          <StarIcon className="h-8 w-8" />
-          <span className="font-display text-[36px] font-extrabold leading-none text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.35)]">+{pbApplied.toLocaleString("en-IN")} PB</span>
-        </div>
-        {reward.coins > 0 ? <p className="mt-1 text-center text-[12px] font-extrabold text-[#FFD23F]">+{reward.coins} coins{facts.newBest || reward.newBest ? " · New personal best!" : ""}</p> : null}
-
-        <div className="mt-3 grid grid-cols-3 divide-x divide-white/15 rounded-2xl bg-[#141A30]/85 py-3 text-center ring-1 ring-white/12">
+        <div className="grid grid-cols-3 divide-x divide-white/15 rounded-2xl bg-[#141A30]/90 py-2 text-center ring-1 ring-white/12">
           {[
             ["Distance", `${facts.distance.toLocaleString("en-IN")} m`, "text-white"],
-            ["Max Combo", `x${facts.maxCombo}`, "text-[#FFD23F]"],
+            ["Combo", `x${facts.maxCombo}`, "text-[#FFD23F]"],
             ["Time", fmtTime(facts.time), "text-white"],
           ].map(([k, v, cls]) => (
             <div key={k} className="px-1">
-              <p className="text-[10px] font-bold text-white/70">{k}</p>
-              <p className={`mt-0.5 font-display text-[18px] font-extrabold tabular-nums ${cls}`}>{v}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wide text-white/65">{k}</p>
+              <p className={`mt-0.5 font-display text-[15px] font-extrabold tabular-nums leading-none ${cls}`}>{v}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2.5">
-          <button type="button" onClick={onRestart} className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] py-3.5 font-display text-[16px] font-extrabold text-white shadow-[0_6px_0_#3B2490,0_12px_24px_rgba(0,0,0,0.35)] active:translate-y-1 active:shadow-[0_2px_0_#3B2490]">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            ["Stars", facts.stars, `${ART}/star.webp`],
+            ["Parcels", facts.boxes, `${ART}/box.webp`],
+            ["Dodged", facts.avoided, null],
+            ["Powers", facts.powerups, `${ART}/boost.webp`],
+          ].map(([k, v, icon]) => (
+            <div key={String(k)} className="rounded-xl bg-[#141A30]/85 px-1 py-1.5 text-center ring-1 ring-white/12">
+              {icon ? (
+                <img src={String(icon)} alt="" draggable={false} className="mx-auto h-5 w-5 object-contain" />
+              ) : (
+                <span className="mx-auto block h-5 text-[14px] leading-5">🏃</span>
+              )}
+              <p className="mt-0.5 font-display text-[14px] font-extrabold leading-none tabular-nums">{String(v)}</p>
+              <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-white/55">{String(k)}</p>
+            </div>
+          ))}
+        </div>
+
+        {moved && receipt ? (
+          <div className="rounded-xl bg-[#EDE7FF] px-3 py-1.5 text-center text-[11px] font-extrabold text-[#3D2E7A]">
+            Rank #{receipt.rankBefore} → #{receipt.rankAfter}
+            <span className="mx-1 text-[#C8C0E8]">·</span>
+            Run #{receipt.gameRankBefore} → #{receipt.gameRankAfter}
+          </div>
+        ) : null}
+
+        {!finished && facts.hits > 0 ? (
+          <p className="rounded-xl bg-[#FFF3C4]/95 px-2.5 py-1.5 text-center text-[10px] font-bold leading-snug text-[#8A5A00]">
+            {facts.hits} hit{facts.hits === 1 ? "" : "s"} · reach 1,500 m for +30 PB
+          </p>
+        ) : null}
+
+        <div className="mt-1 grid shrink-0 grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onRestart}
+            className="flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] py-3 font-display text-[15px] font-extrabold text-white shadow-[0_5px_0_#3B2490] active:translate-y-0.5 active:shadow-[0_2px_0_#3B2490]"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />
             </svg>
             Play Again
           </button>
-          <button type="button" onClick={onHome} className="flex items-center justify-center gap-2 rounded-full bg-[#141A30]/85 py-3.5 font-display text-[16px] font-extrabold text-white ring-1 ring-white/25 active:translate-y-0.5">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <button
+            type="button"
+            onClick={onHome}
+            className="flex items-center justify-center gap-1.5 rounded-full bg-[#141A30]/90 py-3 font-display text-[15px] font-extrabold text-white ring-1 ring-white/25 active:translate-y-0.5"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10" />
             </svg>
             Home
           </button>
         </div>
-
-        <section className="mt-4 rounded-[1.4rem] bg-white p-3.5 text-[#241A5E] shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
-          <div className="grid grid-cols-4 gap-1 text-center">
-            {[
-              ["PB Stars", facts.stars, `${ART}/star.webp`],
-              ["Parcels", facts.boxes, `${ART}/box.webp`],
-              ["Dodged", facts.avoided, null],
-              ["Power-ups", facts.powerups, `${ART}/boost.webp`],
-            ].map(([k, v, icon]) => (
-              <div key={String(k)} className="rounded-xl bg-[#F5F3FF] px-1 py-2">
-                {icon ? <img src={String(icon)} alt="" draggable={false} className="mx-auto h-6 w-6 object-contain" /> : <span className="mx-auto block h-6 text-[16px] leading-6">🏃</span>}
-                <p className="mt-0.5 font-display text-[16px] font-extrabold leading-none">{String(v)}</p>
-                <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#8B84A8]">{String(k)}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3">
-            <RewardPills points={pbApplied} coins={reward.coins} size="sm" />
-          </div>
-          {reward.pb ? (
-            <div className="mt-3">
-              <PbBreakdownCard receipt={reward.pb} compact />
-            </div>
-          ) : null}
-          {!finished && facts.hits > 0 ? (
-            <p className="mt-3 rounded-xl bg-[#FFF3C4] px-3 py-2 text-[11.5px] font-bold text-[#8A5A00]">
-              {facts.hits} hit{facts.hits === 1 ? "" : "s"} this run. Reach the 1,500 m cold storage for +30 PB, clean runs earn +25 more.
-            </p>
-          ) : null}
-        </section>
       </div>
     </div>
   );

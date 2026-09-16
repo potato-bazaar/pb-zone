@@ -50,6 +50,11 @@ export interface QuizQuestion {
   points: number;
   timeLimitSeconds: number;
   aiConfidence?: number;
+  /** Live bank locales from API (`hi` / `gu`). English is top-level text. */
+  locales?: {
+    hi?: { question?: string; options?: Partial<Record<'A' | 'B' | 'C' | 'D', string>> };
+    gu?: { question?: string; options?: Partial<Record<'A' | 'B' | 'C' | 'D', string>> };
+  };
 }
 
 export interface Quiz {

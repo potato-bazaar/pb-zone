@@ -1,7 +1,15 @@
 import { LIFE_REFILL_MS, MAX_LIVES, STARTING_BOOSTERS } from "./levels";
 import type { BoosterType } from "./types";
+import {
+  fromApiBoosters,
+  numberMapToRecord,
+  recordToNumberMap,
+  toApiBoosters,
+  type CrushApiProgress,
+} from "@/lib/crushApi";
 
 const KEY = "pbZoneCrushProgress.v1";
+const META_KEY = "pbZoneCrushProgressMeta.v1";
 
 export interface CrushProgress {
   /** Stars per level order (1-based). */
@@ -17,6 +25,8 @@ export interface CrushProgress {
   totalCoinsEarned: number;
 }
 
+type CrushMeta = { updatedAt: string };
+
 export function defaultProgress(): CrushProgress {
   return {
     stars: {},
@@ -28,6 +38,40 @@ export function defaultProgress(): CrushProgress {
     sound: true,
     totalCoinsEarned: 0,
   };
+}
+
+function loadMeta(): CrushMeta {
+  if (typeof window === "undefined") return { updatedAt: new Date(0).toISOString() };
+  try {
+    const raw = localStorage.getItem(META_KEY);
+    if (!raw) return { updatedAt: new Date(0).toISOString() };
+    const parsed = JSON.parse(raw) as Partial<CrushMeta>;
+    return {
+      updatedAt:
+        typeof parsed.updatedAt === "string" && parsed.updatedAt
+          ? parsed.updatedAt
+          : new Date(0).toISOString(),
+    };
+  } catch {
+    return { updatedAt: new Date(0).toISOString() };
+  }
+}
+
+function saveMeta(meta: CrushMeta) {
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify(meta));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getProgressUpdatedAt(): string {
+  return loadMeta().updatedAt;
+}
+
+export function touchProgressUpdatedAt(at = new Date().toISOString()) {
+  saveMeta({ updatedAt: at });
+  return at;
 }
 
 export function loadProgress(): CrushProgress {
@@ -98,6 +142,52 @@ export function recordWin(
   };
 }
 
+function maxNumberMaps(a: Record<number, number>, b: Record<number, number>): Record<number, number> {
+  const out: Record<number, number> = { ...a };
+  for (const [key, value] of Object.entries(b)) {
+    const n = Number(key);
+    if (!Number.isFinite(n)) continue;
+    out[n] = Math.max(out[n] ?? 0, value);
+  }
+  return out;
+}
+
+/** Merge remote API progress into local — unlock/stars/score max; lives/boosters by updatedAt. */
+export function mergeRemoteProgress(local: CrushProgress, remote: CrushApiProgress): CrushProgress {
+  const localAt = Date.parse(getProgressUpdatedAt()) || 0;
+  const remoteAt = Date.parse(remote.updatedAt) || 0;
+  const preferRemoteLives = remoteAt >= localAt;
+
+  const remoteStars = numberMapToRecord(remote.stars);
+  const remoteScores = numberMapToRecord(remote.bestScores);
+  const remoteBoosters = fromApiBoosters(remote.boosters);
+
+  const merged: CrushProgress = {
+    ...local,
+    unlocked: Math.max(1, Math.max(local.unlocked, remote.unlocked)),
+    stars: maxNumberMaps(local.stars, remoteStars),
+    bestScores: maxNumberMaps(local.bestScores, remoteScores),
+    lives: preferRemoteLives ? remote.lives : local.lives,
+    livesAt: preferRemoteLives ? remote.livesAt : local.livesAt,
+    boosters: preferRemoteLives
+      ? { ...STARTING_BOOSTERS, ...remoteBoosters }
+      : { ...STARTING_BOOSTERS, ...local.boosters },
+  };
+  return refillLives(merged);
+}
+
+export function toCrushPutBody(p: CrushProgress, clientUpdatedAt: string) {
+  return {
+    unlocked: p.unlocked,
+    stars: recordToNumberMap(p.stars),
+    bestScores: recordToNumberMap(p.bestScores),
+    lives: p.lives,
+    livesAt: p.livesAt,
+    boosters: toApiBoosters(p.boosters),
+    clientUpdatedAt,
+  };
+}
+
 export function formatCountdown(ms: number): string {
   const total = Math.ceil(ms / 1000);
   const m = Math.floor(total / 60);
@@ -128,8 +218,9 @@ export function getServerProgressSnapshot(): CrushProgress | null {
   return null;
 }
 
-export function commitProgress(next: CrushProgress) {
+export function commitProgress(next: CrushProgress, opts?: { touch?: boolean }) {
   cached = next;
   saveProgress(next);
+  if (opts?.touch !== false) touchProgressUpdatedAt();
   for (const l of listeners) l();
 }

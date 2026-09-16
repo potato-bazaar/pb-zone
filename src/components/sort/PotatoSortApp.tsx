@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PbBreakdownCard, PbStarIcon, RewardPills } from "@/components/pb/PbUi";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints, type PbReceipt } from "@/components/providers/PbPointsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { recordGameLeaderboard } from "@/lib/leaderboardApi";
 import { haptic, sounds } from "@/components/crush/render/sound";
 import { coinsForPotatoSort, scorePotatoSort } from "@/lib/pb/scoring";
 import {
@@ -726,6 +728,7 @@ export function PotatoSortApp() {
   const router = useRouter();
   const { addCoins } = usePbCoins();
   const { awardPoints } = usePbPoints();
+  const session = useUserSession();
   const [phase, setPhase] = useState<Phase>("intro");
   const [seed, setSeed] = useState(0);
   const [result, setResult] = useState<RoundResult | null>(null);
@@ -761,11 +764,22 @@ export function PotatoSortApp() {
         perfect: score.perfect,
         label: "Potato Sort",
       });
+      const handled = facts.correct + facts.fast;
+      recordGameLeaderboard(session, {
+        gameKey: "potato-sort",
+        sessionId: `sort-${seed}`,
+        coins,
+        metrics: [
+          { key: "accuracy", value: handled, max: Math.max(facts.total, 1) },
+          { key: "speed", value: facts.fast, max: Math.max(handled, 1) },
+          { key: "complete", value: facts.roundComplete ? 1 : 0, max: 1 },
+        ],
+      });
       sounds.play(score.perfect ? "special" : "win");
       setResult({ stats, roundComplete, coins, pb });
       setPhase("result");
     },
-    [addCoins, awardPoints, seed],
+    [addCoins, awardPoints, seed, session],
   );
 
   if (phase === "play") {

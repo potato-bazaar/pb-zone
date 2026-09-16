@@ -18,7 +18,9 @@ export const LEADERBOARD_TABS: { id: LeaderboardTab; label: string }[] = [
 ];
 
 /** Games that have their own leaderboard. Order = chip order on the PB screen. */
-export const LEADERBOARD_GAMES: PbGameId[] = ["quiz-time", "potato-crush", "spud-run", "potato-sort", "potato-ninja", "word-scramble", "guess-disease", "fix-puzzle"];
+/** Launch set only — match ALL_GAMES order. */
+export const LEADERBOARD_GAMES: PbGameId[] = ["quiz-time", "spud-run", "potato-crush", "potato-ninja"];
+// Coming later: "potato-sort", "word-scramble", "guess-disease", "fix-puzzle"
 
 export function isLeaderboardGame(value: string | null | undefined): value is PbGameId {
   return !!value && (LEADERBOARD_GAMES as string[]).includes(value);

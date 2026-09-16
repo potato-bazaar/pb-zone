@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
-import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { ALL_GAMES, GAME_CATEGORIES, type GameCategory, type GameItem, type GameTagIcon } from "@/data/games";
 import { GAME_DAILY_POINT_CAPS, type PbGameId } from "@/data/pbEconomy";
-import { fetchQuizPoints } from "@/lib/quizApi";
 
 /* ------------------------------------------------------------------ */
 /*  Small icons                                                        */
@@ -126,16 +124,6 @@ function CrownIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-function CoinIcon({ className = "h-6 w-6" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <circle cx="12" cy="12" r="10.5" fill="#F5C518" stroke="#C4920A" strokeWidth="1.2" />
-      <circle cx="12" cy="12" r="7.2" fill="none" stroke="#FFF3A8" strokeWidth="1.1" />
-      <path d="M12 7.5v9M9.6 10.2c0-1 1-1.6 2.4-1.6s2.4.6 2.4 1.5c0 2.2-4.8 1.3-4.8 3.6 0 1 1 1.6 2.4 1.6s2.4-.6 2.4-1.5" fill="none" stroke="#9A6B00" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Card                                                               */
 /* ------------------------------------------------------------------ */
@@ -213,71 +201,53 @@ function GameCard({ game, earnedToday, index }: { game: GameItem; earnedToday: n
 
 export function AllGamesScreen() {
   const { state: pb } = usePbPoints();
-  const { coins, setWallet } = usePbCoins();
-  const session = useUserSession();
+  const { coins } = usePbCoins();
   const [filter, setFilter] = useState<"all" | GameCategory>("all");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void fetchQuizPoints({
-      token: session.token,
-      userId: session.userId,
-      userName: session.userName,
-    })
-      .then((data) => {
-        if (cancelled) return;
-        if (typeof data.points === "number") {
-          setWallet({
-            coins: data.points,
-            earnedCoins: data.earnedPoints,
-            pbPoints: data.leaderboardPoints,
-          });
-        }
-      })
-      .catch((error) => {
-        console.warn("[quiz] me/points failed", error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session.token, session.userId, session.userName, setWallet]);
 
   const games = filter === "all" ? ALL_GAMES : ALL_GAMES.filter((g) => g.category === filter);
   const coinsDisplay = Number.isFinite(coins) ? Math.max(0, Math.floor(coins)).toLocaleString("en-IN") : "0";
 
   return (
-    <div className="games-bg relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col">
+    <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden">
+      {/* One continuous bg for header + list — no extra wash layers (those caused the cut line) */}
+      <div className="games-bg pointer-events-none absolute inset-0" aria-hidden />
+
       <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
-        style={{
-          paddingTop: "var(--header-top)",
-          paddingBottom: "calc(7.5rem + env(safe-area-inset-bottom, 0px))",
-        }}
+        className="relative z-40 shrink-0 px-4"
+        style={{ paddingTop: "var(--header-top)" }}
       >
-        <header className="relative mb-4 flex min-h-12 items-center justify-between gap-2">
-          <Link href="/home" aria-label="Back to home" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#3D2FB8] shadow-[0_4px_14px_rgba(43,31,122,0.14)] ring-1 ring-[#ECE8FA]">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M19 12H5M11 18l-6-6 6-6" />
-            </svg>
-          </Link>
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-            <h1 className="font-display text-[22px] font-extrabold leading-none text-[#2D2A8A]">All Games</h1>
-            <p className="mt-1 text-[11px] font-bold text-[#7C6BD6]">Play. Learn. Earn. Grow.</p>
+        <header className="flex min-h-11 items-center justify-between gap-3">
+          <div className="min-w-0 text-left">
+            <h1 className="font-display text-[22px] font-extrabold leading-none text-[#2D2A8A]">
+              All Games
+            </h1>
+            <p className="mt-1 text-[11px] font-bold text-[#7C6BD6]">
+              Play. Learn. Earn. Grow.
+            </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-white py-1 pl-1.5 pr-1 shadow-[0_4px_14px_rgba(43,31,122,0.14)] ring-1 ring-[#ECE8FA]" role="status" aria-label={`${coinsDisplay} coins`}>
-            <CoinIcon className="h-6 w-6" />
-            <span className="px-1 font-display text-[15px] font-extrabold tabular-nums text-[#2D2A8A]">{coinsDisplay}</span>
-            <Link href="/rewards" aria-label="Earn more coins" className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] text-white shadow-[0_2px_6px_rgba(90,62,214,0.4)]">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </Link>
+          <div
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-white py-1 pl-1.5 pr-3 shadow-[0_4px_14px_rgba(43,31,122,0.14)] ring-1 ring-[#ECE8FA]"
+            role="status"
+            aria-label={`${coinsDisplay} coins`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/home/coin.png"
+              alt=""
+              className="h-6 w-6 shrink-0 object-contain"
+              draggable={false}
+            />
+            <span className="font-display text-[15px] font-extrabold tabular-nums text-[#2D2A8A]">
+              {coinsDisplay}
+            </span>
           </div>
         </header>
 
-        <div className="no-scrollbar -mx-4 mb-3.5 flex gap-2 overflow-x-auto px-4" role="tablist" aria-label="Game categories">
+        <div
+          className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-3"
+          role="tablist"
+          aria-label="Game categories"
+        >
           {GAME_CATEGORIES.map((cat) => {
             const active = filter === cat.id;
             return (
@@ -287,18 +257,35 @@ export function AllGamesScreen() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(cat.id)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-extrabold transition ${active ? "bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] text-white shadow-[0_4px_12px_rgba(90,62,214,0.35)]" : "bg-white text-[#5B4FB0] ring-1 ring-[#ECE8FA]"}`}
+                className={`shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-extrabold transition ${
+                  active
+                    ? "bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] text-white"
+                    : "bg-white text-[#5B4FB0] ring-1 ring-[#ECE8FA]"
+                }`}
               >
                 {cat.label}
               </button>
             );
           })}
         </div>
+      </div>
 
+      <div
+        className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
+        style={{
+          paddingBottom: "calc(7.5rem + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
         <ul className="flex flex-col gap-3.5 pb-2">
           {games.map((game, i) => (
             <li key={game.id}>
-              <GameCard game={game} earnedToday={pb.gameDailyPoints[(game.pbGameId ?? game.id) as PbGameId] ?? 0} index={i} />
+              <GameCard
+                game={game}
+                earnedToday={
+                  pb.gameDailyPoints[(game.pbGameId ?? game.id) as PbGameId] ?? 0
+                }
+                index={i}
+              />
             </li>
           ))}
         </ul>

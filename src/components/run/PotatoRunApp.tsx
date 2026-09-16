@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { recordGameLeaderboard } from "@/lib/leaderboardApi";
 import { sounds } from "@/components/crush/render/sound";
 import { coinsForPotatoRun, scorePotatoRun } from "@/lib/pb/scoring";
 import type { RunFacts } from "./engine/run";
@@ -50,8 +52,9 @@ type Phase = "start" | "howto" | "board" | "play";
 
 export function PotatoRunApp() {
   const router = useRouter();
-  const { addCoins } = usePbCoins();
-  const { awardPoints, state: pb } = usePbPoints();
+  const { addCoins, coins } = usePbCoins();
+  const { awardPoints } = usePbPoints();
+  const session = useUserSession();
   const [phase, setPhase] = useState<Phase>("start");
   const [boardTab, setBoardTab] = useState<BoardTab>("leaderboard");
   const [seed, setSeed] = useState(0);
@@ -97,11 +100,21 @@ export function PotatoRunApp() {
         perfect: score.perfect,
         label: "Potato Run",
       });
+      recordGameLeaderboard(session, {
+        gameKey: "spud-run",
+        sessionId: `run-${seed}`,
+        coins,
+        metrics: [
+          { key: "distance", value: Math.min(facts.distance, 1500), max: 1500 },
+          { key: "clean", value: facts.hits === 0 ? 1 : 0, max: 1 },
+          { key: "finish", value: facts.finished ? 1 : 0, max: 1 },
+        ],
+      });
       const nextBest = Math.max(best, facts.distance);
       if (newBest) save({ best: nextBest });
       return { coins, newBest: newBest && best > 0, pb: receipt, best: nextBest };
     },
-    [addCoins, awardPoints, best, seed],
+    [addCoins, awardPoints, best, seed, session],
   );
 
   if (phase === "play") {
@@ -113,5 +126,5 @@ export function PotatoRunApp() {
   if (phase === "board") {
     return <RunBoard tab={boardTab} onClose={() => setPhase("start")} />;
   }
-  return <RunStart best={best} seasonPoints={pb.seasonPoints} onPlay={onPlayNow} onHowTo={() => setPhase("howto")} onRewards={() => openBoard("rewards")} onLeaderboard={() => openBoard("leaderboard")} onBack={() => router.push("/games")} />;
+  return <RunStart best={best} coins={coins} onPlay={onPlayNow} onHowTo={() => setPhase("howto")} onRewards={() => openBoard("rewards")} onLeaderboard={() => openBoard("leaderboard")} onBack={() => router.push("/games")} />;
 }

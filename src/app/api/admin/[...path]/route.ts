@@ -109,6 +109,8 @@ async function proxyAdmin(
 
   const headers = new Headers();
   headers.set("accept", "application/json");
+  // ngrok free interstitial bypass when QUIZ_API_BASE_URL is an ngrok tunnel
+  headers.set("ngrok-skip-browser-warning", "true");
   const key = adminApiKey();
   if (key) headers.set("x-admin-key", key);
   const adminToken = signAdminBearerToken();

@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { PbHeader, SectionCard } from "@/components/pb/PbUi";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { fetchLeaderboardPoints, rankStoredPlayers } from "@/lib/leaderboardApi";
 import { HOW_PB_WORKS, PB_SEASON, SEASON_PRIZES, TIE_BREAKERS, seasonDaysRemaining, type SeasonPrize } from "@/data/pbEconomy";
 
 const RANK_RIBBONS = {
@@ -64,7 +67,29 @@ function PrizeCard({ prize }: { prize: SeasonPrize }) {
 
 export function SeasonPrizesScreen() {
   const { seasonRank, state } = usePbPoints();
+  const { userName, userId, token } = useUserSession();
+  const [live, setLive] = useState<{ points: number; rank: number } | null>(null);
   const daysLeft = seasonDaysRemaining();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLeaderboardPoints({ token, userId, userName }, { limit: 200 })
+      .then((players) => {
+        if (cancelled) return;
+        const ranked = rankStoredPlayers(Array.isArray(players) ? players : [], {
+          userId: userId || "",
+          name: userName || "You",
+        }, { mode: "season" });
+        const me = ranked.find((row) => row.isYou);
+        if (me) setLive({ points: me.points, rank: me.rank });
+      })
+      .catch(() => {
+        if (!cancelled) setLive(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, userId, userName]);
   const order = [2, 1, 3] as const;
 
   return (
@@ -93,7 +118,7 @@ export function SeasonPrizesScreen() {
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#6A5AE0]">You right now</p>
               <p className="font-display text-[22px] font-extrabold text-[#241A5E]">
-                #{seasonRank} <span className="text-[14px] text-[#3D2E7A]">· {state.seasonPoints.toLocaleString("en-IN")} PB</span>
+                #{live?.rank ?? seasonRank} <span className="text-[14px] text-[#3D2E7A]">· {(live?.points ?? state.seasonPoints).toLocaleString("en-IN")} PB</span>
               </p>
             </div>
             <Link href="/pb" className="rounded-full bg-[#6A5AE0] px-4 py-2 text-[12px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-95">

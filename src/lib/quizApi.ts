@@ -2,6 +2,8 @@
 
 export type QuizOptionKey = "A" | "B" | "C" | "D";
 
+export type QuizLanguage = "en" | "hi" | "gu";
+
 export type QuizApiOption = {
   /** Session key — submit this to the quiz API. */
   key: QuizOptionKey;
@@ -48,6 +50,7 @@ export type QuizScoringConfig = {
 
 export type QuizSessionStartData = {
   sessionId: string;
+  language?: QuizLanguage;
   user: { name?: string; points: number; earnedPoints: number; leaderboardPoints: number };
   settings: QuizSessionSettings;
   question: QuizApiQuestion;
@@ -99,6 +102,7 @@ export type QuizResultData = {
 
 export type QuizPointsData = {
   name?: string;
+  userId?: string;
   points: number;
   earnedPoints: number;
   bonusPoints?: number;
@@ -204,22 +208,47 @@ async function quizFetch<T>(
   return json as T;
 }
 
+type QuizPointsResult = {
+  name?: string;
+  userId?: string;
+  points: number;
+  earnedPoints: number;
+  bonusPoints: number;
+  leaderboardPoints: number;
+};
+
+const pointsInflight = new Map<string, Promise<QuizPointsResult>>();
+
 export function fetchQuizPoints(auth: QuizAuth) {
-  return quizFetch<QuizPointsData>("/me/points", auth, { method: "GET" }).then(
-    (data) => {
+  const key = `${auth.token ?? ""}:${auth.userId ?? ""}`;
+  const existing = pointsInflight.get(key);
+  if (existing) return existing;
+
+  const request = quizFetch<QuizPointsData>("/me/points", auth, { method: "GET" })
+    .then((data): QuizPointsResult => {
       const points = Number(
         data.points ?? (data as { userPoints?: number }).userPoints ?? 0,
       );
       const earnedPoints = Number(data.earnedPoints ?? 0);
+      const rawId =
+        data.userId ??
+        (data as { id?: string }).id ??
+        null;
       return {
         name: data.name,
+        userId: rawId != null ? String(rawId) : undefined,
         points,
         earnedPoints,
         bonusPoints: Number(data.bonusPoints ?? Math.max(0, points - earnedPoints)),
         leaderboardPoints: Number(data.leaderboardPoints ?? 0),
       };
-    },
-  );
+    })
+    .finally(() => {
+      pointsInflight.delete(key);
+    });
+
+  pointsInflight.set(key, request);
+  return request;
 }
 
 export function claimQuizReward(auth: QuizAuth, amount: number) {
@@ -319,14 +348,14 @@ export async function fetchQuizScoring(): Promise<QuizScoringConfig> {
   };
 }
 
-export function startQuizSession(auth: QuizAuth) {
+export function startQuizSession(
+  auth: QuizAuth,
+  options?: { language?: QuizLanguage },
+) {
+  const language = options?.language ?? "en";
   return quizFetch<Record<string, unknown>>("/sessions", auth, {
     method: "POST",
-    body: JSON.stringify({
-      name: auth.userName,
-      userName: auth.userName,
-      userId: auth.userId,
-    }),
+    body: JSON.stringify({ language }),
   }).then((raw) => {
     const user = (raw.user as {
       name?: string;
@@ -340,10 +369,14 @@ export function startQuizSession(auth: QuizAuth) {
     if (!question) {
       throw new QuizApiError("Start session missing question", 500, raw);
     }
+    const rawLang = String(raw.language ?? language);
+    const resolvedLang: QuizLanguage =
+      rawLang === "hi" || rawLang === "gu" || rawLang === "en" ? rawLang : language;
     return {
       sessionId: String(
         raw.sessionId ?? raw.id ?? (raw.session as { id?: string })?.id ?? "",
       ),
+      language: resolvedLang,
       user: {
         name: user.name,
         points: Number(
@@ -366,6 +399,13 @@ export function startQuizSession(auth: QuizAuth) {
       question,
     } satisfies QuizSessionStartData;
   });
+}
+
+export function fetchQuizLanguages(auth: QuizAuth) {
+  return quizFetch<{
+    languages: { code: QuizLanguage; label: string }[];
+    default: string;
+  }>("/languages", auth, { method: "GET" });
 }
 
 export function submitQuizAnswer(

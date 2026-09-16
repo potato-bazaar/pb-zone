@@ -157,19 +157,19 @@ export function PbHeader({
       ? "bg-white/15 text-white ring-1 ring-white/25"
       : "bg-white text-[#241A5E] shadow-[0_2px_8px_rgba(106,90,224,0.12)]";
   const back = (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="m15 18-6-6 6-6" />
     </svg>
   );
   return (
     <header className="relative z-30 px-4 pb-2" style={{ paddingTop: "var(--header-top)" }}>
-      <div className="relative flex min-h-[2.75rem] items-center justify-center">
+      <div className="relative flex min-h-[2.25rem] items-center justify-center">
         {backHref ? (
-          <Link href={backHref} aria-label="Back" className={`absolute left-0 flex h-10 w-10 items-center justify-center rounded-full ${iconCls}`}>
+          <Link href={backHref} aria-label="Back" className={`absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
             {back}
           </Link>
         ) : onBack ? (
-          <button type="button" onClick={onBack} aria-label="Back" className={`absolute left-0 flex h-10 w-10 items-center justify-center rounded-full ${iconCls}`}>
+          <button type="button" onClick={onBack} aria-label="Back" className={`absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
             {back}
           </button>
         ) : null}
@@ -207,23 +207,38 @@ export function SectionCard({ children, className = "" }: { children: ReactNode;
 /*  Game Complete summary — Coins and Points shown separately          */
 /* ------------------------------------------------------------------ */
 
-function CoinIcon({ className = "h-6 w-6" }: { className?: string }) {
+export function PbCoinIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
       <defs>
-        <linearGradient id="pbUiCoin" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FFE566" />
-          <stop offset="0.5" stopColor="#F5C518" />
-          <stop offset="1" stopColor="#D4A017" />
+        <linearGradient id="pbUiCoin" x1="0.15" y1="0" x2="0.9" y2="1">
+          <stop offset="0" stopColor="#FFF0A8" />
+          <stop offset="0.35" stopColor="#FFD84A" />
+          <stop offset="0.72" stopColor="#E8B020" />
+          <stop offset="1" stopColor="#C88A0A" />
+        </linearGradient>
+        <linearGradient id="pbUiCoinRim" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#FFF8D6" />
+          <stop offset="1" stopColor="#B87808" />
         </linearGradient>
       </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#pbUiCoin)" stroke="#C4920A" strokeWidth="1.2" />
-      <circle cx="12" cy="12" r="7" fill="none" stroke="#FFF3A8" strokeWidth="1" opacity="0.7" />
-      <text x="12" y="15.3" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#8B6914" fontFamily="system-ui, sans-serif">
-        PB
-      </text>
+      <ellipse cx="12" cy="13.2" rx="8.2" ry="1.4" fill="#B87808" opacity="0.22" />
+      <circle cx="12" cy="11.5" r="9.2" fill="url(#pbUiCoinRim)" />
+      <circle cx="12" cy="11" r="8.2" fill="url(#pbUiCoin)" stroke="#B87808" strokeWidth="0.8" />
+      <ellipse cx="9.2" cy="8.4" rx="3.2" ry="2" fill="#FFF8D6" opacity="0.55" />
+      <path
+        d="M12 6.8c-.9 1.1-2.4 1.1-3.1.2-.6.9-.2 2.1.9 2.6L12 11.2l2.2-1.6c1.1-.5 1.5-1.7.9-2.6-.7.9-2.2.9-3.1-.2Z"
+        fill="#A66E08"
+      />
+      <path d="M8.2 11.1h7.6v1.4H8.2z" fill="#A66E08" />
+      <path d="M8.8 12.2h6.4v4.2H8.8z" fill="#8B5A06" />
+      <rect x="11.35" y="11.1" width="1.3" height="5.3" rx="0.4" fill="#FFF3A8" opacity="0.65" />
     </svg>
   );
+}
+
+function CoinIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return <PbCoinIcon className={className} />;
 }
 
 export function RewardPills({ points, coins, size = "md" }: { points: number; coins: number; size?: "sm" | "md" }) {

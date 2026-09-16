@@ -5,23 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { PbStarIcon } from "@/components/pb/PbUi";
-import { usePbPoints } from "@/components/providers/PbPointsProvider";
-import { LIFETIME_MILESTONES, type LifetimeMilestone } from "@/data/pbEconomy";
+import { usePbCoins } from "@/components/providers/PbCoinsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { LIFETIME_MILESTONES, milestoneProgress, type LifetimeMilestone } from "@/data/pbEconomy";
+import { fetchMyLeaderboard } from "@/lib/leaderboardApi";
+import { fetchQuizPoints } from "@/lib/quizApi";
 import { loadClaimedRewardIds } from "@/lib/rewardClaim";
 
 /* ------------------------------------------------------------------ */
-/*  Copy                                                               */
+/*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-const SIDE_NOTES: Record<string, string> = {
-  "rookie-badge": "Great\nStart!",
-  "sticker-pack": "Keep\nGoing!",
-  bottle: "You\nEarned\nThis! ♥",
-  "cap-pen": "On Your\nWay!",
-  bag: "Almost\nThere!",
-  "champion-badge": "Next\nLevel!",
-  "premium-gift": "Legend\nStatus!",
-};
 
 const SEEN_KEY = "pbZoneSeenUnlocks.v1";
 
@@ -44,12 +37,18 @@ function markSeen(id: string) {
   }
 }
 
-type RowState = "claimed" | "claimable" | "locked";
+type RowState = "claimed" | "claimable" | "need-coins" | "locked";
 
-function stateFor(m: LifetimeMilestone, lifetime: number, claimedIds: Set<string>): RowState {
-  if (lifetime < m.points) return "locked";
-  // Digital rewards are granted instantly; physical ones need an address.
+function stateFor(
+  m: LifetimeMilestone,
+  leadership: number,
+  earnedCoins: number,
+  claimedIds: Set<string>,
+): RowState {
+  if (leadership < m.points) return "locked";
+  // Digital rewards unlock from leaderboard standing and are granted instantly.
   if (!m.claimable || claimedIds.has(m.id)) return "claimed";
+  if (earnedCoins < m.points) return "need-coins";
   return "claimable";
 }
 
@@ -116,6 +115,152 @@ function ProgressBar({ value, max, compact = false }: { value: number; max: numb
   );
 }
 
+function SparkleIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="currentColor" aria-hidden>
+      <path d="M8 0.6c.35 2.7 1.55 4.55 4.4 4.9-2.85.35-4.05 2.2-4.4 4.9-.35-2.7-1.55-4.55-4.4-4.9 2.85-.35 4.05-2.2 4.4-4.9Z" />
+    </svg>
+  );
+}
+
+function CardWaveBackdrop() {
+  return (
+    <svg
+      viewBox="0 0 360 120"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden
+    >
+      <path
+        d="M-20 88 C 40 52, 110 108, 170 72 S 290 34, 400 78 L 400 130 L -20 130 Z"
+        fill="#D8D0FF"
+        opacity="0.42"
+      />
+      <path
+        d="M-10 96 C 70 58, 150 112, 230 68 S 320 48, 410 86 L 410 130 L -10 130 Z"
+        fill="#CFC6FF"
+        opacity="0.28"
+      />
+      <path
+        d="M30 18 C 90 42, 150 8, 220 34 S 310 52, 380 24 L 380 -10 L 30 -10 Z"
+        fill="#E4DEFF"
+        opacity="0.55"
+      />
+    </svg>
+  );
+}
+
+type PbRewardsSummaryCardProps = {
+  earnedCoins: number;
+  rank: number | null;
+  leadership: number;
+  unlockedCount: number;
+  nextReward?: {
+    label: string;
+    points: number;
+    image?: string;
+    emoji?: string;
+  } | null;
+  remaining?: number;
+};
+
+function PbRewardsSummaryCard({
+  earnedCoins,
+  rank,
+  leadership,
+  unlockedCount,
+  nextReward = null,
+  remaining = 0,
+}: PbRewardsSummaryCardProps) {
+  const allComplete = !nextReward;
+  const displayEarned = Math.max(0, Math.floor(earnedCoins));
+
+  return (
+    <section
+      className="relative overflow-hidden rounded-[1.35rem] bg-[#F0EDFF] shadow-[0_6px_20px_rgba(74,52,160,0.10)] ring-1 ring-[#E8E2FF]"
+      aria-label="Earned coins and next reward"
+    >
+      <CardWaveBackdrop />
+
+      {/* Coins row */}
+      <div className="relative z-10 flex items-center gap-3 px-3.5 py-2.5">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+          <SparkleIcon className="absolute -left-0.5 top-0 h-2.5 w-2.5 text-[#F5C84A]" />
+          <SparkleIcon className="absolute -right-0.5 bottom-0 h-2.5 w-2.5 text-[#FFD76A]" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/home/coin-transparent.png"
+            alt=""
+            className="relative z-10 h-11 w-11 object-contain drop-shadow-[0_4px_8px_rgba(180,120,0,0.28)]"
+            draggable={false}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[15px] font-extrabold leading-none text-[#1D264F]">
+            Earned Coins
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="font-display text-[32px] font-extrabold leading-none tracking-tight text-[#1D264F] tabular-nums">
+              {displayEarned.toLocaleString("en-IN")}
+            </p>
+            <span className="inline-flex items-center rounded-full bg-[#D9D0FF]/95 px-2 py-0.5 text-[11px] font-extrabold text-[#6A4CFF]">
+              {rank ? `Rank #${rank}` : "Unranked"}
+            </span>
+          </div>
+          <p className="mt-1 flex items-center gap-1 text-[12px] font-bold text-[#3D9A5C]">
+            <SparkleIcon className="h-2.5 w-2.5 text-[#F0B429]" />
+            Keep playing, keep earning!
+          </p>
+        </div>
+      </div>
+
+      {/* Next reward — nested inside same card */}
+      {allComplete ? (
+        <p className="relative z-10 mx-2.5 mb-2.5 rounded-2xl bg-gradient-to-br from-[#FFF8E0] to-[#FFE9A8] px-3 py-2.5 text-center text-[12px] font-extrabold text-[#8A5A00] ring-1 ring-[#FFE082]/70">
+          🏆 Every milestone unlocked. Legend status!
+        </p>
+      ) : (
+        <div className="relative z-10 mx-2.5 mb-2.5 rounded-2xl bg-gradient-to-br from-[#FFF8E0] to-[#FFE9A8] p-2.5 ring-1 ring-[#FFE082]/70">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/90 text-[20px] shadow-sm ring-1 ring-[#FFE082]">
+              {nextReward.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={nextReward.image}
+                  alt=""
+                  className="h-7 w-7 object-contain"
+                  draggable={false}
+                />
+              ) : (
+                nextReward.emoji
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A5A00]">
+                Next reward
+              </p>
+              <p className="truncate text-[13px] font-extrabold text-[#241A5E]">{nextReward.label}</p>
+              <div className="mt-1">
+                <ProgressBar value={leadership} max={nextReward.points} compact />
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold text-[#8B84A8]">
+                  <span className="font-extrabold text-[#6A5AE0]">{unlockedCount}</span>{" "}
+                  {unlockedCount === 1 ? "reward" : "rewards"} unlocked
+                </p>
+                <p className="text-[10px] font-extrabold text-[#8A5A00]">
+                  {remaining.toLocaleString("en-IN")} PB to go!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Reward modal                                                       */
 /* ------------------------------------------------------------------ */
@@ -123,18 +268,23 @@ function ProgressBar({ value, max, compact = false }: { value: number; max: numb
 function RewardModal({
   m,
   state,
-  lifetime,
+  leadership,
+  earnedCoins,
+  rank,
   onClose,
   onClaim,
 }: {
   m: LifetimeMilestone;
   state: RowState;
-  lifetime: number;
+  leadership: number;
+  earnedCoins: number;
+  rank: number | null;
   onClose: () => void;
   onClaim: () => void;
 }) {
   const physical = m.claimable;
-  const remaining = Math.max(0, m.points - lifetime);
+  const remainingLeadership = Math.max(0, m.points - leadership);
+  const remainingCoins = Math.max(0, m.points - earnedCoins);
   const title = state === "locked" ? "Keep Growing!" : state === "claimed" ? (physical ? "Reward Claimed!" : "Reward Unlocked!") : "Reward Unlocked!";
 
   return (
@@ -160,25 +310,6 @@ function RewardModal({
               aria-hidden
             />
           ))}
-          <span className="pointer-events-none absolute left-4 top-4 font-script text-[13px] leading-tight text-[#E6DEFF] drop-shadow" aria-hidden>
-            Bigger
-            <br />
-            Harvests
-            <br />
-            Brighter
-            <br />
-            Tomorrows! ♥
-          </span>
-          <span className="pointer-events-none absolute bottom-4 right-4 text-right font-script text-[13px] leading-tight text-[#E6DEFF] drop-shadow" aria-hidden>
-            Keep
-            <br />
-            Playing
-            <br />
-            Keep
-            <br />
-            Growing! ♥
-          </span>
-
           <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm active:scale-95">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
               <path d="M6 6l12 12M18 6 6 18" />
@@ -221,7 +352,12 @@ function RewardModal({
           <p className="mt-1 text-[13px] font-semibold text-[#6B6488]">
             {state === "locked" ? (
               <>
-                <span className="font-extrabold text-[#6A5AE0]">{remaining.toLocaleString("en-IN")} PB</span> more lifetime PB to unlock this reward.
+                <span className="font-extrabold text-[#6A5AE0]">{remainingLeadership.toLocaleString("en-IN")} leaderboard PB</span> more to unlock this reward
+                {rank ? <> · you are rank #{rank}</> : null}.
+              </>
+            ) : state === "need-coins" ? (
+              <>
+                Rank is enough. You still need <span className="font-extrabold text-[#6A5AE0]">{remainingCoins.toLocaleString("en-IN")} earned coins</span> to claim it.
               </>
             ) : (
               <>
@@ -230,16 +366,29 @@ function RewardModal({
             )}
           </p>
 
-          {state === "locked" ? (
-            <div className="mt-4 rounded-2xl bg-[#F5F3FF] px-4 py-3 text-left">
-              <div className="flex items-baseline justify-between text-[12px] font-bold text-[#3D2E7A]">
-                <span>Progress</span>
-                <span className="tabular-nums text-[#6A5AE0]">
-                  {lifetime.toLocaleString("en-IN")} / {m.points.toLocaleString("en-IN")} PB
-                </span>
+          {state === "locked" || state === "need-coins" ? (
+            <div className="mt-4 space-y-2.5 rounded-2xl bg-[#F5F3FF] px-4 py-3 text-left">
+              <div>
+                <div className="flex items-baseline justify-between text-[12px] font-bold text-[#3D2E7A]">
+                  <span>Leaderboard</span>
+                  <span className="tabular-nums text-[#6A5AE0]">
+                    {leadership.toLocaleString("en-IN")} / {m.points.toLocaleString("en-IN")} PB
+                  </span>
+                </div>
+                <div className="mt-1.5">
+                  <ProgressBar value={leadership} max={m.points} />
+                </div>
               </div>
-              <div className="mt-1.5">
-                <ProgressBar value={lifetime} max={m.points} />
+              <div>
+                <div className="flex items-baseline justify-between text-[12px] font-bold text-[#3D2E7A]">
+                  <span>Earned coins</span>
+                  <span className="tabular-nums text-[#6A5AE0]">
+                    {earnedCoins.toLocaleString("en-IN")} / {m.points.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div className="mt-1.5">
+                  <ProgressBar value={earnedCoins} max={m.points} />
+                </div>
               </div>
             </div>
           ) : (
@@ -269,7 +418,11 @@ function RewardModal({
             </div>
           )}
 
-          {state === "claimable" ? (
+          {state === "need-coins" ? (
+            <Link href="/games" className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+              Play to earn coins
+            </Link>
+          ) : state === "claimable" ? (
             <>
               <div className="mt-3 flex items-start gap-3 rounded-2xl bg-[#EDE7FF] px-4 py-3 text-left">
                 <span className="mt-0.5 text-[#6A5AE0]">
@@ -318,29 +471,62 @@ function RewardModal({
 
 export function PbRewardsScreen() {
   const router = useRouter();
-  const { state, milestone, hydrated } = usePbPoints();
+  const session = useUserSession();
+  const { earnedCoins, setWallet } = usePbCoins();
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<LifetimeMilestone | null>(null);
-  const lifetime = state.lifetimePoints;
+  const [leadership, setLeadership] = useState(0);
+  const [rank, setRank] = useState<number | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setClaimedIds(new Set(loadClaimedRewardIds())), 0);
     return () => window.clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const auth = {
+      token: session.token,
+      userId: session.userId,
+      userName: session.userName,
+    };
+    void Promise.all([
+      fetchQuizPoints(auth).catch(() => null),
+      fetchMyLeaderboard(auth, "overall").catch(() => null),
+    ]).then(([wallet, board]) => {
+      if (cancelled) return;
+      if (wallet) {
+        setWallet({
+          coins: wallet.points,
+          earnedCoins: wallet.earnedPoints,
+          pbPoints: wallet.leaderboardPoints,
+        });
+      }
+      const liveLeadership = Number(board?.me?.points ?? wallet?.leaderboardPoints ?? 0);
+      setLeadership(Number.isFinite(liveLeadership) ? Math.max(0, Math.floor(liveLeadership)) : 0);
+      setRank(board?.me?.rank ?? null);
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session.token, session.userId, session.userName, setWallet]);
+
   // Celebrate a newly unlocked physical reward once, the first time the player sees it here.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!ready) return;
     const t = window.setTimeout(() => {
       const claimed = new Set(loadClaimedRewardIds());
       const seen = loadSeen();
-      const fresh = LIFETIME_MILESTONES.find((m) => m.claimable && lifetime >= m.points && !claimed.has(m.id) && !seen.has(m.id));
+      const fresh = LIFETIME_MILESTONES.find((m) => m.claimable && leadership >= m.points && !claimed.has(m.id) && !seen.has(m.id));
       if (fresh) setOpen(fresh);
     }, 400);
     return () => window.clearTimeout(t);
-  }, [hydrated, lifetime]);
+  }, [ready, leadership]);
 
-  const unlockedCount = LIFETIME_MILESTONES.filter((m) => lifetime >= m.points).length;
+  const milestone = milestoneProgress(leadership);
+  const unlockedCount = LIFETIME_MILESTONES.filter((m) => leadership >= m.points).length;
 
   const closeModal = () => {
     if (open) markSeen(open.id);
@@ -348,107 +534,89 @@ export function PbRewardsScreen() {
   };
 
   return (
-    <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
-      <div className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]" style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}>
-        {/* Hero */}
-        <div className="quiz-farm relative h-[13.5rem] overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#241A5E]/35 via-transparent to-[#F5F3FF]" aria-hidden />
-          <div className="relative z-10 flex items-start gap-2 px-4" style={{ paddingTop: "var(--header-top)" }}>
-            <Link href="/home" aria-label="Back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#241A5E] shadow-[0_2px_8px_rgba(36,26,94,0.2)]">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </Link>
-            <div className="-mt-0.5 max-w-[11.5rem] rounded-2xl bg-gradient-to-br from-[#6A5AE0] to-[#3D2E9E] px-3.5 py-2 shadow-[0_8px_20px_rgba(36,26,94,0.35)] ring-1 ring-white/30">
-              <h1 className="font-display text-[24px] font-extrabold leading-none text-white drop-shadow">PB Rewards</h1>
-              <p className="mt-1 font-script text-[12px] leading-tight text-[#E6DEFF]">
-                Bigger Harvests
-                <br />
-                Brighter Tomorrows! ♥
-              </p>
-            </div>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/games/champion-potato.png" alt="" className="pointer-events-none absolute bottom-1 left-1/2 z-10 h-[9rem] w-auto -translate-x-[8%] object-contain drop-shadow-[0_10px_16px_rgba(0,0,0,0.35)]" draggable={false} />
-          <span className="pointer-events-none absolute right-4 top-[6.5rem] z-10 rotate-3 rounded-lg bg-[#7A4A1A]/85 px-2.5 py-1.5 text-center font-script text-[12px] leading-tight text-[#FFF1D6] shadow-lg ring-1 ring-[#C48A45]" aria-hidden>
-            Collect
-            <br />
-            Achieve
-            <br />
-            Be a Legend! ♥
-          </span>
-        </div>
+    <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden bg-[#F5F3FF]">
+      {/* Hero — full banner, no side crop */}
+      <div className="relative z-30 shrink-0 overflow-hidden bg-[#7EB8E8]">
+        <h1 className="sr-only">PB Rewards</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/rewards/pb-rewards-hero.png?v=2"
+          alt=""
+          className="pointer-events-none relative z-10 block w-full h-auto"
+          draggable={false}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-8 bg-gradient-to-b from-transparent to-[#F5F3FF]"
+          aria-hidden
+        />
+      </div>
 
-        <div className="-mt-3 space-y-3 px-4">
-          {/* Summary */}
-          <section className="rounded-[1.35rem] bg-white p-3.5 shadow-[0_6px_22px_rgba(36,26,94,0.10)]">
-            <div className="grid grid-cols-[1fr_1.25fr] gap-2.5">
-              <div className="min-w-0">
-                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#8B84A8]">Your Lifetime PB</p>
-                <p className="mt-1 flex items-center gap-1.5 font-display text-[30px] font-extrabold leading-none text-[#241A5E]">
-                  <PbStarIcon className="h-7 w-7" />
-                  {lifetime.toLocaleString("en-IN")} <span className="text-[16px] text-[#6A5AE0]">PB</span>
-                </p>
-                <p className="mt-1.5 text-[12.5px] font-bold text-[#3D2E7A]">
-                  You&apos;ve unlocked <span className="text-[#6A5AE0]">{unlockedCount} {unlockedCount === 1 ? "reward" : "rewards"}</span>!
-                </p>
-              </div>
-              <div className="min-w-0 rounded-2xl bg-gradient-to-br from-[#FFF6D6] to-[#FFEFC2] p-2.5 ring-1 ring-[#FFE082]">
-                {milestone.next ? (
-                  <div className="flex items-start gap-2">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-[20px] leading-none">
-                      {milestone.next.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={milestone.next.image} alt="" className="h-7 w-7 object-contain" draggable={false} />
-                      ) : (
-                        milestone.next.emoji
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-1">
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A5A00]">Next reward</p>
-                        <p className="shrink-0 text-[10px] font-bold tabular-nums text-[#8A5A00]">
-                          {lifetime.toLocaleString("en-IN")} / {milestone.next.points.toLocaleString("en-IN")} PB
-                        </p>
-                      </div>
-                      <p className="truncate text-[13px] font-extrabold text-[#241A5E]">{milestone.next.label}</p>
-                      <div className="mt-1">
-                        <ProgressBar value={lifetime} max={milestone.next.points} compact />
-                      </div>
-                      <p className="mt-0.5 text-right text-[10px] font-extrabold text-[#8A5A00]">{milestone.remaining.toLocaleString("en-IN")} PB to go!</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-[12px] font-extrabold text-[#8A5A00]">🏆 Every milestone unlocked. Legend status!</p>
-                )}
-              </div>
-            </div>
-            <p className="mt-2.5 rounded-xl bg-[#F5F3FF] px-3 py-1.5 text-center text-[11.5px] font-semibold text-[#6A5AE0]">🌱 &ldquo;Keep playing. Bigger harvests build brighter tomorrows!&rdquo;</p>
-          </section>
+      {/* Curved sheet — ladder scrolls under the rounded edge */}
+      <div
+        className="relative z-40 -mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-[#F5F3FF] px-4 pt-5 [-webkit-overflow-scrolling:touch]"
+        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="space-y-3.5">
+          <PbRewardsSummaryCard
+            earnedCoins={earnedCoins}
+            rank={rank}
+            leadership={leadership}
+            unlockedCount={unlockedCount}
+            nextReward={
+              milestone.next
+                ? {
+                    label: milestone.next.label,
+                    points: milestone.next.points,
+                    image: milestone.next.image,
+                    emoji: milestone.next.emoji,
+                  }
+                : null
+            }
+            remaining={milestone.remaining}
+          />
 
-          {/* Ladder */}
-          <ol className="relative pl-9 pr-10">
-            <span className="absolute bottom-6 left-[0.95rem] top-6 w-0.5 bg-[#E6E0F8]" aria-hidden />
+          <p className="px-1 text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#8B84A8]">
+            Reward ladder
+          </p>
+
+          {/* Ladder — one track only (green when done, grey when not) */}
+          <ol className="relative pl-9 pr-1">
             {LIFETIME_MILESTONES.map((m, i) => {
-              const rs = stateFor(m, lifetime, claimedIds);
+              const rs = stateFor(m, leadership, earnedCoins, claimedIds);
               const isNext = milestone.next?.id === m.id;
-              const nextReached = i < LIFETIME_MILESTONES.length - 1 && lifetime >= LIFETIME_MILESTONES[i + 1].points;
+              const isLast = i === LIFETIME_MILESTONES.length - 1;
+              const nextReached =
+                !isLast && leadership >= LIFETIME_MILESTONES[i + 1].points;
               const dot =
-                rs === "claimed" ? "bg-[#22B14C] text-white" : rs === "claimable" ? "bg-[#7C3AED] text-white shadow-[0_0_0_4px_rgba(124,58,237,0.25)]" : "bg-[#D9D4EE] text-[#8B84A8]";
+                rs === "claimed"
+                  ? "bg-[#22B14C] text-white"
+                  : rs === "claimable" || rs === "need-coins"
+                    ? "bg-[#7C3AED] text-white shadow-[0_0_0_4px_rgba(124,58,237,0.25)]"
+                    : "bg-[#D9D4EE] text-[#8B84A8]";
               const card =
                 rs === "claimed"
                   ? "bg-[#F0FBF3] ring-1 ring-[#C8EED2]"
-                  : rs === "claimable"
+                  : rs === "claimable" || rs === "need-coins"
                     ? "bg-[#F1ECFF] ring-2 ring-[#B39DFF] shadow-[0_8px_20px_rgba(106,90,224,0.18)]"
-                    : "bg-[#F3F1F9] ring-1 ring-[#E6E0F8]";
+                    : "bg-white ring-1 ring-[#E6E0F8] shadow-[0_2px_10px_rgba(36,26,94,0.05)]";
               return (
                 <li key={m.id} className="relative mb-3">
-                  {nextReached ? <span className="absolute -left-[1.8rem] top-6 h-[calc(100%+0.75rem)] w-0.5 bg-[#22B14C]" aria-hidden /> : null}
-                  <span className={`absolute -left-[2.55rem] top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full ring-[3px] ring-[#F5F3FF] ${dot}`}>
-                    {rs === "claimed" ? <CheckIcon className="h-4 w-4" /> : rs === "claimable" ? <GiftIcon className="h-4 w-4" /> : <LockIcon />}
-                  </span>
-                  <span className="pointer-events-none absolute -right-10 top-1/2 w-9 -translate-y-1/2 whitespace-pre-line text-center font-script text-[10.5px] leading-tight text-[#6A5AE0]" aria-hidden>
-                    {SIDE_NOTES[m.id] ?? ""}
+                  {!isLast ? (
+                    <span
+                      className={`absolute -left-[1.8rem] top-6 h-[calc(100%+0.75rem)] w-0.5 ${nextReached ? "bg-[#22B14C]" : "bg-[#E6E0F8]"}`}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span
+                    className={`absolute -left-[2.55rem] top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full ring-[3px] ring-[#F5F3FF] ${dot}`}
+                  >
+                    {rs === "claimed" ? (
+                      <CheckIcon className="h-4 w-4" />
+                    ) : rs === "claimable" || rs === "need-coins" ? (
+                      <GiftIcon className="h-4 w-4" />
+                    ) : (
+                      <LockIcon />
+                    )}
                   </span>
                   <button
                     type="button"
@@ -457,10 +625,14 @@ export function PbRewardsScreen() {
                   >
                     <MilestoneArt m={m} />
                     <div className="min-w-0 flex-1">
-                      <p className={`font-display text-[16px] font-extrabold leading-tight ${rs === "claimed" ? "text-[#1E8A3E]" : rs === "claimable" || isNext ? "text-[#6A5AE0]" : "text-[#8B84A8]"}`}>
+                      <p
+                        className={`font-display text-[16px] font-extrabold leading-tight ${rs === "claimed" ? "text-[#1E8A3E]" : rs === "claimable" || rs === "need-coins" || isNext ? "text-[#6A5AE0]" : "text-[#8B84A8]"}`}
+                      >
                         {m.points.toLocaleString("en-IN")} PB
                       </p>
-                      <p className="line-clamp-2 text-[13px] font-extrabold leading-tight text-[#241A5E]">{m.label}</p>
+                      <p className="line-clamp-2 text-[13px] font-extrabold leading-tight text-[#241A5E]">
+                        {m.label}
+                      </p>
                       <p className="text-[10.5px] font-semibold text-[#8B84A8]">{m.typeLabel}</p>
                     </div>
                     {rs === "claimed" ? (
@@ -471,18 +643,34 @@ export function PbRewardsScreen() {
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#6A5AE0] px-2.5 py-2 text-[11px] font-extrabold text-white shadow-[0_6px_14px_rgba(106,90,224,0.4)]">
                         <TruckIcon className="h-4 w-4" /> Claim Now
                       </span>
+                    ) : rs === "need-coins" ? (
+                      <span className="w-[5.75rem] shrink-0 text-right text-[10px] font-extrabold leading-tight text-[#6A5AE0]">
+                        Need {(m.points - earnedCoins).toLocaleString("en-IN")} coins
+                      </span>
                     ) : (
                       <span className="w-[5.75rem] shrink-0 text-right">
                         <span className="block text-[10px] font-bold tabular-nums text-[#8B84A8]">
-                          {lifetime.toLocaleString("en-IN")} / {m.points.toLocaleString("en-IN")} PB
+                          {leadership.toLocaleString("en-IN")} /{" "}
+                          {m.points.toLocaleString("en-IN")} PB
                         </span>
                         <span className="mt-1 block">
-                          <ProgressBar value={lifetime} max={m.points} compact />
+                          <ProgressBar value={leadership} max={m.points} compact />
                         </span>
-                        <span className="mt-0.5 block text-[10px] font-extrabold text-[#6A5AE0]">{(m.points - lifetime).toLocaleString("en-IN")} PB to go!</span>
+                        <span className="mt-0.5 block text-[10px] font-extrabold text-[#6A5AE0]">
+                          {(m.points - leadership).toLocaleString("en-IN")} PB to go!
+                        </span>
                       </span>
                     )}
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[#B8B0D8]" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4 shrink-0 text-[#B8B0D8]"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
                       <path d="m9 18 6-6-6-6" />
                     </svg>
                   </button>
@@ -491,8 +679,9 @@ export function PbRewardsScreen() {
             })}
           </ol>
 
-          <p className="px-2 text-center text-[11.5px] font-semibold leading-snug text-[#8B84A8]">
-            Milestones use Lifetime PB, so the monthly leaderboard reset never removes an achievement you have earned.
+          <p className="px-2 pb-1 text-center text-[11.5px] font-semibold leading-snug text-[#8B84A8]">
+            Unlocks follow live leaderboard PB. Claiming a gift spends earned coins, not welcome
+            coins.
           </p>
         </div>
       </div>
@@ -500,8 +689,10 @@ export function PbRewardsScreen() {
       {open ? (
         <RewardModal
           m={open}
-          state={stateFor(open, lifetime, claimedIds)}
-          lifetime={lifetime}
+          state={stateFor(open, leadership, earnedCoins, claimedIds)}
+          leadership={leadership}
+          earnedCoins={earnedCoins}
+          rank={rank}
           onClose={closeModal}
           onClaim={() => {
             const id = open.id;

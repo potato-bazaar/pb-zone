@@ -8,6 +8,8 @@ import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
 import {
   bankQuestionToQuizQuestion,
   fetchQuestionBank,
+  localizeQuizQuestion,
+  type AdminQuizLanguage,
 } from '../../services/quizBankApi';
 import { 
   Plus, 
@@ -88,6 +90,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [viewLanguage, setViewLanguage] = useState<AdminQuizLanguage>('en');
   const [regenTarget, setRegenTarget] = useState<QuizQuestion | null>(null);
   const [editTarget, setEditTarget] = useState<QuizQuestion | null>(null);
   const [copied, setCopied] = useState(false);
@@ -264,9 +267,13 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
         q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
         q.options.some((opt) => opt.text.toLowerCase().includes(searchQuery.toLowerCase())) ||
         q.topicTag.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesDiff && matchesSearch;
+      const matchesLang =
+        !liveFromApi ||
+        viewLanguage === 'en' ||
+        Boolean(q.locales?.[viewLanguage]?.question?.trim());
+      return matchesDiff && matchesSearch && matchesLang;
     });
-  }, [sourceQuestions, selectedDifficulty, searchQuery]);
+  }, [sourceQuestions, selectedDifficulty, searchQuery, liveFromApi, viewLanguage]);
 
   const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -440,6 +447,43 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          {liveFromApi ? (
+            <div className="mr-1 flex items-center gap-1.5" role="radiogroup" aria-label="Question language">
+              {(
+                [
+                  { code: 'en', label: 'EN' },
+                  { code: 'hi', label: 'HI' },
+                  { code: 'gu', label: 'GU' },
+                ] as const
+              ).map((opt) => {
+                const selected = viewLanguage === opt.code;
+                return (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setViewLanguage(opt.code)}
+                    className={cn(
+                      'inline-flex h-8 items-center rounded-md px-2.5 text-sm font-semibold',
+                      selected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-input bg-background text-foreground hover:bg-accent',
+                    )}
+                    title={
+                      opt.code === 'en'
+                        ? 'English'
+                        : opt.code === 'hi'
+                          ? 'Hindi'
+                          : 'Gujarati'
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           {['all', 'easy', 'medium', 'hard'].map((diff) => {
             const selected = selectedDifficulty === diff;
             return (
@@ -470,6 +514,9 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
               : ` loaded · bank ${live.active || live.total}`
             : ' questions'}
           {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ''}
+          {liveFromApi
+            ? ` · view ${viewLanguage === 'en' ? 'English' : viewLanguage === 'hi' ? 'Hindi' : 'Gujarati'}`
+            : ''}
         </span>
         <span>
           {liveFromApi
@@ -527,7 +574,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
           return (
             <QuestionCard
               key={q.id}
-              question={q}
+              question={liveFromApi ? localizeQuizQuestion(q, viewLanguage) : q}
               index={listIndex < 0 ? pageStart + idx : listIndex}
               totalQuestions={sourceQuestions.length}
               readOnly={liveFromApi}

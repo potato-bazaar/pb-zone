@@ -19,9 +19,9 @@ type Props = {
   onHowTo: () => void;
 };
 
-const NODE_GAP = 124;
+const NODE_GAP = 108;
 const MAP_PAD_TOP = 70;
-const MAP_PAD_BOTTOM = 150;
+const MAP_PAD_BOTTOM = 130;
 
 /** Winding path: x position (0..1) per level index. */
 function nodeX(i: number) {
@@ -128,52 +128,52 @@ export function CrushLevelMap({
 
       {/* Header + branding banner */}
       <div className="relative z-20 px-4" style={{ paddingTop: "var(--header-top)" }}>
-        <header className="relative z-10 mb-[-1.1rem] flex items-center justify-between gap-2 px-1">
+        <header className="relative z-10 mb-1 flex items-center justify-between gap-2 px-1">
           <button
             type="button"
             onClick={onBack}
             aria-label="Back to games"
-            className="crush-hud-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#3D2E7A]"
+            className="crush-hud-pill flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#3D2E7A]"
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m15 18-6-6 6-6" />
             </svg>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={onOpenLives}
-              className="crush-hud-pill inline-flex h-10 items-center gap-1.5 rounded-full pl-2 pr-3"
+              className="crush-hud-pill inline-flex h-8 items-center gap-1 rounded-full pl-1.5 pr-2.5"
               aria-label={`${progress.lives} of ${MAX_LIVES} lives`}
             >
-              <HeartIcon size={20} dim={progress.lives === 0} />
-              <span className="text-sm font-extrabold tabular-nums text-[#1a1a2e]">
+              <HeartIcon size={16} dim={progress.lives === 0} />
+              <span className="text-[12px] font-extrabold tabular-nums text-[#1a1a2e]">
                 {progress.lives}
-                <span className="text-[11px] font-bold text-[#8B84A8]">/{MAX_LIVES}</span>
+                <span className="text-[10px] font-bold text-[#8B84A8]">/{MAX_LIVES}</span>
               </span>
               {lifeCountdown ? (
-                <span className="ml-0.5 rounded-full bg-[#F0ECFF] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[#6A5AE0]">
+                <span className="ml-0.5 rounded-full bg-[#F0ECFF] px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-[#6A5AE0]">
                   {lifeCountdown}
                 </span>
               ) : null}
             </button>
-            <div className="crush-hud-pill inline-flex h-10 items-center gap-1.5 rounded-full pl-2 pr-3" role="status" aria-label={`${formatNumber(coins)} coins`}>
-              <CoinIcon size={20} />
-              <span className="text-sm font-extrabold tabular-nums text-[#1a1a2e]">{formatNumber(coins)}</span>
+            <div className="crush-hud-pill inline-flex h-8 items-center gap-1 rounded-full pl-1.5 pr-2.5" role="status" aria-label={`${formatNumber(coins)} coins`}>
+              <CoinIcon size={16} />
+              <span className="text-[12px] font-extrabold tabular-nums text-[#1a1a2e]">{formatNumber(coins)}</span>
             </div>
           </div>
         </header>
 
-        <div className="crush-brand relative overflow-hidden rounded-[1.6rem] pb-4 pl-4 pr-[46%] pt-7">
+        <div className="crush-brand relative mt-2 overflow-hidden rounded-[1.5rem] pb-3.5 pl-3.5 pr-[46%] pt-6">
           <div className="crush-brand-shine" aria-hidden />
           <p className="font-display text-[10px] font-bold uppercase tracking-[0.26em] text-white/85">PB Zone presents</p>
-          <h1 className="crush-logo mt-0.5 font-display text-[34px] font-extrabold leading-[0.95]">
+          <h1 className="crush-logo mt-0.5 font-display text-[30px] font-extrabold leading-[0.95]">
             <span className="crush-logo-a">Potato</span>
             <br />
             <span className="crush-logo-b">Crush</span>
           </h1>
           <p className="mt-1.5 text-[12px] font-semibold leading-snug text-white/90">Match &amp; pop the tastiest spuds!</p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/22 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/35">
               <Star filled size={14} /> {totalStars}/{total * 3}
             </span>
@@ -247,30 +247,30 @@ export function CrushLevelMap({
                   aria-label={`Level ${lvl.order}${unlocked ? "" : " (locked)"}`}
                   className={`crush-node relative flex items-center justify-center rounded-full font-display font-extrabold transition active:scale-95 ${
                     !unlocked
-                      ? "crush-node-locked h-[60px] w-[60px] text-[20px]"
+                      ? "crush-node-locked h-[48px] w-[48px] text-[16px]"
                       : done
-                        ? "crush-node-done h-[68px] w-[68px] text-[26px]"
-                        : "crush-node-current h-[78px] w-[78px] text-[30px]"
+                        ? "crush-node-done h-[54px] w-[54px] text-[20px]"
+                        : "crush-node-current h-[60px] w-[60px] text-[24px]"
                   }`}
                 >
                   {unlocked ? (
                     lvl.order
                   ) : (
-                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
                       <path d="M17 9V7a5 5 0 0 0-10 0v2H6a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1h-1zm-8-2a3 3 0 0 1 6 0v2H9V7z" />
                     </svg>
                   )}
                   {done ? (
                     <span className="crush-node-check" aria-hidden>
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m5 12 5 5 9-10" />
                       </svg>
                     </span>
                   ) : null}
                   {isCurrent ? <span className="crush-node-ring" aria-hidden /> : null}
                 </button>
-                <div className={`crush-stars-pill mt-1.5 ${done ? "crush-stars-pill-done" : ""}`}>
-                  <StarRow stars={stars} size={done ? 16 : 13} />
+                <div className={`crush-stars-pill mt-1 ${done ? "crush-stars-pill-done" : ""}`}>
+                  <StarRow stars={stars} size={done ? 13 : 11} />
                 </div>
               </div>
             );
@@ -278,10 +278,10 @@ export function CrushLevelMap({
         </div>
       </div>
 
-      {/* Bottom dock: boosters + help */}
+      {/* Bottom dock: boosters + help — lifted for gesture safe-area */}
       <div
-        className="relative z-20 px-4 pt-2"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+        className="relative z-20 px-4 pt-1"
+        style={{ paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))" }}
       >
         <div className="crush-map-dock flex items-center gap-2 rounded-[1.35rem] p-2">
           {(Object.keys(BOOSTER_INFO) as BoosterType[]).map((type) => (

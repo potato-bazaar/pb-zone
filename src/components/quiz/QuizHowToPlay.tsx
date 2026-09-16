@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import type { QuizLanguage } from "@/lib/quizApi";
+
 type HowToPlayProps = {
-  onStart: () => void;
+  onStart: (language: QuizLanguage) => void;
   onBack: () => void;
   starting?: boolean;
   error?: string | null;
@@ -43,6 +46,12 @@ const STEPS = [
   },
 ] as const;
 
+const LANG_OPTIONS: { code: QuizLanguage; label: string; native: string }[] = [
+  { code: "en", label: "English", native: "English" },
+  { code: "hi", label: "Hindi", native: "हिन्दी" },
+  { code: "gu", label: "Gujarati", native: "ગુજરાતી" },
+];
+
 const DEFAULT_SCORING = {
   pointsPerCorrect: 20,
   fastAnswerBonus: 5,
@@ -57,6 +66,7 @@ export function QuizHowToPlay({
   error = null,
   scoring,
 }: HowToPlayProps) {
+  const [language, setLanguage] = useState<QuizLanguage>("en");
   const points = {
     pointsPerCorrect: Number(scoring?.pointsPerCorrect ?? DEFAULT_SCORING.pointsPerCorrect),
     fastAnswerBonus: Number(scoring?.fastAnswerBonus ?? DEFAULT_SCORING.fastAnswerBonus),
@@ -81,7 +91,7 @@ export function QuizHowToPlay({
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
       <div
-        className="flex min-h-0 flex-1 flex-col px-5 pb-10"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-10"
         style={{
           paddingTop: "max(3.25rem, calc(var(--header-top) + 0.5rem))",
         }}
@@ -112,7 +122,7 @@ export function QuizHowToPlay({
         </header>
 
         <div className="mx-auto flex w-full flex-1 flex-col">
-          <ul className="mt-5 flex flex-col gap-4">
+          <ul className="mt-2 flex flex-col gap-4">
             {steps.map((step) => (
               <li key={step.title} className="flex gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6A5AE0] text-lg font-bold text-white">
@@ -149,6 +159,43 @@ export function QuizHowToPlay({
             </ul>
           </div>
 
+          <div className="mt-5">
+            <h3 className="text-center font-display text-sm font-extrabold tracking-wide text-[#6A5AE0]">
+              CHOOSE LANGUAGE
+            </h3>
+            <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Quiz language">
+              {LANG_OPTIONS.map((opt) => {
+                const selected = language === opt.code;
+                return (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={starting}
+                    onClick={() => setLanguage(opt.code)}
+                    className={`rounded-2xl px-2 py-3 text-center transition active:scale-[0.98] disabled:opacity-60 ${
+                      selected
+                        ? "bg-[#6A5AE0] text-white shadow-md shadow-primary/20 ring-2 ring-[#6A5AE0]"
+                        : "bg-[#F5F3FF] text-[#3D2E7A] ring-1 ring-[#E0D9F5]"
+                    }`}
+                  >
+                    <span className="block font-display text-[13px] font-extrabold leading-tight">
+                      {opt.label}
+                    </span>
+                    <span
+                      className={`mt-0.5 block text-[11px] font-semibold ${
+                        selected ? "text-white/85" : "text-[#7B7498]"
+                      }`}
+                    >
+                      {opt.native}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="mt-auto pb-4 pt-6">
             {error ? (
               <p className="mb-3 text-center text-[13px] font-semibold text-[#DC2626]">
@@ -157,7 +204,7 @@ export function QuizHowToPlay({
             ) : null}
             <button
               type="button"
-              onClick={onStart}
+              onClick={() => onStart(language)}
               disabled={starting}
               className="flex h-14 w-full items-center justify-center rounded-full bg-[#6A5AE0] text-base font-extrabold text-white shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60"
             >

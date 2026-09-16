@@ -4,7 +4,7 @@ import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { QuizTimeApp } from "@/components/quiz/QuizTimeApp";
 import { PotatoCrushApp } from "@/components/crush/PotatoCrushApp";
 import { PotatoNinjaApp } from "@/components/ninja/PotatoNinjaApp";
-import { PotatoSortApp } from "@/components/sort/PotatoSortApp";
+// import { PotatoSortApp } from "@/components/sort/PotatoSortApp";
 import { PotatoRunApp } from "@/components/run/PotatoRunApp";
 import { ALL_GAMES } from "@/data/games";
 
@@ -29,13 +29,14 @@ export default async function GameDetailPage({ params }: Props) {
     return <PotatoNinjaApp />;
   }
 
-  if (id === "potato-sort") {
-    return <PotatoSortApp />;
-  }
-
   if (id === "potato-run") {
     return <PotatoRunApp />;
   }
+
+  // Coming later:
+  // if (id === "potato-sort") {
+  //   return <PotatoSortApp />;
+  // }
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
