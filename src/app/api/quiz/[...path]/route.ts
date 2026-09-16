@@ -199,11 +199,34 @@ const sessionLanguage = new Map<string, QuizLang>();
 type BankLocaleCache = {
   loadedAt: number;
   byNormText: Map<string, Record<string, unknown>>;
+  byId: Map<string, Record<string, unknown>>;
   withLocale: { hi: number; gu: number; total: number };
 };
 
 let bankLocaleCache: BankLocaleCache | null = null;
 const BANK_CACHE_TTL_MS = 60_000;
+/** Signed cookie so HI/GU decks survive Vercel serverless instance hops. */
+const DECK_COOKIE = "pb_quiz_deck";
+
+type DeckCookiePayload = {
+  v: 1;
+  sid: string;
+  lang: QuizLang;
+  ids: string[];
+  index: number;
+  score: number;
+  correctCount: number;
+  timerSeconds: number;
+  pointsPerCorrect: number;
+  fastAnswerBonus: number;
+  fastAnswerSeconds: number;
+  completeQuizBonus: number;
+  userPoints: number;
+  earnedPoints: number;
+  leaderboardPoints: number;
+  fastBonusTotal: number;
+  completeBonusAwarded: number;
+};
 
 function asQuizLang(value: unknown): QuizLang | null {
   const raw = String(value ?? "").trim().toLowerCase();
@@ -253,9 +276,11 @@ async function loadBankLocaleCache(force = false): Promise<BankLocaleCache> {
   }
 
   const byNormText = new Map<string, Record<string, unknown>>();
+  const byId = new Map<string, Record<string, unknown>>();
   let withHi = 0;
   let withGu = 0;
   let total = 0;
+  let authFailed = false;
 
   for (let page = 1; page <= 8; page += 1) {
     const target = new URL(
@@ -265,6 +290,14 @@ async function loadBankLocaleCache(force = false): Promise<BankLocaleCache> {
     target.searchParams.set("limit", "200");
     target.searchParams.set("isActive", "true");
     const upstream = await upstreamRequest(target, "GET", adminAuthHeaders());
+    if (upstream.status === 401 || upstream.status === 403) {
+      authFailed = true;
+      console.error(
+        "[quiz locale] admin bank auth failed — set QUIZ_ADMIN_API_KEY (and QUIZ_JWT_SECRET) on Vercel",
+        { status: upstream.status },
+      );
+      break;
+    }
     if (upstream.status < 200 || upstream.status >= 300) break;
     const parsed = JSON.parse(upstream.body) as { data?: unknown; pagination?: { totalPages?: number } };
     const rows = Array.isArray(parsed.data) ? parsed.data : [];
@@ -278,14 +311,23 @@ async function loadBankLocaleCache(force = false): Promise<BankLocaleCache> {
       if (hasLocale(rec, "hi")) withHi += 1;
       if (hasLocale(rec, "gu")) withGu += 1;
       byNormText.set(normalizeQuestionText(text), rec);
+      const id = String(rec.id ?? "");
+      if (id) byId.set(id, rec);
     }
     const totalPages = Number(parsed.pagination?.totalPages ?? page);
     if (page >= totalPages) break;
   }
 
+  if (authFailed && total === 0) {
+    console.error(
+      "[quiz locale] empty bank cache after auth failure — Hindi/Gujarati quizzes will not work",
+    );
+  }
+
   bankLocaleCache = {
     loadedAt: Date.now(),
     byNormText,
+    byId,
     withLocale: { hi: withHi, gu: withGu, total },
   };
   console.info(
@@ -293,6 +335,133 @@ async function loadBankLocaleCache(force = false): Promise<BankLocaleCache> {
     bankLocaleCache.withLocale,
   );
   return bankLocaleCache;
+}
+
+function deckSigningSecret() {
+  return (
+    process.env.QUIZ_JWT_SECRET ||
+    process.env.JWT_SECRET ||
+    process.env.QUIZ_ADMIN_API_KEY ||
+    process.env.ADMIN_API_KEY ||
+    ""
+  );
+}
+
+function sealDeckCookie(sessionId: string, deck: TranslatedDeck): string | null {
+  const secret = deckSigningSecret();
+  if (!secret) return null;
+  const payload: DeckCookiePayload = {
+    v: 1,
+    sid: sessionId,
+    lang: deck.lang,
+    ids: deck.cards.map((card) => card.id),
+    index: deck.index,
+    score: deck.score,
+    correctCount: deck.correctCount,
+    timerSeconds: deck.timerSeconds,
+    pointsPerCorrect: deck.pointsPerCorrect,
+    fastAnswerBonus: deck.fastAnswerBonus,
+    fastAnswerSeconds: deck.fastAnswerSeconds,
+    completeQuizBonus: deck.completeQuizBonus,
+    userPoints: deck.userPoints,
+    earnedPoints: deck.earnedPoints,
+    leaderboardPoints: deck.leaderboardPoints,
+    fastBonusTotal: deck.fastBonusTotal,
+    completeBonusAwarded: deck.completeBonusAwarded,
+  };
+  const body = base64url(JSON.stringify(payload));
+  const sig = createHmac("sha256", secret).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function parseDeckCookie(raw: string | undefined): DeckCookiePayload | null {
+  if (!raw) return null;
+  const secret = deckSigningSecret();
+  if (!secret) return null;
+  const dot = raw.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const body = raw.slice(0, dot);
+  const sig = raw.slice(dot + 1);
+  const expected = createHmac("sha256", secret).update(body).digest("base64url");
+  if (sig !== expected) return null;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf8"),
+    ) as DeckCookiePayload;
+    if (parsed?.v !== 1 || !parsed.sid || !Array.isArray(parsed.ids)) return null;
+    if (parsed.lang !== "hi" && parsed.lang !== "gu") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function applyDeckCookie(response: NextResponse, sessionId: string) {
+  const deck = translatedDecks.get(sessionId);
+  if (!deck) {
+    response.cookies.set(DECK_COOKIE, "", {
+      httpOnly: true,
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
+  }
+  const token = sealDeckCookie(sessionId, deck);
+  if (token) {
+    response.cookies.set(DECK_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 2,
+    });
+  }
+  return response;
+}
+
+async function hydrateTranslatedDeck(
+  request: NextRequest,
+  sessionId: string,
+): Promise<TranslatedDeck | null> {
+  const existing = translatedDecks.get(sessionId);
+  if (existing) return existing;
+
+  const sealed = parseDeckCookie(request.cookies.get(DECK_COOKIE)?.value);
+  if (!sealed || sealed.sid !== sessionId) return null;
+
+  await loadBankLocaleCache();
+  const cache = bankLocaleCache;
+  if (!cache) return null;
+
+  const cards: DeckCard[] = [];
+  for (const id of sealed.ids) {
+    const row = cache.byId.get(id);
+    if (!row) continue;
+    const card = bankRowToDeckCard(row, sealed.lang);
+    if (card) cards.push(card);
+  }
+  if (cards.length === 0) return null;
+
+  const deck: TranslatedDeck = {
+    lang: sealed.lang,
+    cards,
+    index: Math.min(Math.max(0, sealed.index), cards.length),
+    score: sealed.score,
+    correctCount: sealed.correctCount,
+    timerSeconds: sealed.timerSeconds,
+    pointsPerCorrect: sealed.pointsPerCorrect,
+    fastAnswerBonus: sealed.fastAnswerBonus,
+    fastAnswerSeconds: sealed.fastAnswerSeconds,
+    completeQuizBonus: sealed.completeQuizBonus,
+    userPoints: sealed.userPoints,
+    earnedPoints: sealed.earnedPoints,
+    leaderboardPoints: sealed.leaderboardPoints,
+    fastBonusTotal: sealed.fastBonusTotal,
+    completeBonusAwarded: sealed.completeBonusAwarded,
+  };
+  translatedDecks.set(sessionId, deck);
+  sessionLanguage.set(sessionId, sealed.lang);
+  return deck;
 }
 
 async function resolveBankRowForQuestion(
@@ -538,14 +707,18 @@ async function startTranslatedDeckSession(
   const perQuiz = Math.max(1, Number(settings.questionsPerQuiz ?? 12));
   const cards = buildTranslatedDeck(lang, perQuiz);
   if (cards.length === 0) {
+    const bankTotal = bankLocaleCache?.withLocale.total ?? 0;
+    const message =
+      bankTotal === 0
+        ? "Question bank unavailable. Set QUIZ_ADMIN_API_KEY on the server and retry."
+        : lang === "hi"
+          ? "Hindi questions are not available yet in the question bank."
+          : "Gujarati questions are not available yet in the question bank.";
     return NextResponse.json(
       {
         success: false,
         error: "NO_TRANSLATED_QUESTIONS",
-        message:
-          lang === "hi"
-            ? "Hindi questions are not available yet in the question bank."
-            : "Gujarati questions are not available yet in the question bank.",
+        message,
       },
       { status: 503 },
     );
@@ -585,17 +758,20 @@ async function startTranslatedDeckSession(
     bankGu: bankLocaleCache?.withLocale.gu,
   });
 
-  return NextResponse.json({
-    ...json,
-    data,
-    message: json.message ?? "Quiz session started",
-  });
+  return applyDeckCookie(
+    NextResponse.json({
+      ...json,
+      data,
+      message: json.message ?? "Quiz session started",
+    }),
+    sessionId,
+  );
 }
 
 function handleTranslatedDeckAnswer(
   sessionId: string,
   requestBody: string | undefined,
-): Response | null {
+): NextResponse | null {
   const deck = translatedDecks.get(sessionId);
   if (!deck) return null;
 
@@ -703,7 +879,7 @@ function handleTranslatedDeckAnswer(
 function handleTranslatedDeckLifeline(
   sessionId: string,
   requestBody: string | undefined,
-): Response | null {
+): NextResponse | null {
   const deck = translatedDecks.get(sessionId);
   if (!deck) return null;
 
@@ -801,7 +977,7 @@ function handleTranslatedDeckLifeline(
   );
 }
 
-function handleTranslatedDeckResult(sessionId: string): Response | null {
+function handleTranslatedDeckResult(sessionId: string): NextResponse | null {
   const deck = translatedDecks.get(sessionId);
   // Keep finished decks briefly for result fetch — if already deleted, no match.
   if (!deck) return null;
@@ -825,7 +1001,7 @@ function handleTranslatedDeckResult(sessionId: string): Response | null {
     },
   };
   translatedDecks.delete(sessionId);
-  return NextResponse.json(payload);
+  return applyDeckCookie(NextResponse.json(payload), sessionId);
 }
 
 async function enrichQuizPayloadWithLocales(
@@ -1038,11 +1214,17 @@ async function proxyQuiz(
 
   // HI/GU deck: grade + advance locally so we never burn the 12-slot BE session
   // by auto-skipping English questions (that was ending the quiz after 1 Q).
+  if (sessionIdHint) {
+    await hydrateTranslatedDeck(request, sessionIdHint).catch((error) => {
+      console.warn("[quiz locale] deck hydrate failed", error);
+    });
+  }
   if (sessionIdHint && translatedDecks.has(sessionIdHint)) {
     if (isSessionAnswer) {
       const deckRes = handleTranslatedDeckAnswer(sessionIdHint, body);
       if (deckRes) {
-        const deckBody = await deckRes.text();
+        applyDeckCookie(deckRes, sessionIdHint);
+        const deckBody = await deckRes.clone().text();
         recordQuizTraffic(
           request.method,
           segments,
@@ -1050,16 +1232,14 @@ async function proxyQuiz(
           deckBody,
         );
         for (const [k, v] of responseHeaders.entries()) deckRes.headers.set(k, v);
-        return new NextResponse(deckBody, {
-          status: deckRes.status,
-          headers: deckRes.headers,
-        });
+        return deckRes;
       }
     }
     if (isSessionLifeline) {
       const deckRes = handleTranslatedDeckLifeline(sessionIdHint, body);
       if (deckRes) {
-        const deckBody = await deckRes.text();
+        applyDeckCookie(deckRes, sessionIdHint);
+        const deckBody = await deckRes.clone().text();
         recordQuizTraffic(
           request.method,
           segments,
@@ -1067,10 +1247,7 @@ async function proxyQuiz(
           deckBody,
         );
         for (const [k, v] of responseHeaders.entries()) deckRes.headers.set(k, v);
-        return new NextResponse(deckBody, {
-          status: deckRes.status,
-          headers: deckRes.headers,
-        });
+        return deckRes;
       }
     }
     if (isSessionResult) {
@@ -1107,7 +1284,7 @@ async function proxyQuiz(
           requestLang,
         );
         if (deckStart) {
-          const deckBody = await deckStart.text();
+          const deckBody = await deckStart.clone().text();
           recordQuizTraffic(
             request.method,
             segments,
@@ -1122,10 +1299,7 @@ async function proxyQuiz(
           for (const [k, v] of responseHeaders.entries()) {
             deckStart.headers.set(k, v);
           }
-          return new NextResponse(deckBody, {
-            status: deckStart.status,
-            headers: deckStart.headers,
-          });
+          return deckStart;
         }
       }
 
