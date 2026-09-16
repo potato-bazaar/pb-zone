@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QuizHowToPlay } from "@/components/quiz/QuizHowToPlay";
 import { QuizPlayScreen } from "@/components/quiz/QuizPlayScreen";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
@@ -32,6 +32,7 @@ export function QuizTimeApp() {
     null,
   );
   const scoring = useQuizScoring(phase !== "play");
+  const ignorePopRef = useRef(false);
 
   const auth = useMemo(
     () => ({
@@ -42,6 +43,32 @@ export function QuizTimeApp() {
     [session.token, session.userId, session.userName],
   );
   const [playAuth, setPlayAuth] = useState(auth);
+
+  function exitToStart(fromPopState = false) {
+    setPhase("howto");
+    setQuizSession(null);
+    setStartError(null);
+    if (
+      !fromPopState &&
+      typeof window !== "undefined" &&
+      window.history.state?.quizPhase === "play"
+    ) {
+      ignorePopRef.current = true;
+      window.history.back();
+    }
+  }
+
+  useEffect(() => {
+    function onPopState() {
+      if (ignorePopRef.current) {
+        ignorePopRef.current = false;
+        return;
+      }
+      exitToStart(true);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   async function beginQuiz(selectedLang: QuizLanguage = language) {
     if (starting) return;
@@ -79,6 +106,7 @@ export function QuizTimeApp() {
       });
       setQuizSession(data);
       setRunId((n) => n + 1);
+      window.history.pushState({ quizPhase: "play" }, "");
       setPhase("play");
     } catch (error) {
       const message =
@@ -121,7 +149,7 @@ export function QuizTimeApp() {
       key={runId}
       auth={playAuth}
       initialSession={quizSession}
-      onExit={() => router.push("/games")}
+      onExit={() => exitToStart()}
       onHome={() => router.push("/home")}
       onPlayAgain={() => void beginQuiz(language)}
     />

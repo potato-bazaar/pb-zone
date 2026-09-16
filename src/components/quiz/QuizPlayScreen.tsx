@@ -617,7 +617,7 @@ export function QuizPlayScreen({
         </header>
 
         {/* Progress + timer */}
-        <div className="mb-4 flex shrink-0 items-center gap-2">
+        <div className="mb-4 mt-5 flex shrink-0 items-center gap-2">
           <div className="quiz-progress relative h-[24px] min-w-0 flex-1 rounded-full">
             <div className="quiz-progress-fill absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(progressPct, 12)}%` }} />
             <span
