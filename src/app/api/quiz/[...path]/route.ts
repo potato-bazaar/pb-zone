@@ -372,16 +372,488 @@ function localizeQuestionPayload(
   return q;
 }
 
+async function canServeQuestionInLang(
+  question: unknown,
+  lang: QuizLang,
+): Promise<boolean> {
+  if (!question || typeof question !== "object") return false;
+  if (lang === "en") return true;
+  // After localizeOneQuestion, translated copy must be Indic script.
+  return isIndicText((question as { question?: unknown }).question);
+}
+
+async function localizeOneQuestion(
+  rawQ: unknown,
+  lang: QuizLang,
+): Promise<unknown> {
+  if (!rawQ || typeof rawQ !== "object" || lang === "en") return rawQ;
+  if (isIndicText((rawQ as { question?: unknown }).question)) return rawQ;
+  const bank = await resolveBankRowForQuestion(rawQ as Record<string, unknown>);
+  return localizeQuestionPayload(rawQ, bank, lang);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Translated deck — HI/GU only play bank rows that have locales.    */
+/*  Avoids BE mixed EN sessions + timedOut-skip ending after 1 Q.     */
+/* ------------------------------------------------------------------ */
+
+type DeckCard = {
+  id: string;
+  question: string;
+  options: Array<{ key: string; text: string }>;
+  correctOption: string;
+  explanation?: string | null;
+};
+
+type TranslatedDeck = {
+  lang: QuizLang;
+  cards: DeckCard[];
+  index: number;
+  score: number;
+  correctCount: number;
+  timerSeconds: number;
+  pointsPerCorrect: number;
+  fastAnswerBonus: number;
+  fastAnswerSeconds: number;
+  completeQuizBonus: number;
+  userPoints: number;
+  earnedPoints: number;
+  leaderboardPoints: number;
+  fastBonusTotal: number;
+  completeBonusAwarded: number;
+};
+
+const translatedDecks = new Map<string, TranslatedDeck>();
+
+function shuffleInPlace<T>(items: T[]) {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = items[i]!;
+    items[i] = items[j]!;
+    items[j] = tmp;
+  }
+  return items;
+}
+
+function bankRowToDeckCard(
+  row: Record<string, unknown>,
+  lang: QuizLang,
+): DeckCard | null {
+  if (!hasLocale(row, lang)) return null;
+  const loc = (row.locales as Record<string, unknown>)[lang] as Record<
+    string,
+    unknown
+  >;
+  const bankOptions =
+    row.options && typeof row.options === "object"
+      ? (row.options as Record<string, unknown>)
+      : {};
+  const locOptions =
+    loc.options && typeof loc.options === "object"
+      ? (loc.options as Record<string, unknown>)
+      : {};
+  const keys = ["A", "B", "C", "D"] as const;
+  const options = keys.map((key) => ({
+    key,
+    text: String(locOptions[key] ?? bankOptions[key] ?? key),
+  }));
+  const correct = String(row.correctOption ?? "A").trim().toUpperCase();
+  const explanation =
+    typeof loc.explanation === "string"
+      ? loc.explanation
+      : typeof row.explanation === "string"
+        ? row.explanation
+        : null;
+  return {
+    id: String(row.id ?? ""),
+    question: String(loc.question ?? ""),
+    options,
+    correctOption: correct,
+    explanation,
+  };
+}
+
+function buildTranslatedDeck(lang: QuizLang, count: number): DeckCard[] {
+  const cache = bankLocaleCache;
+  if (!cache) return [];
+  const cards: DeckCard[] = [];
+  for (const row of cache.byNormText.values()) {
+    const card = bankRowToDeckCard(row, lang);
+    if (card?.id && card.question) cards.push(card);
+  }
+  shuffleInPlace(cards);
+  return cards.slice(0, Math.max(1, count));
+}
+
+function deckQuestionPayload(
+  card: DeckCard,
+  index: number,
+  total: number,
+  timerSeconds: number,
+) {
+  return {
+    id: card.id,
+    index: index + 1,
+    total,
+    question: card.question,
+    options: card.options,
+    timerSeconds,
+    hiddenOptions: [] as string[],
+    explanation: card.explanation ?? null,
+  };
+}
+
+async function startTranslatedDeckSession(
+  upstreamBody: string,
+  lang: QuizLang,
+): Promise<Response | null> {
+  await loadBankLocaleCache();
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(upstreamBody) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const data =
+    json.data && typeof json.data === "object"
+      ? ({ ...(json.data as Record<string, unknown>) } as Record<
+          string,
+          unknown
+        >)
+      : null;
+  if (!data) return null;
+
+  const sessionId = String(data.sessionId ?? data.id ?? "");
+  if (!sessionId) return null;
+
+  const settings =
+    data.settings && typeof data.settings === "object"
+      ? (data.settings as Record<string, unknown>)
+      : {};
+  const user =
+    data.user && typeof data.user === "object"
+      ? (data.user as Record<string, unknown>)
+      : {};
+
+  const perQuiz = Math.max(1, Number(settings.questionsPerQuiz ?? 12));
+  const cards = buildTranslatedDeck(lang, perQuiz);
+  if (cards.length === 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "NO_TRANSLATED_QUESTIONS",
+        message:
+          lang === "hi"
+            ? "Hindi questions are not available yet in the question bank."
+            : "Gujarati questions are not available yet in the question bank.",
+      },
+      { status: 503 },
+    );
+  }
+
+  const timerSeconds = Number(settings.timerSeconds ?? 15);
+  const deck: TranslatedDeck = {
+    lang,
+    cards,
+    index: 0,
+    score: 0,
+    correctCount: 0,
+    timerSeconds,
+    pointsPerCorrect: Number(settings.pointsPerCorrect ?? 20),
+    fastAnswerBonus: Number(settings.fastAnswerBonus ?? 5),
+    fastAnswerSeconds: Number(settings.fastAnswerSeconds ?? 5),
+    completeQuizBonus: Number(settings.completeQuizBonus ?? 20),
+    userPoints: Number(user.points ?? 0),
+    earnedPoints: Number(user.earnedPoints ?? 0),
+    leaderboardPoints: Number(user.leaderboardPoints ?? 0),
+    fastBonusTotal: 0,
+    completeBonusAwarded: 0,
+  };
+  translatedDecks.set(sessionId, deck);
+  sessionLanguage.set(sessionId, lang);
+
+  data.language = lang;
+  data.question = deckQuestionPayload(cards[0]!, 0, cards.length, timerSeconds);
+  data.status = "active";
+  data.score = 0;
+
+  console.info("[quiz locale] translated deck start", {
+    sessionId,
+    lang,
+    deckSize: cards.length,
+    bankHi: bankLocaleCache?.withLocale.hi,
+    bankGu: bankLocaleCache?.withLocale.gu,
+  });
+
+  return NextResponse.json({
+    ...json,
+    data,
+    message: json.message ?? "Quiz session started",
+  });
+}
+
+function handleTranslatedDeckAnswer(
+  sessionId: string,
+  requestBody: string | undefined,
+): Response | null {
+  const deck = translatedDecks.get(sessionId);
+  if (!deck) return null;
+
+  let option: string | null = null;
+  let timedOut = false;
+  let responseTimeSeconds = deck.timerSeconds;
+  try {
+    const parsed = requestBody
+      ? (JSON.parse(requestBody) as Record<string, unknown>)
+      : {};
+    if (typeof parsed.option === "string") option = parsed.option.toUpperCase();
+    timedOut = Boolean(parsed.timedOut);
+    if (typeof parsed.responseTimeSeconds === "number") {
+      responseTimeSeconds = parsed.responseTimeSeconds;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const card = deck.cards[deck.index];
+  if (!card) {
+    translatedDecks.delete(sessionId);
+    return NextResponse.json({
+      success: true,
+      data: {
+        correct: false,
+        timedOut: true,
+        correctOption: null,
+        pointsAwarded: 0,
+        sessionScore: deck.score,
+        correctCount: deck.correctCount,
+        status: "completed",
+        userPoints: deck.userPoints,
+        earnedPoints: deck.earnedPoints,
+        leaderboardPoints: deck.leaderboardPoints,
+        nextQuestion: null,
+      },
+    });
+  }
+
+  const correct = !timedOut && option === card.correctOption;
+  let pointsAwarded = 0;
+  let fastBonusAwarded = 0;
+  if (correct) {
+    pointsAwarded = deck.pointsPerCorrect;
+    if (responseTimeSeconds <= deck.fastAnswerSeconds) {
+      fastBonusAwarded = deck.fastAnswerBonus;
+      pointsAwarded += fastBonusAwarded;
+      deck.fastBonusTotal += fastBonusAwarded;
+    }
+    deck.correctCount += 1;
+    deck.score += pointsAwarded;
+    deck.userPoints += pointsAwarded;
+    deck.earnedPoints += pointsAwarded;
+  }
+
+  deck.index += 1;
+  const done = deck.index >= deck.cards.length;
+  let completeBonus = 0;
+  if (done && deck.correctCount === deck.cards.length) {
+    completeBonus = deck.completeQuizBonus;
+    deck.completeBonusAwarded = completeBonus;
+    deck.score += completeBonus;
+    deck.userPoints += completeBonus;
+    deck.earnedPoints += completeBonus;
+    pointsAwarded += completeBonus;
+  }
+
+  const nextCard = done ? null : deck.cards[deck.index]!;
+  const nextQuestion = nextCard
+    ? deckQuestionPayload(
+        nextCard,
+        deck.index,
+        deck.cards.length,
+        deck.timerSeconds,
+      )
+    : null;
+
+  const correctOpt = card.options.find((o) => o.key === card.correctOption);
+
+  return NextResponse.json({
+    success: true,
+    message: "Answer submitted",
+    data: {
+      correct,
+      timedOut,
+      correctOption: card.correctOption,
+      correctOptionText: correctOpt?.text ?? card.correctOption,
+      explanation: card.explanation ?? null,
+      pointsAwarded,
+      fastBonusAwarded,
+      completeQuizBonus: completeBonus,
+      sessionScore: deck.score,
+      correctCount: deck.correctCount,
+      status: done ? "completed" : "active",
+      userPoints: deck.userPoints,
+      earnedPoints: deck.earnedPoints,
+      leaderboardPoints: deck.leaderboardPoints,
+      nextQuestion,
+      responseTimeSeconds,
+    },
+  });
+}
+
+function handleTranslatedDeckLifeline(
+  sessionId: string,
+  requestBody: string | undefined,
+): Response | null {
+  const deck = translatedDecks.get(sessionId);
+  if (!deck) return null;
+
+  let type = "";
+  try {
+    const parsed = requestBody
+      ? (JSON.parse(requestBody) as Record<string, unknown>)
+      : {};
+    type = String(parsed.type ?? "").toLowerCase();
+  } catch {
+    /* ignore */
+  }
+
+  const card = deck.cards[deck.index];
+  if (!card) {
+    return NextResponse.json({
+      success: true,
+      data: {
+        status: "completed",
+        nextQuestion: null,
+        userPoints: deck.userPoints,
+        earnedPoints: deck.earnedPoints,
+        leaderboardPoints: deck.leaderboardPoints,
+      },
+    });
+  }
+
+  const cost =
+    type === "fifty_fifty" || type === "extra_time" || type === "skip" ? 10 : 0;
+  if (cost > 0) {
+    deck.userPoints = Math.max(0, deck.userPoints - cost);
+  }
+
+  if (type === "fifty_fifty") {
+    const wrong = card.options.filter((o) => o.key !== card.correctOption);
+    shuffleInPlace(wrong);
+    const remove = new Set(wrong.slice(0, 2).map((o) => o.key));
+    const kept = card.options.filter((o) => !remove.has(o.key));
+    return NextResponse.json({
+      success: true,
+      data: {
+        type,
+        options: kept,
+        removedOptions: [...remove],
+        userPoints: deck.userPoints,
+        earnedPoints: deck.earnedPoints,
+        leaderboardPoints: deck.leaderboardPoints,
+        status: "active",
+      },
+    });
+  }
+
+  if (type === "extra_time") {
+    return NextResponse.json({
+      success: true,
+      data: {
+        type,
+        extraTimeSeconds: 10,
+        userPoints: deck.userPoints,
+        earnedPoints: deck.earnedPoints,
+        leaderboardPoints: deck.leaderboardPoints,
+        status: "active",
+      },
+    });
+  }
+
+  if (type === "skip") {
+    deck.index += 1;
+    const done = deck.index >= deck.cards.length;
+    const nextCard = done ? null : deck.cards[deck.index]!;
+    const nextQuestion = nextCard
+      ? deckQuestionPayload(
+          nextCard,
+          deck.index,
+          deck.cards.length,
+          deck.timerSeconds,
+        )
+      : null;
+    return NextResponse.json({
+      success: true,
+      data: {
+        type,
+        status: done ? "completed" : "active",
+        nextQuestion,
+        userPoints: deck.userPoints,
+        earnedPoints: deck.earnedPoints,
+        leaderboardPoints: deck.leaderboardPoints,
+      },
+    });
+  }
+
+  return NextResponse.json(
+    { success: false, error: "UNKNOWN_LIFELINE", message: `Unknown lifeline: ${type}` },
+    { status: 400 },
+  );
+}
+
+function handleTranslatedDeckResult(sessionId: string): Response | null {
+  const deck = translatedDecks.get(sessionId);
+  // Keep finished decks briefly for result fetch — if already deleted, no match.
+  if (!deck) return null;
+
+  const payload = {
+    success: true,
+    data: {
+      sessionId,
+      correctCount: deck.correctCount,
+      totalQuestions: deck.cards.length,
+      score: deck.score,
+      sessionScore: deck.score,
+      pointsAwarded: deck.score,
+      fastBonus: deck.fastBonusTotal,
+      completionBonus: deck.completeBonusAwarded,
+      userPoints: deck.userPoints,
+      earnedPoints: deck.earnedPoints,
+      leaderboardPoints: deck.leaderboardPoints,
+      status: "completed",
+      language: deck.lang,
+    },
+  };
+  translatedDecks.delete(sessionId);
+  return NextResponse.json(payload);
+}
+
 async function enrichQuizPayloadWithLocales(
   responseBody: string,
   langHint: QuizLang | null,
   sessionIdHint?: string,
-): Promise<{ body: string; localized: boolean; lang: QuizLang }> {
+): Promise<{
+  body: string;
+  lang: QuizLang;
+  questionOk: boolean;
+  nextOk: boolean;
+  sessionId: string;
+  status: string;
+  hasNext: boolean;
+}> {
   let json: Record<string, unknown>;
   try {
     json = JSON.parse(responseBody) as Record<string, unknown>;
   } catch {
-    return { body: responseBody, localized: false, lang: langHint ?? "en" };
+    return {
+      body: responseBody,
+      lang: langHint ?? "en",
+      questionOk: false,
+      nextOk: false,
+      sessionId: sessionIdHint ?? "",
+      status: "",
+      hasNext: false,
+    };
   }
 
   const data =
@@ -389,7 +861,15 @@ async function enrichQuizPayloadWithLocales(
       ? ({ ...(json.data as Record<string, unknown>) } as Record<string, unknown>)
       : null;
   if (!data) {
-    return { body: responseBody, localized: false, lang: langHint ?? "en" };
+    return {
+      body: responseBody,
+      lang: langHint ?? "en",
+      questionOk: false,
+      nextOk: false,
+      sessionId: sessionIdHint ?? "",
+      status: "",
+      hasNext: false,
+    };
   }
 
   const sessionId = String(data.sessionId ?? data.id ?? sessionIdHint ?? "");
@@ -400,30 +880,38 @@ async function enrichQuizPayloadWithLocales(
     "en";
 
   if (sessionId && lang) sessionLanguage.set(sessionId, lang);
+
   if (lang === "en") {
-    return { body: responseBody, localized: true, lang };
+    return {
+      body: responseBody,
+      lang,
+      questionOk: true,
+      nextOk: true,
+      sessionId,
+      status: String(data.status ?? ""),
+      hasNext: Boolean(data.nextQuestion),
+    };
   }
 
-  const localizeOne = async (rawQ: unknown) => {
-    if (!rawQ || typeof rawQ !== "object") return rawQ;
-    if (isIndicText((rawQ as { question?: unknown }).question)) return rawQ;
-    const bank = await resolveBankRowForQuestion(rawQ as Record<string, unknown>);
-    return localizeQuestionPayload(rawQ, bank, lang);
-  };
+  if (data.question) data.question = await localizeOneQuestion(data.question, lang);
+  if (data.nextQuestion) {
+    data.nextQuestion = await localizeOneQuestion(data.nextQuestion, lang);
+  }
 
-  if (data.question) data.question = await localizeOne(data.question);
-  if (data.nextQuestion) data.nextQuestion = await localizeOne(data.nextQuestion);
-
-  const localized = isIndicText(
-    (data.question as { question?: unknown } | undefined)?.question,
-  ) || isIndicText(
-    (data.nextQuestion as { question?: unknown } | undefined)?.question,
-  );
+  const questionOk = data.question
+    ? await canServeQuestionInLang(data.question, lang)
+    : true;
+  const hasNext = Boolean(data.nextQuestion);
+  const nextOk = hasNext ? await canServeQuestionInLang(data.nextQuestion, lang) : true;
 
   return {
     body: JSON.stringify({ ...json, data }),
-    localized,
     lang,
+    questionOk,
+    nextOk,
+    sessionId,
+    status: String(data.status ?? ""),
+    hasNext,
   };
 }
 
@@ -521,6 +1009,79 @@ async function proxyQuiz(
     }
   }
 
+  const responseHeaders = new Headers();
+  responseHeaders.set("content-type", "application/json");
+  responseHeaders.set("x-pb-quiz-upstream", quizUpstreamBase());
+  responseHeaders.set("access-control-expose-headers", "x-pb-quiz-upstream");
+
+  const isSessionStart =
+    request.method === "POST" &&
+    segments.length === 1 &&
+    segments[0] === "sessions";
+  const isSessionAnswer =
+    request.method === "POST" &&
+    segments[0] === "sessions" &&
+    segments.length >= 3 &&
+    segments[2] === "answer";
+  const isSessionLifeline =
+    request.method === "POST" &&
+    segments[0] === "sessions" &&
+    segments.length >= 3 &&
+    segments[2] === "lifeline";
+  const isSessionResult =
+    request.method === "GET" &&
+    segments[0] === "sessions" &&
+    segments.length >= 3 &&
+    segments[2] === "result";
+  const sessionIdHint =
+    segments[0] === "sessions" && segments.length >= 2 ? segments[1] : undefined;
+
+  // HI/GU deck: grade + advance locally so we never burn the 12-slot BE session
+  // by auto-skipping English questions (that was ending the quiz after 1 Q).
+  if (sessionIdHint && translatedDecks.has(sessionIdHint)) {
+    if (isSessionAnswer) {
+      const deckRes = handleTranslatedDeckAnswer(sessionIdHint, body);
+      if (deckRes) {
+        const deckBody = await deckRes.text();
+        recordQuizTraffic(
+          request.method,
+          segments,
+          headers.get("x-user-id") || "dev-user-1",
+          deckBody,
+        );
+        for (const [k, v] of responseHeaders.entries()) deckRes.headers.set(k, v);
+        return new NextResponse(deckBody, {
+          status: deckRes.status,
+          headers: deckRes.headers,
+        });
+      }
+    }
+    if (isSessionLifeline) {
+      const deckRes = handleTranslatedDeckLifeline(sessionIdHint, body);
+      if (deckRes) {
+        const deckBody = await deckRes.text();
+        recordQuizTraffic(
+          request.method,
+          segments,
+          headers.get("x-user-id") || "dev-user-1",
+          deckBody,
+        );
+        for (const [k, v] of responseHeaders.entries()) deckRes.headers.set(k, v);
+        return new NextResponse(deckBody, {
+          status: deckRes.status,
+          headers: deckRes.headers,
+        });
+      }
+    }
+    if (isSessionResult) {
+      const deckRes = handleTranslatedDeckResult(sessionIdHint);
+      if (deckRes) {
+        for (const [k, v] of responseHeaders.entries()) deckRes.headers.set(k, v);
+        return deckRes;
+      }
+    }
+  }
+
   try {
     const upstream = await upstreamRequest(
       target,
@@ -528,7 +1089,6 @@ async function proxyQuiz(
       headers,
       body,
     );
-    const responseHeaders = new Headers();
     if (upstream.contentType) {
       responseHeaders.set("content-type", upstream.contentType);
     }
@@ -537,67 +1097,46 @@ async function proxyQuiz(
     let responseStatus = upstream.status;
 
     if (upstream.status >= 200 && upstream.status < 300) {
-      const isSessionStart =
-        request.method === "POST" &&
-        segments.length === 1 &&
-        segments[0] === "sessions";
-      const isSessionAction =
-        request.method === "POST" &&
-        segments[0] === "sessions" &&
-        segments.length >= 3 &&
-        (segments[2] === "answer" || segments[2] === "lifeline");
-
-      if (isSessionStart || isSessionAction) {
-        const sessionIdHint =
-          isSessionAction && segments.length >= 2 ? segments[1] : undefined;
-
-        // Warm bank locale cache (same source admin uses for HI/GU view).
-        if (requestLang === "hi" || requestLang === "gu") {
-          await loadBankLocaleCache().catch((error) => {
-            console.warn("[quiz locale] cache warm failed", error);
+      // HI/GU start → replace BE question set with a translated-only deck.
+      if (isSessionStart && (requestLang === "hi" || requestLang === "gu")) {
+        await loadBankLocaleCache().catch((error) => {
+          console.warn("[quiz locale] cache warm failed", error);
+        });
+        const deckStart = await startTranslatedDeckSession(
+          responseBody,
+          requestLang,
+        );
+        if (deckStart) {
+          const deckBody = await deckStart.text();
+          recordQuizTraffic(
+            request.method,
+            segments,
+            headers.get("x-user-id") || "dev-user-1",
+            deckBody,
+          );
+          after(() => {
+            void enforceQuestionBankCap().catch((error) => {
+              console.error("[quiz-bank-cap]", error);
+            });
+          });
+          for (const [k, v] of responseHeaders.entries()) {
+            deckStart.headers.set(k, v);
+          }
+          return new NextResponse(deckBody, {
+            status: deckStart.status,
+            headers: deckStart.headers,
           });
         }
+      }
 
-        let enriched = await enrichQuizPayloadWithLocales(
+      const isSessionAction = isSessionAnswer || isSessionLifeline;
+      if (isSessionStart || isSessionAction) {
+        const enriched = await enrichQuizPayloadWithLocales(
           responseBody,
           requestLang,
           sessionIdHint,
         );
         responseBody = enriched.body;
-
-        // Session start: if player asked for hi/gu but BE picked a question
-        // without locales, retry until we get one that matches admin's HI/GU set.
-        if (
-          isSessionStart &&
-          (requestLang === "hi" || requestLang === "gu") &&
-          !enriched.localized
-        ) {
-          for (let attempt = 0; attempt < 24; attempt += 1) {
-            const retry = await upstreamRequest(
-              target,
-              request.method,
-              headers,
-              body,
-            );
-            if (retry.status < 200 || retry.status >= 300) continue;
-            enriched = await enrichQuizPayloadWithLocales(
-              retry.body,
-              requestLang,
-            );
-            if (enriched.localized) {
-              responseBody = enriched.body;
-              responseStatus = retry.status;
-              break;
-            }
-          }
-          if (!enriched.localized) {
-            console.warn(
-              "[quiz locale] could not find localized starter question",
-              requestLang,
-              bankLocaleCache?.withLocale,
-            );
-          }
-        }
       }
 
       recordQuizTraffic(
