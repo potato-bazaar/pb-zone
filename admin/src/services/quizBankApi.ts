@@ -1,4 +1,4 @@
-import { adminApiKey, quizApiBase } from '../config';
+import { quizApiBase } from '../config';
 import { QuizQuestion } from '../types/quiz';
 import { parseLiveMirror, type QuizLiveMirror } from '../lib/quizLiveMirror';
 
@@ -300,8 +300,6 @@ async function adminFetch<T>(
     accept: 'application/json',
     ...(init?.headers as Record<string, string> | undefined),
   };
-  const key = adminApiKey();
-  if (key) headers['x-admin-key'] = key;
   if (init?.body && !headers['content-type']) {
     headers['content-type'] = 'application/json';
   }

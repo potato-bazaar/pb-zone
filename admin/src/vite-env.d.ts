@@ -2,7 +2,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_QUIZ_API_BASE_URL?: string;
-  readonly VITE_ADMIN_API_KEY?: string;
 }
 
 interface ImportMeta {
