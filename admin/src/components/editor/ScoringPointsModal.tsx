@@ -14,7 +14,7 @@ interface ScoringPointsModalProps {
 }
 
 const REQUIRED_FIELDS: Array<{
-  key: 'pointsPerCorrect' | 'fastAnswerBonus' | 'completeQuizBonus';
+  key: 'pointsPerCorrect' | 'completeQuizBonus';
   label: string;
   hint: string;
   suffix: string;
@@ -26,12 +26,6 @@ const REQUIRED_FIELDS: Array<{
     suffix: 'PB',
   },
   {
-    key: 'fastAnswerBonus',
-    label: 'Fast Answer Bonus',
-    hint: 'Extra PB if the player answers within the fast window',
-    suffix: 'PB',
-  },
-  {
     key: 'completeQuizBonus',
     label: 'Complete Quiz Bonus',
     hint: 'PB coins added when the full quiz is finished',
@@ -40,7 +34,7 @@ const REQUIRED_FIELDS: Array<{
 ];
 
 const OPTIONAL_FIELDS: Array<{
-  key: 'questionsPerQuiz' | 'timerSeconds' | 'fastAnswerSeconds';
+  key: 'questionsPerQuiz' | 'timerSeconds';
   label: string;
   hint: string;
   suffix: string;
@@ -62,14 +56,6 @@ const OPTIONAL_FIELDS: Array<{
     suffix: 's',
     min: 5,
     max: 120,
-  },
-  {
-    key: 'fastAnswerSeconds',
-    label: 'Fast answer window',
-    hint: 'Seconds to qualify for the fast bonus',
-    suffix: 's',
-    min: 1,
-    max: 60,
   },
 ];
 

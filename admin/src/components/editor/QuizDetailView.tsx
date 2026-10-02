@@ -244,11 +244,9 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   const perQuiz = live.settings?.questionsPerQuiz ?? 12;
   const scoringValues = {
     pointsPerCorrect: Number(live.settings?.pointsPerCorrect ?? 20),
-    fastAnswerBonus: Number(live.settings?.fastAnswerBonus ?? 5),
     completeQuizBonus: Number(live.settings?.completeQuizBonus ?? 30),
     questionsPerQuiz: Number(live.settings?.questionsPerQuiz ?? 12),
     timerSeconds: Number(live.settings?.timerSeconds ?? 15),
-    fastAnswerSeconds: Number(live.settings?.fastAnswerSeconds ?? 5),
   };
 
   const handleCopyJSON = () => {
@@ -347,7 +345,7 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
         {liveFromApi && (
           <StatTile
             title="Scoring"
-            value={`+${scoringValues.pointsPerCorrect}/+${scoringValues.fastAnswerBonus}/+${scoringValues.completeQuizBonus}`}
+            value={`+${scoringValues.pointsPerCorrect}/+${scoringValues.completeQuizBonus}`}
             onClick={() => {
               setScoringError(null);
               setScoringOpen(true);

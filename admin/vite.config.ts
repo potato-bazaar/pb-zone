@@ -13,7 +13,6 @@ export default defineConfig(({ mode }) => {
     env.NEXT_PUBLIC_QUIZ_API_BASE_URL ||
     'https://pbzone-api.potatobazaar.com'
   ).replace(/\/$/, '');
-  const adminKey = env.QUIZ_ADMIN_API_KEY || env.ADMIN_API_KEY || '';
 
   return {
     plugins: [react()],
@@ -21,7 +20,6 @@ export default defineConfig(({ mode }) => {
     base: '/admin/',
     define: {
       "import.meta.env.VITE_QUIZ_API_BASE_URL": JSON.stringify(apiBase),
-      "import.meta.env.VITE_ADMIN_API_KEY": JSON.stringify(adminKey),
     },
     build: {
       outDir: '../public/admin',
