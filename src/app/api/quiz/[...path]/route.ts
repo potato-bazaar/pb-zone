@@ -218,13 +218,10 @@ type DeckCookiePayload = {
   correctCount: number;
   timerSeconds: number;
   pointsPerCorrect: number;
-  fastAnswerBonus: number;
-  fastAnswerSeconds: number;
   completeQuizBonus: number;
   userPoints: number;
   earnedPoints: number;
   leaderboardPoints: number;
-  fastBonusTotal: number;
   completeBonusAwarded: number;
 };
 
@@ -360,13 +357,10 @@ function sealDeckCookie(sessionId: string, deck: TranslatedDeck): string | null 
     correctCount: deck.correctCount,
     timerSeconds: deck.timerSeconds,
     pointsPerCorrect: deck.pointsPerCorrect,
-    fastAnswerBonus: deck.fastAnswerBonus,
-    fastAnswerSeconds: deck.fastAnswerSeconds,
     completeQuizBonus: deck.completeQuizBonus,
     userPoints: deck.userPoints,
     earnedPoints: deck.earnedPoints,
     leaderboardPoints: deck.leaderboardPoints,
-    fastBonusTotal: deck.fastBonusTotal,
     completeBonusAwarded: deck.completeBonusAwarded,
   };
   const body = base64url(JSON.stringify(payload));
@@ -450,13 +444,10 @@ async function hydrateTranslatedDeck(
     correctCount: sealed.correctCount,
     timerSeconds: sealed.timerSeconds,
     pointsPerCorrect: sealed.pointsPerCorrect,
-    fastAnswerBonus: sealed.fastAnswerBonus,
-    fastAnswerSeconds: sealed.fastAnswerSeconds,
     completeQuizBonus: sealed.completeQuizBonus,
     userPoints: sealed.userPoints,
     earnedPoints: sealed.earnedPoints,
     leaderboardPoints: sealed.leaderboardPoints,
-    fastBonusTotal: sealed.fastBonusTotal,
     completeBonusAwarded: sealed.completeBonusAwarded,
   };
   translatedDecks.set(sessionId, deck);
@@ -582,13 +573,10 @@ type TranslatedDeck = {
   correctCount: number;
   timerSeconds: number;
   pointsPerCorrect: number;
-  fastAnswerBonus: number;
-  fastAnswerSeconds: number;
   completeQuizBonus: number;
   userPoints: number;
   earnedPoints: number;
   leaderboardPoints: number;
-  fastBonusTotal: number;
   completeBonusAwarded: number;
 };
 
@@ -733,13 +721,10 @@ async function startTranslatedDeckSession(
     correctCount: 0,
     timerSeconds,
     pointsPerCorrect: Number(settings.pointsPerCorrect ?? 20),
-    fastAnswerBonus: Number(settings.fastAnswerBonus ?? 5),
-    fastAnswerSeconds: Number(settings.fastAnswerSeconds ?? 5),
     completeQuizBonus: Number(settings.completeQuizBonus ?? 20),
     userPoints: Number(user.points ?? 0),
     earnedPoints: Number(user.earnedPoints ?? 0),
     leaderboardPoints: Number(user.leaderboardPoints ?? 0),
-    fastBonusTotal: 0,
     completeBonusAwarded: 0,
   };
   translatedDecks.set(sessionId, deck);
@@ -814,14 +799,8 @@ function handleTranslatedDeckAnswer(
 
   const correct = !timedOut && option === card.correctOption;
   let pointsAwarded = 0;
-  let fastBonusAwarded = 0;
   if (correct) {
     pointsAwarded = deck.pointsPerCorrect;
-    if (responseTimeSeconds <= deck.fastAnswerSeconds) {
-      fastBonusAwarded = deck.fastAnswerBonus;
-      pointsAwarded += fastBonusAwarded;
-      deck.fastBonusTotal += fastBonusAwarded;
-    }
     deck.correctCount += 1;
     deck.score += pointsAwarded;
     deck.userPoints += pointsAwarded;
@@ -862,7 +841,6 @@ function handleTranslatedDeckAnswer(
       correctOptionText: correctOpt?.text ?? card.correctOption,
       explanation: card.explanation ?? null,
       pointsAwarded,
-      fastBonusAwarded,
       completeQuizBonus: completeBonus,
       sessionScore: deck.score,
       correctCount: deck.correctCount,
@@ -991,7 +969,6 @@ function handleTranslatedDeckResult(sessionId: string): NextResponse | null {
       score: deck.score,
       sessionScore: deck.score,
       pointsAwarded: deck.score,
-      fastBonus: deck.fastBonusTotal,
       completionBonus: deck.completeBonusAwarded,
       userPoints: deck.userPoints,
       earnedPoints: deck.earnedPoints,

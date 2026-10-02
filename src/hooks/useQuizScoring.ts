@@ -8,9 +8,7 @@ import {
 
 const DEFAULT_SCORING: QuizScoringConfig = {
   pointsPerCorrect: 20,
-  fastAnswerBonus: 5,
   completeQuizBonus: 30,
-  fastAnswerSeconds: 5,
   questionsPerQuiz: 12,
   timerSeconds: 15,
 };
@@ -20,9 +18,7 @@ const POLL_MS = 4000;
 function scoringKey(row: QuizScoringConfig) {
   return [
     row.pointsPerCorrect,
-    row.fastAnswerBonus,
     row.completeQuizBonus,
-    row.fastAnswerSeconds ?? "",
     row.questionsPerQuiz ?? "",
     row.timerSeconds ?? "",
   ].join(":");

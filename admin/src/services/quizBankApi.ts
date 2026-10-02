@@ -52,9 +52,7 @@ export function questionBankCapFromStats(stats?: QuizBankStats | null) {
 
 export type QuizScoringConfig = {
   pointsPerCorrect: number;
-  fastAnswerBonus: number;
   completeQuizBonus: number;
-  fastAnswerSeconds?: number;
   questionsPerQuiz?: number;
   timerSeconds?: number;
 };
@@ -67,8 +65,6 @@ export type QuizApiSettings = {
   lifelineExtraTimeCost?: number;
   lifelineSkipCost?: number;
   extraTimeSeconds?: number;
-  fastAnswerBonus?: number;
-  fastAnswerSeconds?: number;
   completeQuizBonus?: number;
 };
 
@@ -409,9 +405,7 @@ export async function fetchQuizSettings() {
 function normalizeScoring(row: Partial<QuizScoringConfig> | null | undefined): QuizScoringConfig {
   return {
     pointsPerCorrect: Number(row?.pointsPerCorrect ?? 20),
-    fastAnswerBonus: Number(row?.fastAnswerBonus ?? 5),
     completeQuizBonus: Number(row?.completeQuizBonus ?? 30),
-    fastAnswerSeconds: Number(row?.fastAnswerSeconds ?? 5),
     questionsPerQuiz: Number(row?.questionsPerQuiz ?? 12),
     timerSeconds: Number(row?.timerSeconds ?? 15),
   };
@@ -425,23 +419,23 @@ export async function fetchQuizScoring() {
 
 export type SaveQuizScoringPayload = {
   pointsPerCorrect: number;
-  fastAnswerBonus: number;
   completeQuizBonus: number;
   questionsPerQuiz?: number;
   timerSeconds?: number;
-  fastAnswerSeconds?: number;
 };
 
-/** PUT /v1/admin/quiz-scoring — first 3 required; rest optional. */
+/**
+ * PUT /v1/admin/quiz-scoring — points + complete bonus required; rest optional.
+ * The fast answer bonus is retired: BE still requires the field, so it is always 0.
+ */
 export async function saveQuizScoring(payload: SaveQuizScoringPayload) {
-  const body: SaveQuizScoringPayload = {
+  const body: SaveQuizScoringPayload & { fastAnswerBonus: number } = {
     pointsPerCorrect: payload.pointsPerCorrect,
-    fastAnswerBonus: payload.fastAnswerBonus,
+    fastAnswerBonus: 0,
     completeQuizBonus: payload.completeQuizBonus,
   };
   if (payload.questionsPerQuiz != null) body.questionsPerQuiz = payload.questionsPerQuiz;
   if (payload.timerSeconds != null) body.timerSeconds = payload.timerSeconds;
-  if (payload.fastAnswerSeconds != null) body.fastAnswerSeconds = payload.fastAnswerSeconds;
 
   const result = await adminFetch<QuizScoringConfig>('/quiz-scoring', {
     method: 'PUT',

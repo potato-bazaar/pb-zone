@@ -30,8 +30,6 @@ export type QuizDifficulty = "easy" | "medium" | "hard" | "expert";
 
 export type QuizAnswerRecord = {
   correct: boolean;
-  /** Seconds taken to answer. Timeouts use the full timer. */
-  seconds: number;
   difficulty?: QuizDifficulty;
 };
 
@@ -40,16 +38,8 @@ const QUIZ_BASE: Record<QuizDifficulty, number> = { easy: 5, medium: 8, hard: 12
 /** Streak bonus is capped so long streaks cannot grow without limit (FRD §17). */
 const QUIZ_STREAK_BONUS_CAP = 60;
 
-export function quizSpeedBonus(seconds: number): number {
-  if (seconds <= 2) return 5;
-  if (seconds <= 4) return 3;
-  if (seconds <= 7) return 2;
-  return 1;
-}
-
 export function scoreQuiz(answers: QuizAnswerRecord[], totalQuestions: number): PbScore {
   let basePoints = 0;
-  let speedPoints = 0;
   let streakPoints = 0;
   let streak = 0;
   let correct = 0;
@@ -62,7 +52,6 @@ export function scoreQuiz(answers: QuizAnswerRecord[], totalQuestions: number): 
     correct += 1;
     streak += 1;
     basePoints += QUIZ_BASE[a.difficulty ?? "medium"];
-    speedPoints += quizSpeedBonus(a.seconds);
     if (streak === 3) streakPoints += 3;
     else if (streak === 5) streakPoints += 8;
     else if (streak >= 7) streakPoints += 12;
@@ -74,7 +63,6 @@ export function scoreQuiz(answers: QuizAnswerRecord[], totalQuestions: number): 
 
   const lines = compact([
     { label: "Correct answers", points: basePoints },
-    { label: "Speed bonus", points: speedPoints },
     { label: "Streak bonus", points: streakPoints },
     { label: "Completion bonus", points: answeredAll ? 10 : 0 },
     { label: "Perfect quiz", points: perfect ? 25 : 0 },

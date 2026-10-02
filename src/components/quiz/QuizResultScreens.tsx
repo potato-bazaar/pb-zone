@@ -299,7 +299,6 @@ export function QuizMissedScreen({
 type CompleteProps = {
   correctCount: number;
   totalQuestions: number;
-  fastBonus: number;
   completionBonus: number;
   totalEarned: number;
   onPlayAgain: () => void;
@@ -309,18 +308,14 @@ type CompleteProps = {
 export function QuizCompleteScreen({
   correctCount,
   totalQuestions,
-  fastBonus,
   completionBonus,
   totalEarned,
   onPlayAgain,
   onHome,
 }: CompleteProps) {
   // Total = correct-answer points + bonuses (never go negative)
-  const answerPoints = Math.max(
-    0,
-    totalEarned - fastBonus - completionBonus,
-  );
-  const displayTotal = answerPoints + fastBonus + completionBonus;
+  const answerPoints = Math.max(0, totalEarned - completionBonus);
+  const displayTotal = answerPoints + completionBonus;
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col bg-white">
@@ -364,10 +359,6 @@ export function QuizCompleteScreen({
             <li className="flex items-center justify-between text-[#4B3F8A]">
               <span>Answer Points</span>
               <span className="font-bold text-[#2B1F7A]">+{answerPoints} PB</span>
-            </li>
-            <li className="flex items-center justify-between text-[#4B3F8A]">
-              <span>Fast Answer Bonus</span>
-              <span className="font-bold text-[#2B1F7A]">+{fastBonus} PB</span>
             </li>
             <li className="flex items-center justify-between text-[#4B3F8A]">
               <span>Completion Bonus</span>
