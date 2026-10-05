@@ -80,6 +80,7 @@ const GAME_SHARE: Record<PbGameId, number> = {
   "potato-ninja": 0.12,
   "word-scramble": 0.1,
   "guess-disease": 0.08,
+  "tater-match": 0.08,
   "fix-puzzle": 0.08,
   "spud-run": 0.14,
   "connect-potatoes": 0,

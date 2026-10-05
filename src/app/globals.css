@@ -1523,6 +1523,16 @@ body {
 @keyframes run-combo { from { transform: scale(0.6); } to { transform: scale(1); } }
 .run-step { animation: game-card-in 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
 
+/* ---------------- Tater Match ---------------- */
+.tm-bob { animation: tm-bob 2.2s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes tm-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+.tm-panel { animation: game-card-in 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.tm-mode { animation: game-card-in 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.tm-title { letter-spacing: 0.02em; }
+
 /* ------------------------------------------------------------------ */
 /*  Quiz — How to play                                                 */
 /* ------------------------------------------------------------------ */

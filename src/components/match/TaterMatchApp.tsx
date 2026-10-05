@@ -1,0 +1,241 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { usePbCoins } from "@/components/providers/PbCoinsProvider";
+import { usePbPoints } from "@/components/providers/PbPointsProvider";
+import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { recordGameLeaderboard } from "@/lib/leaderboardApi";
+import { fetchPublishedRound } from "@/lib/taterMatchApi";
+import {
+  TATER_SCORING,
+  applyRoundToProgress,
+  buildMixedRound,
+  buildRound,
+  loadTaterProgress,
+  modeMeta,
+  saveTaterProgress,
+  todayKey,
+  type TaterModeId,
+  type TaterProgress,
+  type TaterQuestion,
+} from "@/data/taterMatch";
+import { TaterMatchHome } from "@/components/match/TaterMatchHome";
+import { TaterMatchHowTo } from "@/components/match/TaterMatchHowTo";
+import { TaterMatchPlay } from "@/components/match/TaterMatchPlay";
+import { TaterMatchProgress } from "@/components/match/TaterMatchProgress";
+import { TaterMatchResult } from "@/components/match/TaterMatchResult";
+
+type Phase = "home" | "howto" | "progress" | "play" | "result";
+type RoundMode = TaterModeId | "mixed";
+
+type RoundResult = {
+  correct: number;
+  total: number;
+  pointsEarned: number;
+  coinsEarned: number;
+  seconds: number;
+  learned: string[];
+  mode: RoundMode;
+  daily: boolean;
+};
+
+const DAILY_QUESTIONS = 5;
+
+function roundTitle(mode: RoundMode, daily: boolean) {
+  if (daily) return "Daily Challenge";
+  if (mode === "mixed") return "Mixed Match";
+  return modeMeta(mode).title;
+}
+
+export function TaterMatchApp() {
+  const router = useRouter();
+  const session = useUserSession();
+  const { coins, pbPoints, addCoins } = usePbCoins();
+  const { awardPoints, state: pbState } = usePbPoints();
+  const [phase, setPhase] = useState<Phase>("home");
+  const [progress, setProgress] = useState<TaterProgress>(() => loadTaterProgress());
+  const [mode, setMode] = useState<RoundMode>("mixed");
+  const [daily, setDaily] = useState(false);
+  const [questions, setQuestions] = useState<TaterQuestion[]>([]);
+  const [roundKey, setRoundKey] = useState(0);
+  const [result, setResult] = useState<RoundResult | null>(null);
+  const [startingRound, setStartingRound] = useState(false);
+  const ignorePopRef = useRef(false);
+
+  const displayPoints = Math.max(pbPoints, pbState.seasonPoints);
+  const dailyAvailable = progress.dailyDoneDate !== todayKey();
+
+  useEffect(() => {
+    setProgress(loadTaterProgress());
+  }, []);
+
+  useEffect(() => {
+    function onPopState() {
+      if (ignorePopRef.current) {
+        ignorePopRef.current = false;
+        return;
+      }
+      if (phase !== "home") {
+        setPhase("home");
+        setResult(null);
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [phase]);
+
+  function pushPhase(next: Phase) {
+    if (typeof window !== "undefined") {
+      if (window.history.state?.taterPhase) {
+        window.history.replaceState({ taterPhase: next }, "");
+      } else {
+        window.history.pushState({ taterPhase: next }, "");
+      }
+    }
+    setPhase(next);
+  }
+
+  function goHome() {
+    setPhase("home");
+    setResult(null);
+    if (typeof window !== "undefined" && window.history.state?.taterPhase) {
+      ignorePopRef.current = true;
+      window.history.back();
+    }
+  }
+
+  async function startRound(nextMode: RoundMode, asDaily = false) {
+    if (startingRound) return;
+    const count = asDaily ? DAILY_QUESTIONS : TATER_SCORING.questionsPerRound;
+    setStartingRound(true);
+    // Published questions with real photos first; built-in questions fill the rest of the round.
+    const published = await fetchPublishedRound(nextMode, count);
+    setStartingRound(false);
+    const usedIds = new Set(published.map((q) => q.id));
+    const builtIn = (nextMode === "mixed" ? buildMixedRound(count * 2) : buildRound(nextMode, count * 2)).filter(
+      (q) => !usedIds.has(q.id),
+    );
+    setMode(nextMode);
+    setDaily(asDaily);
+    setQuestions([...published, ...builtIn].slice(0, count));
+    setRoundKey((k) => k + 1);
+    setResult(null);
+    pushPhase("play");
+  }
+
+  function finishRound(payload: Omit<RoundResult, "mode" | "daily">) {
+    let pointsEarned = payload.pointsEarned;
+    let coinsEarned = payload.coinsEarned;
+    if (daily) {
+      pointsEarned += TATER_SCORING.pointsDaily;
+      coinsEarned += TATER_SCORING.coinsDaily;
+    }
+
+    if (coinsEarned > 0) addCoins(coinsEarned);
+
+    const eventId = `tater:${daily ? "daily" : mode}:${Date.now()}`;
+    awardPoints({
+      eventId,
+      gameId: "tater-match",
+      points: pointsEarned,
+      lines: [
+        { label: "Correct matches", points: payload.correct * TATER_SCORING.pointsCorrect },
+        ...(daily ? [{ label: "Daily challenge", points: TATER_SCORING.pointsDaily }] : []),
+      ],
+      perfect: payload.correct === payload.total,
+      label: `Tater Match · ${roundTitle(mode, daily)}`,
+    });
+
+    recordGameLeaderboard(session, {
+      gameKey: "tater-match",
+      sessionId: eventId,
+      coins: coinsEarned,
+      metrics: [
+        { key: "accuracy", value: payload.total ? payload.correct / payload.total : 0, max: 1 },
+        { key: "complete", value: 1, max: 1 },
+      ],
+    });
+
+    const nextProgress = applyRoundToProgress(progress, payload.correct, payload.learned, daily);
+    const playedDisease = questions.some((q) => q.mode === "disease");
+    if (playedDisease && !nextProgress.badges.includes("disease-detective")) {
+      nextProgress.badges = [...nextProgress.badges, "disease-detective"];
+    }
+    setProgress(nextProgress);
+    saveTaterProgress(nextProgress);
+
+    setResult({ ...payload, pointsEarned, coinsEarned, mode, daily });
+    pushPhase("result");
+  }
+
+  const loadingOverlay = startingRound ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+      <span className="rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-[#1E3A8A] shadow">
+        Loading round…
+      </span>
+    </div>
+  ) : null;
+
+  if (phase === "howto") {
+    return (
+      <>
+        <TaterMatchHowTo onBack={() => goHome()} onPlay={() => void startRound("mixed")} />
+        {loadingOverlay}
+      </>
+    );
+  }
+
+  if (phase === "progress") {
+    return <TaterMatchProgress progress={progress} onBack={() => goHome()} />;
+  }
+
+  if (phase === "play" && questions.length > 0) {
+    return (
+      <TaterMatchPlay
+        key={roundKey}
+        questions={questions}
+        coins={coins}
+        points={displayPoints}
+        onExit={() => goHome()}
+        onComplete={finishRound}
+      />
+    );
+  }
+
+  if (phase === "result" && result) {
+    return (
+      <>
+      <TaterMatchResult
+        modeTitle={roundTitle(result.mode, result.daily)}
+        correct={result.correct}
+        total={result.total}
+        pointsEarned={result.pointsEarned}
+        coinsEarned={result.coinsEarned}
+        seconds={result.seconds}
+        streak={progress.streak}
+        learned={result.learned}
+        onAgain={() => void startRound(result.daily ? "mixed" : result.mode)}
+        onHome={() => goHome()}
+      />
+      {loadingOverlay}
+      </>
+    );
+  }
+
+  return (
+    <>
+    <TaterMatchHome
+      coins={coins}
+      points={displayPoints}
+      progress={progress}
+      dailyAvailable={dailyAvailable}
+      onBack={() => router.push("/games")}
+      onPlay={(m, asDaily) => void startRound(m, Boolean(asDaily))}
+      onHowTo={() => pushPhase("howto")}
+      onProgress={() => pushPhase("progress")}
+    />
+    {loadingOverlay}
+    </>
+  );
+}

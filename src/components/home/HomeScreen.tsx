@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { ChampionBanner } from "@/components/home/ChampionBanner";
 import { GameCarousel, type FeaturedGame } from "@/components/home/GameCarousel";
@@ -13,6 +13,13 @@ import { MilestoneProgressBar, PbStarIcon } from "@/components/pb/PbUi";
 import { ALL_GAMES } from "@/data/games";
 import { pbTitleFor } from "@/data/pbEconomy";
 import { fetchLeaderboardPoints, rankStoredPlayers } from "@/lib/leaderboardApi";
+import {
+  claimDailyBonus,
+  fetchDailyBonus,
+  type DailyBonusDay,
+  type DailyBonusStatus,
+} from "@/lib/dailyBonusApi";
+import { QuizApiError } from "@/lib/quizApi";
 import { sounds, haptic } from "@/components/crush/render/sound";
 
 const featuredGames: FeaturedGame[] = ALL_GAMES.map((game) => ({
@@ -38,35 +45,19 @@ const featuredGames: FeaturedGame[] = ALL_GAMES.map((game) => ({
 /*  Daily bonus                                                        */
 /* ------------------------------------------------------------------ */
 
-const DAILY_KEY = "pbZoneDailyBonus.v1";
-const DAY_REWARDS = [10, 15, 20, 25, 30, 40, 100];
+/** Placeholder rewards while the status request is in flight or unreachable. */
+const FALLBACK_DAYS: DailyBonusDay[] = [10, 15, 20, 25, 30, 40, 100].map((reward, i) => ({
+  day: i + 1,
+  reward,
+  claimed: false,
+  isToday: false,
+}));
 
-type DailyState = { lastClaim: string | null; streak: number };
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function yesterdayKey() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function loadDaily(): DailyState {
-  try {
-    const raw = localStorage.getItem(DAILY_KEY);
-    if (!raw) return { lastClaim: null, streak: 0 };
-    const parsed = JSON.parse(raw) as DailyState;
-    // A missed day resets the streak.
-    if (parsed.lastClaim && parsed.lastClaim !== todayKey() && parsed.lastClaim !== yesterdayKey()) {
-      return { lastClaim: null, streak: 0 };
-    }
-    return parsed;
-  } catch {
-    return { lastClaim: null, streak: 0 };
-  }
+function formatCountdown(ms: number) {
+  const totalMin = Math.max(0, Math.ceil(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function Coin({ className = "h-6 w-6" }: { className?: string }) {
@@ -78,24 +69,55 @@ function Coin({ className = "h-6 w-6" }: { className?: string }) {
 
 export function HomeScreen() {
   const { userName, userId, token } = useUserSession();
-  const { coins, addCoins } = usePbCoins();
+  const { coins, addCoins, setWallet } = usePbCoins();
   const { state: pb, seasonRank } = usePbPoints();
   const [liveBoard, setLiveBoard] = useState<{ points: number; rank: number } | null>(null);
   const pbTitle = useMemo(() => pbTitleFor(pb.lifetimePoints), [pb.lifetimePoints]);
 
-  const [daily, setDaily] = useState<DailyState>({ lastClaim: null, streak: 0 });
-  const [hydrated, setHydrated] = useState(false);
+  const [bonus, setBonus] = useState<DailyBonusStatus | null>(null);
+  const [bonusError, setBonusError] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const bonusRequestRef = useRef(0);
   const [flying, setFlying] = useState<{ id: number; sx: number; sy: number; dx: number; dy: number; x: number; y: number }[]>([]);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [coinPop, setCoinPop] = useState(0);
 
+  const loadBonus = useCallback(() => {
+    const requestId = ++bonusRequestRef.current;
+    return fetchDailyBonus({ token, userId, userName })
+      .then((status) => {
+        if (requestId !== bonusRequestRef.current) return;
+        setBonus(status);
+        setBonusError(false);
+        if (status.wallet) {
+          setWallet({ coins: status.wallet.points, earnedCoins: status.wallet.earnedPoints });
+        }
+      })
+      .catch(() => {
+        if (requestId !== bonusRequestRef.current) return;
+        setBonusError(true);
+      });
+    // userName changes (profile hydrate) shouldn't re-hit the bonus status
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, userId, setWallet]);
+
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      setDaily(loadDaily());
-      setHydrated(true);
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, []);
+    void loadBonus();
+  }, [loadBonus]);
+
+  const nextClaimMs = bonus?.claimedToday && bonus.nextClaimAt ? Date.parse(bonus.nextClaimAt) : NaN;
+
+  // Countdown tick + refresh once the next IST day opens.
+  useEffect(() => {
+    if (!Number.isFinite(nextClaimMs)) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 30_000);
+    const reopen = window.setTimeout(() => void loadBonus(), Math.max(1000, nextClaimMs - Date.now() + 1000));
+    return () => {
+      window.clearInterval(tick);
+      window.clearTimeout(reopen);
+    };
+  }, [nextClaimMs, loadBonus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,27 +145,47 @@ export function HomeScreen() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const claimedToday = daily.lastClaim === todayKey();
-  const todayIndex = claimedToday ? (daily.streak - 1) % 7 : daily.streak % 7; // 0-based day being shown as "today"
-  const todayReward = DAY_REWARDS[todayIndex];
+  const claimedToday = Boolean(bonus?.claimedToday);
+  const canClaim = Boolean(bonus?.canClaim) && !claiming;
+  const bonusDays = bonus?.days.length ? bonus.days : FALLBACK_DAYS;
+  const todayReward = bonus?.todayReward ?? 0;
+  const bonusLoading = !bonus && !bonusError;
 
   const claimDaily = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (claimedToday || !hydrated) return;
+    async (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (bonusError && !bonus) {
+        setBonusError(false);
+        void loadBonus();
+        return;
+      }
+      if (!bonus?.canClaim || claiming) return;
       sounds.unlock();
+      const from = e.currentTarget.getBoundingClientRect();
+      setClaiming(true);
+
+      let result: Awaited<ReturnType<typeof claimDailyBonus>>;
+      try {
+        result = await claimDailyBonus({ token, userId, userName });
+      } catch (err) {
+        if (err instanceof QuizApiError && err.status === 409) {
+          setToast({ id: Date.now(), text: "Aaj ka bonus already claimed hai" });
+          void loadBonus();
+        } else {
+          setToast({ id: Date.now(), text: "Bonus claim nahi hua, dobara try karo" });
+        }
+        setClaiming(false);
+        return;
+      }
+
+      bonusRequestRef.current += 1;
+      setBonus(result);
+      setClaiming(false);
       sounds.play("coin");
       haptic([10, 30, 20]);
-      const next: DailyState = { lastClaim: todayKey(), streak: daily.streak + 1 };
-      setDaily(next);
-      try {
-        localStorage.setItem(DAILY_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      const reward = DAY_REWARDS[daily.streak % 7];
+      const reward = result.claim?.reward ?? result.todayReward;
+      const day = result.claim?.day ?? result.currentDay;
 
       // Coins fly from the button to the coin pill in the header.
-      const from = e.currentTarget.getBoundingClientRect();
       const target = document.getElementById("home-coin-pill")?.getBoundingClientRect();
       if (target) {
         const x = from.left + from.width / 2;
@@ -163,13 +205,17 @@ export function HomeScreen() {
         window.setTimeout(() => setFlying([]), 1000);
       }
       window.setTimeout(() => {
-        addCoins(reward);
+        if (result.wallet) {
+          setWallet({ coins: result.wallet.points, earnedCoins: result.wallet.earnedPoints });
+        } else {
+          addCoins(reward);
+        }
         setCoinPop((n) => n + 1);
         sounds.play("create");
       }, 750);
-      setToast({ id: Date.now(), text: `+${reward} Coins · Day ${(daily.streak % 7) + 1} bonus claimed!` });
+      setToast({ id: Date.now(), text: `+${reward} Coins · Day ${day} bonus claimed!` });
     },
-    [addCoins, claimedToday, daily.streak, hydrated],
+    [addCoins, bonus, bonusError, claiming, loadBonus, setWallet, token, userId, userName],
   );
 
   return (
@@ -263,31 +309,47 @@ export function HomeScreen() {
               <Image src="/images/home/gift.png" alt="" width={56} height={56} className="home-day-gift h-12 w-12 shrink-0 object-contain" unoptimized />
               <div className="min-w-0 flex-1">
                 <h3 className="font-display text-[16px] font-extrabold text-[#241A5E]">Daily Bonus</h3>
-                <p className="text-[11px] leading-snug text-[#6B6488]">Claim every day to grow your streak and rewards!</p>
+                <p className="text-[11px] leading-snug text-[#6B6488]">
+                  {claimedToday && Number.isFinite(nextClaimMs)
+                    ? `Next bonus in ${formatCountdown(nextClaimMs - now)} · come back tomorrow!`
+                    : "Claim every day to grow your streak and rewards!"}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={claimDaily}
-                disabled={claimedToday || !hydrated}
-                className={`relative shrink-0 rounded-full px-4 py-2 font-display text-[13px] font-extrabold transition active:scale-95 ${
-                  claimedToday ? "bg-[#EEFBEA] text-[#1E8A3E] ring-1 ring-[#A9E9B2]" : "home-cta text-white"
+                disabled={bonusError && !bonus ? false : !canClaim}
+                className={`relative shrink-0 rounded-full px-4 py-2 font-display text-[13px] font-extrabold transition active:scale-95 disabled:active:scale-100 ${
+                  claimedToday
+                    ? "bg-[#EEFBEA] text-[#1E8A3E] ring-1 ring-[#A9E9B2]"
+                    : bonusLoading || claiming
+                      ? "home-cta text-white opacity-70"
+                      : "home-cta text-white"
                 }`}
               >
-                {claimedToday ? "Claimed ✓" : `Claim +${todayReward}`}
-                {!claimedToday && hydrated ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" /> : null}
+                {bonusError && !bonus
+                  ? "Retry"
+                  : bonusLoading
+                    ? "Loading…"
+                    : claiming
+                      ? "Claiming…"
+                      : claimedToday || !bonus?.canClaim
+                        ? "Claimed ✓"
+                        : `Claim +${todayReward}`}
+                {canClaim ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" /> : null}
               </button>
             </div>
             <div className="mt-3 grid grid-cols-7 gap-1.5">
-              {DAY_REWARDS.map((reward, i) => {
-                const claimed = i < daily.streak % 7 || (claimedToday && i === todayIndex) || (daily.streak % 7 === 0 && daily.streak > 0 && claimedToday);
-                const isToday = !claimedToday && i === todayIndex;
+              {bonusDays.map((d, i) => {
+                const claimed = d.claimed;
+                const isToday = d.isToday && !d.claimed;
                 return (
                   <div
-                    key={i}
+                    key={d.day}
                     className={`home-day flex flex-col items-center rounded-xl py-1.5 ${claimed ? "home-day-claimed" : ""} ${isToday ? "home-day-today" : ""}`}
                   >
                     <span className="relative">
-                      {i === 6 ? <span className="text-[20px] leading-none">🎁</span> : <Coin className="h-6 w-6" />}
+                      {i === bonusDays.length - 1 ? <span className="text-[20px] leading-none">🎁</span> : <Coin className="h-6 w-6" />}
                       {claimed ? (
                         <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#22B14C] text-white ring-2 ring-white">
                           <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -296,8 +358,8 @@ export function HomeScreen() {
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-1 text-[9px] font-extrabold text-[#6A5AE0]">Day {i + 1}</span>
-                    <span className="text-[9px] font-semibold text-[#8B84A8]">+{reward}</span>
+                    <span className="mt-1 text-[9px] font-extrabold text-[#6A5AE0]">Day {d.day}</span>
+                    <span className="text-[9px] font-semibold text-[#8B84A8]">+{d.reward}</span>
                   </div>
                 );
               })}
