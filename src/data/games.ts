@@ -56,7 +56,7 @@ export const ALL_GAMES: GameItem[] = [
   {
     id: "quiz-time",
     title: "QUIZ TIME",
-    description: "Test your knowledge with exciting quizzes.",
+    description: "",
     shortDescription: "Test your knowledge!",
     image: "/games/cards/quiz-time.webp",
     cta: "Play",
@@ -65,11 +65,7 @@ export const ALL_GAMES: GameItem[] = [
     buttonBg: "#6A5AE0",
     imagePosition: "76% 50%",
     category: "learn",
-    tags: [
-      { label: "Quiz", icon: "quiz" },
-      { label: "12 Questions", icon: "questions" },
-      { label: "Earn PB", icon: "coin" },
-    ],
+    tags: [],
     theme: { title: ["#7A4DFF", "#7A4DFF"], shade: "#2A1266", button: ["#8B6CFF", "#5A3ED6"], wash: "rgba(190, 170, 255, 0.55)" },
     featured: true,
     playable: true,
