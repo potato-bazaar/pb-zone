@@ -9,6 +9,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { DashboardView } from './components/views/DashboardView';
 import { PlaceholderView } from './components/views/PlaceholderView';
 import { PlayersView } from './components/views/PlayersView';
+import { TaterMatchView } from './components/views/TaterMatchView';
 import { GameHubView } from './components/views/GameHubView';
 import { GameDetailView } from './components/views/GameDetailView';
 import { ActiveQuizView } from './components/views/ActiveQuizView';
@@ -533,6 +534,7 @@ export function App() {
                 />
               }
             />
+            <Route path="/tater-match" element={<TaterMatchView />} />
             <Route path="/players" element={<PlayersView searchQuery={searchQuery} />} />
             <Route path="/winners" element={renderWinnersOrAnalytics('winners')} />
             <Route

@@ -4,6 +4,7 @@ import {
   Gamepad2,
   Gift,
   Home,
+  Images,
   Package,
   Settings,
   Trophy,
@@ -15,6 +16,7 @@ import { cn } from '../../lib/utils';
 const PRIMARY_NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: Home },
   { to: '/games', label: 'Games', icon: Gamepad2 },
+  { to: '/tater-match', label: 'Tater Match', icon: Images },
   { to: '/rewards', label: 'Rewards', icon: Gift },
   { to: '/players', label: 'Players', icon: Users },
   { to: '/winners', label: 'Winners', icon: Trophy },

@@ -35,6 +35,7 @@ export type PbGameId =
   | "spud-run"
   | "word-scramble"
   | "guess-disease"
+  | "tater-match"
   | "fix-puzzle"
   | "connect-potatoes"
   | "potato-stack"
@@ -50,6 +51,7 @@ export const PB_GAME_LABELS: Record<PbGameId, string> = {
   "spud-run": "Potato Run",
   "word-scramble": "Word Scramble",
   "guess-disease": "Guess Potato Disease",
+  "tater-match": "Tater Match",
   "fix-puzzle": "Fix the Puzzle",
   "connect-potatoes": "Connect Potatoes",
   "potato-stack": "Potato Stack",
@@ -67,6 +69,7 @@ export const GAME_DAILY_POINT_CAPS: Record<PbGameId, number> = {
   "spud-run": 250,
   "word-scramble": 250,
   "guess-disease": 300,
+  "tater-match": 300,
   "fix-puzzle": 250,
   "connect-potatoes": 250,
   "potato-stack": 200,
