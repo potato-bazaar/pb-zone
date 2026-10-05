@@ -921,6 +921,7 @@ body {
 .qd-fill-headline { background-image: linear-gradient(180deg, #c7a7ff 0%, #8e61fa 4%, #8052fb 28%, #683cf3 55%, #5629e5 85%, #4f20dc 100%); filter: drop-shadow(0 1px 0 #2c06a8); }
 @media (forced-colors: active) {
   .qd-layer-white, .qd-layer-white-thick, .qd-layer-purple, .qd-layer-headline { display: none; }
+  .qd-card { background-color: Canvas; }
 }
 
 .qd-card {
@@ -956,7 +957,7 @@ body {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .qd-play:active { transform: translateY(3px); box-shadow: inset 0 0 0 2px #4d1edb, inset 0 0 0 3px #7f59ff, inset 0 4px 0 -2px rgba(203, 162, 254, 0.9), 0 1px 0 #2f09bc, 0 4px 10px -6px rgba(47, 9, 188, 0.55); }
-.qd-play:focus-visible { outline: 3px solid #5530e0; outline-offset: 4px; }
+.qd-play:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .qd-play-disc {
   background: radial-gradient(circle at 45% 40%, #ffffff 0%, #f8f6fc 55%, #efecfe 100%);
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(110, 80, 240, 0.15);
@@ -1538,6 +1539,7 @@ body {
 }
 /* Fades content out above the pinned footer without painting a colour band over the background. */
 .qh-scroll-fade {
+  scroll-padding-bottom: 2.5rem;
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
 }
