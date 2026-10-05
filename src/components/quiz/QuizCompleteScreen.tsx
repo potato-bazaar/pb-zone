@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { haptic, sounds } from "@/components/crush/render/sound";
-import { MovementBadge, PbCoinIcon, PbStarIcon } from "@/components/pb/PbUi";
+import { PbCoinIcon, PbStarIcon } from "@/components/pb/PbUi";
 import type { PbReceipt } from "@/components/providers/PbPointsProvider";
 import { DAILY_CAP_MESSAGE, PB_GAME_LABELS } from "@/data/pbEconomy";
 import {
@@ -32,29 +32,53 @@ type CompleteProps = {
 };
 
 function useCountUp(target: number, duration = 1100, delay = 500) {
+  // Reduced motion: show the final value from the very first render (no count-up, no "+0" frame).
+  // Safe to read matchMedia here: this screen only mounts on the client, after the quiz finishes.
+  const [reduce] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   const [value, setValue] = useState(0);
   useEffect(() => {
-    // Reduced motion: land on the final value on the first frame.
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ms = reduce ? 0 : duration;
+    if (reduce) return;
     let raf = 0;
     let start = 0;
     const timer = window.setTimeout(() => {
       const tick = (t: number) => {
         if (!start) start = t;
-        const p = ms === 0 ? 1 : Math.min(1, (t - start) / ms);
+        const p = Math.min(1, (t - start) / duration);
         const eased = 1 - Math.pow(1 - p, 3);
         setValue(Math.round(target * eased));
         if (p < 1) raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
-    }, reduce ? 0 : delay);
+    }, delay);
     return () => {
       window.clearTimeout(timer);
       cancelAnimationFrame(raf);
     };
-  }, [target, duration, delay]);
-  return value;
+  }, [target, duration, delay, reduce]);
+  return reduce ? target : value;
+}
+
+/** Rank change chip with readable contrast and a spoken form ("up 2 places"). */
+function RankDelta({ delta }: { delta: number }) {
+  const up = delta > 0;
+  const n = Math.abs(delta);
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${
+        up ? "bg-[#E6F7EC] text-[#13693A]" : "bg-[#FDECEC] text-[#B42318]"
+      }`}
+    >
+      <span aria-hidden>
+        {up ? "↑" : "↓"}
+        {n}
+      </span>
+      <span className="sr-only">
+        {up ? "up" : "down"} {n} {n === 1 ? "place" : "places"}
+      </span>
+    </span>
+  );
 }
 
 // Static, deterministic confetti around the header (positions in % of the header band).
@@ -218,27 +242,27 @@ function BoardRow({
       />
       {/* One line ("Rank #13 · 1,425 PB in this game") when the row is wide enough, two clean lines otherwise. */}
       <div className="@container min-w-0 flex-1">
-        <p className="font-display text-[11px] font-bold uppercase tracking-[0.06em] text-[#5E3AF8]">{label}</p>
+        <p className="font-display text-[11px] font-bold uppercase tracking-[0.06em] text-[#5E3AF8] max-[375px]:tracking-[0.01em]">{label}</p>
         <p className="mt-0.5 text-[13px] font-medium leading-snug text-[#241781]">
           <span className="inline-flex items-center gap-1.5">
             <span>
               Rank <span className="font-display text-[15px] font-bold text-[#211178]">#{rankAfter}</span>
             </span>
-            {moved ? <MovementBadge delta={rankBefore - rankAfter} /> : null}
+            {moved ? <RankDelta delta={rankBefore - rankAfter} /> : null}
           </span>
-          <span aria-hidden className="hidden @min-[13.5rem]:inline">
+          <span aria-hidden className="hidden @min-[15rem]:inline">
             {" · "}
           </span>
-          <span className="block text-[12px] text-[#1F147E] @min-[13.5rem]:inline">{detail}</span>
+          <span className="block text-[12px] text-[#1F147E] @min-[15rem]:inline">{detail}</span>
         </p>
       </div>
       <Link
         href={href}
         aria-label={`View ${label}`}
-        className="qd-view flex h-9 shrink-0 items-center justify-center gap-1 rounded-full pl-3 pr-2 font-display text-[13px] font-bold text-[#542CE4] max-[359px]:w-9 max-[359px]:px-0"
+        className="qd-view flex h-9 shrink-0 items-center justify-center gap-1 rounded-full pl-3 pr-2 font-display text-[13px] font-bold text-[#542CE4] max-[360px]:w-9 max-[360px]:px-0"
       >
         {/* Below 360px the pill collapses to a round chevron; the aria-label still names the board. */}
-        <span className="max-[359px]:hidden">View</span>
+        <span className="max-[360px]:hidden">View</span>
         <ChevronRightIcon className="h-4 w-4" />
       </Link>
     </li>
@@ -265,6 +289,11 @@ export function QuizCompleteScreen({
 
   // Celebrate once on arrival (the ref survives React's dev double-invoke), and chime when the points land.
   const cheered = useRef(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // Move focus to the result heading so screen readers land on the new screen.
+  useEffect(() => {
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     if (cheered.current) return;
     cheered.current = true;
@@ -288,7 +317,7 @@ export function QuizCompleteScreen({
         className="qh-scroll-fade relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 [-webkit-overflow-scrolling:touch]"
         style={{ paddingTop: "max(2.25rem, calc(var(--header-top) - 0.75rem))" }}
       >
-        <header className="relative h-[clamp(150px,44vw,172px)]">
+        <header className="relative min-h-[clamp(150px,44vw,172px)]">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <span className="qd-sun absolute -left-14 -top-16 h-[240px] w-[240px]" />
             {CONFETTI.map((c, i) => (
@@ -334,7 +363,11 @@ export function QuizCompleteScreen({
           />
           {/* Nudged right so the title sits centred between the (wider) trophy and the mascot, as in the design. */}
           <div className="relative z-10 flex translate-x-2 flex-col items-center pt-1 text-center">
-            <h1 className="qd-title flex flex-col items-center font-display font-bold leading-[0.98]">
+            <h1
+              ref={titleRef}
+              tabIndex={-1}
+              className="qd-title flex flex-col items-center font-display font-bold leading-[0.98] outline-none"
+            >
               <span className="sr-only">Game Complete!</span>
               <OutlinedText variant="title" className="-rotate-[1.5deg] text-[clamp(36px,11.5vw,46px)] tracking-[-0.01em]">
                 Game
@@ -358,18 +391,17 @@ export function QuizCompleteScreen({
             {correctCount} / {totalQuestions} correct · {praise}
           </p>
 
-          <div className={`relative mt-1 flex items-center justify-center ${landed ? "qd-landed" : ""}`}>
+          <div className={`relative mx-auto mt-1 flex w-fit max-w-full items-center justify-center ${landed ? "qd-landed" : ""}`}>
             <PointsLandFx />
             <Burst rays={3} side="left" className="absolute left-0.5 top-1/2 h-9 w-9 -translate-y-1/2 text-[#FED22F]" />
-            <p aria-hidden className="qd-points-pop flex flex-wrap items-baseline justify-center gap-x-2 px-9 font-display font-bold leading-none">
-              <OutlinedText variant="headline" className="text-[clamp(44px,14vw,54px)] tabular-nums">
+            <p aria-hidden className="qd-points-pop flex flex-nowrap items-baseline justify-center gap-x-2 whitespace-nowrap px-12 font-display font-bold leading-none">
+              <OutlinedText variant="headline" className="text-[clamp(44px,14vw,54px)] max-[360px]:text-[12.5vw]">
                 {`+${shownPb}`}
               </OutlinedText>
-              <OutlinedText variant="headline" className="text-[clamp(24px,7.4vw,29px)]">
+              <OutlinedText variant="headline" className="text-[clamp(24px,7.4vw,29px)] max-[360px]:text-[6.875vw]">
                 PB Points
               </OutlinedText>
             </p>
-            <p className="sr-only">+{pbApplied.toLocaleString("en-IN")} PB Points</p>
             <Burst rays={3} className="absolute right-0.5 top-1/2 h-9 w-9 -translate-y-1/2 text-[#FED22F]" />
           </div>
 
@@ -396,7 +428,7 @@ export function QuizCompleteScreen({
               ) : (
                 <Rows
                   tone="violet"
-                  rows={pb.lines.map((line) => ({ label: line.label, value: `+${line.points}` }))}
+                  rows={pb.lines.map((line) => ({ label: line.label, value: `+${line.points.toLocaleString("en-IN")}` }))}
                   total={`+${pb.applied.toLocaleString("en-IN")} PB`}
                 />
               )}
@@ -447,7 +479,7 @@ export function QuizCompleteScreen({
               </span>
               <div className="min-w-0">
                 <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#13693A]">Milestone unlocked</p>
-                <p className="truncate text-[14px] font-extrabold text-[#1E1452]">
+                <p className="text-balance text-[14px] font-extrabold leading-snug text-[#1E1452]">
                   {m.points.toLocaleString("en-IN")} PB · {m.label}
                 </p>
               </div>
@@ -458,8 +490,8 @@ export function QuizCompleteScreen({
             <Rows
               tone="gold"
               rows={[
-                { label: "Answer coins", value: `+${answerCoins}` },
-                { label: "Completion bonus", value: `+${completionBonus}` },
+                { label: "Answer coins", value: `+${answerCoins.toLocaleString("en-IN")}` },
+                { label: "Completion bonus", value: `+${completionBonus.toLocaleString("en-IN")}` },
               ]}
               total={`+${displayCoins.toLocaleString("en-IN")} Coins`}
             />
