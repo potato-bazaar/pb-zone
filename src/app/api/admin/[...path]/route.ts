@@ -6,11 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function adminUpstreamBase(segments: string[]) {
-  // Tater Match admin is only on the local BE branch until deployed.
-  const taterBase = process.env.TATER_MATCH_API_BASE_URL?.replace(/\/$/, "");
-  if (segments[0] === "tater-match" && taterBase) return taterBase;
-  // Same host Quiz Time uses — do not split quiz admin onto a local BE.
+function adminUpstreamBase() {
+  // Same host Quiz Time uses — do not split admin onto a local BE.
   return (
     process.env.QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
@@ -105,7 +102,7 @@ async function proxyAdmin(
   const { path } = await context.params;
   const segments = path ?? [];
   const upstreamPath = `/v1/admin/${segments.join("/")}`;
-  const target = new URL(`${adminUpstreamBase(segments)}${upstreamPath}`);
+  const target = new URL(`${adminUpstreamBase()}${upstreamPath}`);
   request.nextUrl.searchParams.forEach((value, keyName) => {
     target.searchParams.set(keyName, value);
   });

@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 
 function upstreamBase() {
   return (
-    process.env.TATER_MATCH_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     "https://pbzone-api.potatobazaar.com"
