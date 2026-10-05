@@ -32,8 +32,6 @@ export type QuizLifelineSettings = {
 export type QuizSessionSettings = {
   timerSeconds: number;
   pointsPerCorrect?: number;
-  fastAnswerBonus?: number;
-  fastAnswerSeconds?: number;
   completeQuizBonus?: number;
   questionsPerQuiz?: number;
   lifelines: QuizLifelineSettings;
@@ -41,9 +39,7 @@ export type QuizSessionSettings = {
 
 export type QuizScoringConfig = {
   pointsPerCorrect: number;
-  fastAnswerBonus: number;
   completeQuizBonus: number;
-  fastAnswerSeconds?: number;
   questionsPerQuiz?: number;
   timerSeconds?: number;
 };
@@ -93,7 +89,6 @@ export type QuizResultData = {
   userPoints: number;
   earnedPoints?: number;
   leaderboardPoints?: number;
-  fastBonus?: number;
   completionBonus?: number;
   pointsAwarded?: number;
   /** Points earned from correct answers only (before bonuses) */
@@ -294,8 +289,6 @@ function normalizeSettings(
   return {
     timerSeconds: Number(raw?.timerSeconds ?? 15),
     pointsPerCorrect: Number(raw?.pointsPerCorrect ?? 20),
-    fastAnswerBonus: Number(raw?.fastAnswerBonus ?? 5),
-    fastAnswerSeconds: Number(raw?.fastAnswerSeconds ?? 5),
     completeQuizBonus: Number(raw?.completeQuizBonus ?? 30),
     questionsPerQuiz: Number(raw?.questionsPerQuiz ?? 12),
     lifelines: {
@@ -340,9 +333,7 @@ export async function fetchQuizScoring(): Promise<QuizScoringConfig> {
 
   return {
     pointsPerCorrect: Number(data?.pointsPerCorrect ?? 20),
-    fastAnswerBonus: Number(data?.fastAnswerBonus ?? 5),
     completeQuizBonus: Number(data?.completeQuizBonus ?? 30),
-    fastAnswerSeconds: Number(data?.fastAnswerSeconds ?? 5),
     questionsPerQuiz: Number(data?.questionsPerQuiz ?? 12),
     timerSeconds: Number(data?.timerSeconds ?? 15),
   };
@@ -474,12 +465,11 @@ export function fetchQuizResult(auth: QuizAuth, sessionId: string) {
     const sessionScore = Number(
       raw.score ?? raw.sessionScore ?? raw.pointsAwarded ?? 0,
     );
-    const fastBonus = Number(raw.fastBonus ?? 0);
     const completionBonus = Number(raw.completionBonus ?? 0);
     const totalEarned = Number(
       raw.pointsAwarded ??
         raw.totalEarned ??
-        sessionScore + fastBonus + completionBonus,
+        sessionScore + completionBonus,
     );
 
     return {
@@ -490,7 +480,6 @@ export function fetchQuizResult(auth: QuizAuth, sessionId: string) {
       userPoints: Number(raw.userPoints ?? 0),
       earnedPoints: Number(raw.earnedPoints ?? 0),
       leaderboardPoints: Number(raw.leaderboardPoints ?? 0),
-      fastBonus,
       completionBonus,
       pointsAwarded: totalEarned,
     } satisfies QuizResultData;

@@ -57,7 +57,7 @@ PB Zone has two independent reward systems: **PB Coins** are spendable game curr
 
 | Game | Skill | Main PB Point driver | Main Coin driver | Daily Point cap |
 | --- | --- | --- | --- | --- |
-| Quiz | Knowledge + speed | Correct answer, difficulty, speed, streak | Correct answers + completion + streak | 300 |
+| Quiz | Knowledge | Correct answer, difficulty, streak | Correct answers + completion + streak | 300 |
 | Tater Match | Pattern recognition | Matches, combos, stars, efficiency | Matches + completion | 300 |
 | Spud Run | Reflex + endurance | Distance, objectives, avoidance | Distance + collectibles + completion | 250 |
 | Scramble | Knowledge + speed | Correct word, difficulty, speed, streak | Attempts + correct + completion | 250 |
@@ -80,10 +80,6 @@ PB Zone has two independent reward systems: **PB Coins** are spendable game curr
 | Event | PB Points | PB Coins | Rule |
 | --- | --- | --- | --- |
 | Correct answer | Difficulty base | +2 to +5 | Primary skill reward. |
-| Answer in fastest band | +5 | +1 | 0–2 sec. |
-| Fast answer | +3 | +1 | 2–4 sec. |
-| Normal speed | +2 | 0 | 4–7 sec. |
-| Slow valid answer | +1 | 0 | Final valid time band. |
 | Timeout / wrong | 0 | 0 | No penalty. |
 | 3-correct streak | +3 | +3 | Bonus. |
 | 5-correct streak | +8 | +5 | Bonus. |
@@ -91,7 +87,7 @@ PB Zone has two independent reward systems: **PB Coins** are spendable game curr
 | Complete 10 questions | +10 | +10 | Completion reward. |
 | Perfect 10/10 | +25 | +20 | Additional bonus. |
 
-Quiz formula: Question Points = Difficulty Base + Speed Bonus + Streak Bonus. Quiz Points = sum of Question Points + Completion Bonus + Perfect Bonus.
+Quiz formula: Question Points = Difficulty Base + Streak Bonus. Answer speed earns no bonus. Quiz Points = sum of Question Points + Completion Bonus + Perfect Bonus.
 
 ## 7. Tater Match
 

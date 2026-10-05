@@ -99,6 +99,62 @@ function LeafIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+type QuizTimerState = "calm" | "warn" | "urgent" | "paused";
+
+const TIMER_RADIUS = 22;
+const TIMER_CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
+
+/** Countdown ring that drains each second; colour comes from `state` (see .quiz-timer in globals.css). */
+function QuizTimer({
+  timeLeft,
+  total,
+  state,
+  className = "",
+}: {
+  timeLeft: number;
+  total: number;
+  state: QuizTimerState;
+  className?: string;
+}) {
+  const fraction = Math.max(0, Math.min(1, timeLeft / Math.max(total, 1)));
+  return (
+    <div
+      role="timer"
+      aria-label={`${timeLeft} seconds left`}
+      data-state={state}
+      className={`quiz-timer relative flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full ${className}`}
+    >
+      <svg viewBox="0 0 56 56" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+        <circle cx="28" cy="28" r={TIMER_RADIUS} className="quiz-timer-track" fill="none" strokeWidth="5" />
+        <circle
+          cx="28"
+          cy="28"
+          r={TIMER_RADIUS}
+          className="quiz-timer-arc"
+          fill="none"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={TIMER_CIRCUMFERENCE}
+          strokeDashoffset={TIMER_CIRCUMFERENCE * (1 - fraction)}
+          style={{ opacity: fraction > 0 ? 1 : 0 }}
+        />
+      </svg>
+      <span className="relative flex flex-col items-center" aria-hidden>
+        {/* Keyed by the second while urgent so each tick replays the pop. */}
+        <span
+          key={state === "urgent" ? timeLeft : "steady"}
+          className="quiz-timer-num font-display text-[20px] font-extrabold leading-none tabular-nums"
+        >
+          {timeLeft}
+        </span>
+        <span className="quiz-timer-unit mt-px text-[8px] font-extrabold uppercase leading-none tracking-[0.14em]">
+          sec
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function resolveCorrectOption(
   question: QuizApiQuestion,
   correctKey: QuizOptionKey,
@@ -123,7 +179,6 @@ export function QuizPlayScreen({
   const { awardPoints } = usePbPoints();
   const sessionId = initialSession.sessionId;
   const answersRef = useRef<QuizAnswerRecord[]>([]);
-  const timeLeftRef = useRef(0);
   const [pbReceipt, setPbReceipt] = useState<PbReceipt | null>(null);
   const [displayCoins, setDisplayCoins] = useState(initialSession.user.points);
 
@@ -169,12 +224,18 @@ export function QuizPlayScreen({
   const mascotLine = MASCOT_LINES[(question.index - 1) % MASCOT_LINES.length];
   const subtitle = SUBTITLES[(question.index - 1) % SUBTITLES.length];
   const timerTotal = question.timerSeconds || initialSession.settings.timerSeconds || 15;
-  const timerUrgent = timeLeft <= 3 && !feedback && !locked;
-  timeLeftRef.current = timeLeft;
+  const timerUrgent = timeLeft <= 5 && !feedback && !locked;
+  const timerState: QuizTimerState =
+    feedback || locked
+      ? "paused"
+      : timerUrgent
+        ? "urgent"
+        : timeLeft <= timerTotal * 0.6
+          ? "warn"
+          : "calm";
 
-  function recordAnswer(correct: boolean, timedOut = false) {
-    const seconds = timedOut ? timerTotal : Math.max(0, timerTotal - timeLeftRef.current);
-    answersRef.current = [...answersRef.current, { correct, seconds }];
+  function recordAnswer(correct: boolean) {
+    answersRef.current = [...answersRef.current, { correct }];
   }
 
   function applyWallet(
@@ -287,7 +348,7 @@ export function QuizPlayScreen({
     setError(null);
 
     const currentQuestion = question;
-    recordAnswer(false, true);
+    recordAnswer(false);
 
     try {
       const data = await submitQuizAnswer(auth, sessionId, null, {
@@ -379,7 +440,7 @@ export function QuizPlayScreen({
       const data = await fetchQuizResult(auth, sessionId);
       const earned =
         data.sessionScore > 0
-          ? data.sessionScore + (data.fastBonus ?? 0) + (data.completionBonus ?? 0)
+          ? data.sessionScore + (data.completionBonus ?? 0)
           : sessionScore > 0
             ? sessionScore
             : data.correctCount > 0 && pointsPerCorrect > 0
@@ -428,7 +489,6 @@ export function QuizPlayScreen({
         sessionScore: fallbackScore,
         pointsAwarded: fallbackScore,
         userPoints: coins,
-        fastBonus: 0,
         completionBonus: 0,
       });
       setFinished(true);
@@ -533,7 +593,6 @@ export function QuizPlayScreen({
       <QuizCompleteScreen
         correctCount={result.correctCount}
         totalQuestions={result.totalQuestions || total}
-        fastBonus={result.fastBonus ?? 0}
         completionBonus={result.completionBonus ?? 0}
         totalEarned={
           (result.pointsAwarded && result.pointsAwarded > 0 ? result.pointsAwarded : null) ??
@@ -627,18 +686,15 @@ export function QuizPlayScreen({
               {question.index} / {total}
             </span>
           </div>
-          <div
-            key={timeBump}
-            className={`quiz-timer-pill flex h-[28px] shrink-0 items-center gap-1 rounded-full px-2.5 ${
-              timerUrgent ? "quiz-timer-urgent" : ""
-            } ${timeBump ? "quiz-pop" : ""}`}
-          >
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#6A5AE0]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            <span className="min-w-[1.35rem] text-[12px] font-extrabold tabular-nums text-[#6A5AE0]">{timeLeft}s</span>
-          </div>
+          {/* Re-keyed per question and on Extra Time so the ring pops in again.
+              Negative margin lets it overhang the row instead of pushing the card down. */}
+          <QuizTimer
+            key={`${question.index}:${timeBump}`}
+            timeLeft={timeLeft}
+            total={timerTotal}
+            state={timerState}
+            className="-my-3.5"
+          />
         </div>
 
         {error ? (
@@ -650,6 +706,9 @@ export function QuizPlayScreen({
           key={question.index}
           className="quiz-card quiz-card-in relative mt-2 shrink-0 rounded-[1.5rem] p-3.5 pb-3"
         >
+          {timerUrgent ? (
+            <span className="quiz-card-urgent pointer-events-none absolute inset-0 rounded-[1.5rem]" aria-hidden />
+          ) : null}
           <div className={`relative ${feedback ? "" : "min-h-[168px] pr-[43%]"}`}>
             <span className="quiz-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-[#5B3FA8]">
               <LeafIcon className="h-3 w-3 text-[#2A9B5C]" />
