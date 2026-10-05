@@ -7,10 +7,8 @@ import { identityFromJwt } from "@/lib/playerIdentity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** DAILY_BONUS_API_BASE_URL lets local dev hit a BE branch (e.g. http://localhost:3001) while quiz stays on deployed. */
 function upstreamBase() {
   return (
-    process.env.DAILY_BONUS_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_QUIZ_API_BASE_URL?.replace(/\/$/, "") ||
     "https://pbzone-api.potatobazaar.com"

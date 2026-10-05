@@ -1,5 +1,3 @@
-import { adminApiKey } from '../config';
-
 export type TaterImageStatus = 'pending' | 'approved' | 'rejected' | 'discarded';
 
 export type TaterImage = {
@@ -92,8 +90,6 @@ export class TaterApiError extends Error {
 
 async function taterFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
-  const key = adminApiKey();
-  if (key) headers['x-admin-key'] = key;
   if (init?.body) headers['content-type'] = 'application/json';
 
   const res = await fetch(`/api/admin/tater-match${path}`, { ...init, headers, cache: 'no-store' });
