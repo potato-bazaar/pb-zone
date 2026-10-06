@@ -5,6 +5,7 @@ export type TaterImage = {
   categoryId: string;
   status: TaterImageStatus;
   url: string | null;
+  storageKey: string | null;
   width: number | null;
   height: number | null;
   source: string;
