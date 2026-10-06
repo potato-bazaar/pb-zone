@@ -6,7 +6,7 @@ import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { recordGameLeaderboard } from "@/lib/leaderboardApi";
-import { fetchPublishedRound } from "@/lib/taterMatchApi";
+import { withBackendPhotos } from "@/lib/taterMatchApi";
 import {
   TATER_SCORING,
   applyRoundToProgress,
@@ -109,16 +109,12 @@ export function TaterMatchApp() {
     if (startingRound) return;
     const count = asDaily ? DAILY_QUESTIONS : TATER_SCORING.questionsPerRound;
     setStartingRound(true);
-    // Published questions with real photos first; built-in questions fill the rest of the round.
-    const published = await fetchPublishedRound(nextMode, count);
+    const builtIn = nextMode === "mixed" ? buildMixedRound(count) : buildRound(nextMode, count);
+    const round = await withBackendPhotos(builtIn);
     setStartingRound(false);
-    const usedIds = new Set(published.map((q) => q.id));
-    const builtIn = (nextMode === "mixed" ? buildMixedRound(count * 2) : buildRound(nextMode, count * 2)).filter(
-      (q) => !usedIds.has(q.id),
-    );
     setMode(nextMode);
     setDaily(asDaily);
-    setQuestions([...published, ...builtIn].slice(0, count));
+    setQuestions(round);
     setRoundKey((k) => k + 1);
     setResult(null);
     pushPhase("play");
