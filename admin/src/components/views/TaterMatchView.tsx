@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  Copy,
   ExternalLink,
   ImageOff,
   Loader2,
@@ -464,6 +465,35 @@ function QuestionCard({
 /*  Image pool                                                         */
 /* ------------------------------------------------------------------ */
 
+function StoredUrl({ url, storageKey }: { url: string; storageKey: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt('Copy image URL', url);
+    }
+  };
+  return (
+    <div className="flex items-center gap-1 rounded bg-[#F7F7F7] px-1.5 py-1" title={url}>
+      <span className="shrink-0 font-semibold text-muted-foreground">{url.includes('.s3.') ? 'S3' : 'URL'}</span>
+      <a href={url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono hover:underline">
+        {storageKey ?? url}
+      </a>
+      <button
+        type="button"
+        onClick={copy}
+        className="shrink-0 text-muted-foreground hover:text-black"
+        title="Copy image URL"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+      </button>
+    </div>
+  );
+}
+
 function ImageTile({
   image,
   selected,
@@ -526,6 +556,7 @@ function ImageTile({
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
+        {image.url && <StoredUrl url={image.url} storageKey={image.storageKey} />}
         {(image.author || image.license) && (
           <div className="truncate text-muted-foreground" title={[image.author, image.license].filter(Boolean).join(' · ')}>
             {[image.author, image.license].filter(Boolean).join(' · ')}
