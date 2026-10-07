@@ -17,7 +17,7 @@ const LABEL_CLASS =
   "mb-1.5 block text-left text-[12px] font-medium leading-none text-[#1a1a2e]";
 
 const INPUT_CLASS =
-  "w-full rounded-[0.85rem] border border-[#E5E9F2] bg-white px-3.5 py-3 text-[14px] font-semibold text-[#1a1a2e] outline-none placeholder:text-[#C4C9D6] focus:border-[#2940B3]";
+  "w-full rounded-[0.85rem] border border-[#E5E9F2] bg-white px-3.5 py-3 text-base font-semibold text-[#1a1a2e] outline-none placeholder:text-[#C4C9D6] focus:border-[#2940B3] md:text-[14px]";
 
 const FIELDS: {
   key: Exclude<FieldKey, "phone" | "state">;
@@ -56,6 +56,11 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
       phone: stripPhonePrefix(saved.phone),
     });
   }, []);
+
+  useEffect(() => {
+    if (!stateOpen) return;
+    stateRef.current?.querySelector('[role="listbox"]')?.scrollIntoView({ block: "nearest" });
+  }, [stateOpen]);
 
   useEffect(() => {
     if (!stateOpen) return;
@@ -112,7 +117,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
             <Link
               href="/rewards"
               aria-label="Back"
-              className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#2940B3]"
+              className="hit-slop absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#2940B3]"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -156,7 +161,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
             <label className="block">
               <span className={LABEL_CLASS}>Phone Number</span>
               <div className="flex items-center rounded-[0.85rem] border border-[#E5E9F2] bg-white focus-within:border-[#2940B3]">
-                <span className="shrink-0 pl-3.5 text-[14px] font-semibold text-[#1a1a2e]">
+                <span className="shrink-0 pl-3.5 text-base font-semibold text-[#1a1a2e] md:text-[14px]">
                   +91
                 </span>
                 <input
@@ -166,7 +171,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
                   onChange={(e) =>
                     updateField("phone", stripPhonePrefix(e.target.value))
                   }
-                  className="min-w-0 flex-1 bg-transparent px-2 py-3 text-[14px] font-semibold text-[#1a1a2e] outline-none placeholder:text-[#C4C9D6]"
+                  className="min-w-0 flex-1 bg-transparent px-2 py-3 text-base font-semibold text-[#1a1a2e] outline-none placeholder:text-[#C4C9D6] md:text-[14px]"
                   placeholder="98765 43210"
                   autoComplete="off"
                   maxLength={10}
@@ -233,7 +238,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
               {stateOpen ? (
                 <ul
                   role="listbox"
-                  className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[0.85rem] border border-[#E5E9F2] bg-white py-1 shadow-[0_10px_28px_rgba(26,26,46,0.14)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                  className="z-30 mt-1.5 max-h-[min(16rem,40dvh)] overflow-y-auto rounded-[0.85rem] border border-[#E5E9F2] bg-white py-1 shadow-[0_10px_28px_rgba(26,26,46,0.14)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
                   {INDIAN_STATES.map((state) => (
                     <li key={state} role="option" aria-selected={form.state === state}>
@@ -243,7 +248,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
                           updateField("state", state);
                           setStateOpen(false);
                         }}
-                        className={`flex w-full px-3.5 py-2.5 text-left text-[14px] font-semibold transition ${
+                        className={`flex min-h-11 w-full items-center px-3.5 py-2.5 text-left text-base font-semibold transition md:min-h-0 md:text-[14px] ${
                           form.state === state
                             ? "bg-[#F0EDFF] text-[#6A5AE0]"
                             : "text-[#1a1a2e] active:bg-[#F5F6FA]"
@@ -264,7 +269,7 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
               role="checkbox"
               aria-checked={confirmed}
               onClick={() => setConfirmed((v) => !v)}
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border transition ${
+              className={`hit-slop mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border transition ${
                 confirmed
                   ? "border-[#2940B3] bg-[#2940B3]"
                   : "border-[#C4C9D6] bg-white"

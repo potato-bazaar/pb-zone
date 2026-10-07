@@ -394,11 +394,11 @@ export function QuizCompleteScreen({
           <div className={`relative mx-auto mt-1 flex w-fit max-w-full items-center justify-center ${landed ? "qd-landed" : ""}`}>
             <PointsLandFx />
             <Burst rays={3} side="left" className="absolute left-0.5 top-1/2 h-9 w-9 -translate-y-1/2 text-[#FED22F]" />
-            <p aria-hidden className="qd-points-pop flex flex-nowrap items-baseline justify-center gap-x-2 whitespace-nowrap px-12 font-display font-bold leading-none">
-              <OutlinedText variant="headline" className="text-[clamp(44px,14vw,54px)] max-[360px]:text-[12.5vw]">
+            <p aria-hidden className="qd-points-pop flex max-w-full flex-nowrap items-baseline justify-center gap-x-1.5 whitespace-nowrap px-8 font-display font-bold leading-none min-[400px]:gap-x-2 min-[400px]:px-12">
+              <OutlinedText variant="headline" className="text-[clamp(26px,8.5vw,54px)]">
                 {`+${shownPb}`}
               </OutlinedText>
-              <OutlinedText variant="headline" className="text-[clamp(24px,7.4vw,29px)] max-[360px]:text-[6.875vw]">
+              <OutlinedText variant="headline" className="text-[clamp(13px,4.2vw,29px)]">
                 PB Points
               </OutlinedText>
             </p>
@@ -415,33 +415,25 @@ export function QuizCompleteScreen({
             </span>
           </div>
 
-          {pb ? (
-            <Panel tone="violet" className="mt-3" icon={<BarChartIcon className="h-[18px] w-[18px] text-[#7B57F2]" />} title="PB Breakdown">
-              {pb.duplicate ? (
-                <p className="qd-inner-violet rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-[#4A4170]">
-                  This run was already credited.
-                </p>
-              ) : pb.lines.length === 0 ? (
-                <p className="qd-inner-violet rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-[#4A4170]">
-                  No PB this time. Points reward correct answers, streaks and finishing the quiz.
-                </p>
-              ) : (
-                <Rows
-                  tone="violet"
-                  rows={pb.lines.map((line) => ({ label: line.label, value: `+${line.points.toLocaleString("en-IN")}` }))}
-                  total={`+${pb.applied.toLocaleString("en-IN")} PB`}
-                />
-              )}
-              {capped ? (
-                <p className="mt-2 rounded-xl bg-[#FFF3C4] px-3 py-2 text-[12px] font-bold text-[#7A4A00]">
-                  {zeroDay
-                    ? DAILY_CAP_MESSAGE
-                    : pb.cappedBy === "daily"
-                      ? `Daily PB limit reached: ${pb.applied} of ${pb.requested} PB counted. ${DAILY_CAP_MESSAGE}`
-                      : `Daily limit for this game reached: ${pb.applied} of ${pb.requested} PB counted. Coins keep flowing.`}
-                </p>
-              ) : null}
-            </Panel>
+          <Panel tone="violet" className="mt-3" icon={<BarChartIcon className="h-[18px] w-[18px] text-[#7B57F2]" />} title="PB Coin">
+            <Rows
+              tone="violet"
+              rows={[
+                { label: "Answer coins", value: `+${answerCoins.toLocaleString("en-IN")}` },
+                { label: "Completion bonus", value: `+${completionBonus.toLocaleString("en-IN")}` },
+              ]}
+              total={`+${displayCoins.toLocaleString("en-IN")} PB`}
+            />
+          </Panel>
+
+          {capped && pb ? (
+            <p className="mt-3 rounded-xl bg-[#FFF3C4] px-3 py-2 text-[12px] font-bold text-[#7A4A00]">
+              {zeroDay
+                ? DAILY_CAP_MESSAGE
+                : pb.cappedBy === "daily"
+                  ? `Daily PB limit reached: ${pb.applied} of ${pb.requested} PB counted. ${DAILY_CAP_MESSAGE}`
+                  : `Daily limit for this game reached: ${pb.applied} of ${pb.requested} PB counted. Coins keep flowing.`}
+            </p>
           ) : null}
 
           {pb && pb.applied > 0 ? (
@@ -485,17 +477,6 @@ export function QuizCompleteScreen({
               </div>
             </div>
           ))}
-
-          <Panel tone="gold" className="mt-2.5" icon={<PbCoinIcon className="h-[22px] w-[22px]" />} title="PB Coins">
-            <Rows
-              tone="gold"
-              rows={[
-                { label: "Answer coins", value: `+${answerCoins.toLocaleString("en-IN")}` },
-                { label: "Completion bonus", value: `+${completionBonus.toLocaleString("en-IN")}` },
-              ]}
-              total={`+${displayCoins.toLocaleString("en-IN")} Coins`}
-            />
-          </Panel>
         </section>
       </div>
 

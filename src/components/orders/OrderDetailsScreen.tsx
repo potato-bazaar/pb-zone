@@ -169,7 +169,7 @@ export function OrderDetailsScreen({ orderId }: { orderId: string }) {
       <div
         className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
         style={{
-          paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "var(--shell-pad)",
         }}
       >
         <header

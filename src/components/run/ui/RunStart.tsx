@@ -36,7 +36,7 @@ export function RunStart({ best, coins, onPlay, onHowTo, onRewards, onLeaderboar
             type="button"
             onClick={onBack}
             aria-label="Back to games"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#2B1F7A] shadow-[0_3px_10px_rgba(0,0,0,0.2)] ring-1 ring-white/90 active:scale-95"
+            className="hit-slop flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[#2B1F7A] shadow-[0_3px_10px_rgba(0,0,0,0.2)] ring-1 ring-white/90 active:scale-95"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m15 18-6-6 6-6" />

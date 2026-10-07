@@ -46,8 +46,8 @@ export default async function GameDetailPage({ params }: Props) {
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
       <div
-        className="px-4 pb-[calc(7.25rem+env(safe-area-inset-bottom,0px))]"
-        style={{ paddingTop: "var(--header-top)" }}
+        className="px-4"
+        style={{ paddingTop: "var(--header-top)", paddingBottom: "var(--shell-pad)" }}
       >
         <Link
           href="/games"

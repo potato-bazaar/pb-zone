@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
@@ -26,11 +27,18 @@ function GameCard({ game, index }: { game: GameItem; index: number }) {
 
   return (
     <article
-      className={`game-card relative w-full overflow-hidden rounded-[1.4rem] bg-white shadow-[0_10px_26px_rgba(43,31,122,0.16)] ring-1 ring-white/80 ${game.featured ? "aspect-[1.62/1]" : "aspect-[1.7/1]"}`}
+      className={`game-card relative w-full overflow-hidden rounded-[1.4rem] bg-white shadow-[0_10px_26px_rgba(43,31,122,0.16)] ring-1 ring-white/80 ${game.featured ? "aspect-[4/3] md:aspect-[1.62/1]" : "aspect-[5/4] md:aspect-[1.7/1]"}`}
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={game.image} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: game.imagePosition ?? "76% 50%" }} draggable={false} />
+      <Image
+        src={game.image}
+        alt=""
+        fill
+        sizes="(max-width: 768px) calc(100vw - 2rem), 608px"
+        priority={index === 0}
+        className="object-cover object-[82%_center] md:object-[var(--card-focus)]"
+        style={{ ["--card-focus" as string]: game.imagePosition ?? "76% 50%" }}
+      />
       <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${theme.wash} 0%, ${theme.wash} 30%, rgba(255,255,255,0) 64%)` }} aria-hidden />
       <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.30) 36%, rgba(255,255,255,0) 60%)" }} aria-hidden />
       {game.featured ? <div className="game-card-shine pointer-events-none absolute inset-0" aria-hidden /> : null}
@@ -52,7 +60,7 @@ function GameCard({ game, index }: { game: GameItem; index: number }) {
           <div className="flex shrink-0 items-center gap-2 pb-1">
             <Link
               href={`/games/${game.id}`}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-4 font-display text-[14px] font-extrabold text-white active:translate-y-[2px] active:shadow-none"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-4 font-display text-[14px] font-extrabold text-white active:translate-y-[2px] active:shadow-none max-md:min-h-11"
               style={{ background: `linear-gradient(180deg, ${theme.button[0]} 0%, ${theme.button[1]} 100%)`, boxShadow: `0 3px 0 ${theme.shade}` }}
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 ring-1 ring-white/40">
@@ -106,13 +114,7 @@ export function AllGamesScreen() {
             role="status"
             aria-label={`${coinsDisplay} coins`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/home/coin.png"
-              alt=""
-              className="h-6 w-6 shrink-0 object-contain"
-              draggable={false}
-            />
+            <Image src="/images/home/coin.png" alt="" width={48} height={48} sizes="24px" className="h-6 w-6 shrink-0 object-contain" />
             <span className="font-display text-[15px] font-extrabold tabular-nums text-[#2D2A8A]">
               {coinsDisplay}
             </span>
@@ -133,7 +135,7 @@ export function AllGamesScreen() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(cat.id)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-extrabold transition ${
+                className={`inline-flex shrink-0 items-center rounded-full px-4 py-1.5 text-[12.5px] font-extrabold transition max-md:min-h-11 ${
                   active
                     ? "bg-gradient-to-b from-[#8B6CFF] to-[#5A3ED6] text-white"
                     : "bg-white text-[#5B4FB0] ring-1 ring-[#ECE8FA]"
@@ -149,7 +151,7 @@ export function AllGamesScreen() {
       <div
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
         style={{
-          paddingBottom: "calc(7.5rem + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "var(--shell-pad)",
         }}
       >
         <ul className="flex flex-col gap-3.5 pb-2">

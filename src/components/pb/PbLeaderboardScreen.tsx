@@ -214,7 +214,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
                   setTab(t.id);
                   if (t.id === "lifetime") setGame(null);
                 }}
-                className={`flex-1 rounded-full py-2 text-[13px] font-extrabold transition ${active ? "bg-[#6A5AE0] text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)]" : "text-white/80"}`}
+                className={`flex-1 rounded-full py-2 text-[13px] font-extrabold transition max-md:min-h-11 ${active ? "bg-[#6A5AE0] text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)]" : "text-white/80"}`}
               >
                 {t.label}
               </button>
@@ -226,7 +226,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
       {/* Content scrolls under the fixed header on the same bg */}
       <div
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "var(--shell-pad)" }}
       >
         {isSeason ? (
           <div className="flex gap-1.5 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Game leaderboards">
@@ -239,7 +239,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setGame(g)}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-extrabold transition ${active ? "bg-[#F5C518] text-[#4A3300] shadow-[0_4px_12px_rgba(0,0,0,0.25)]" : "bg-white/12 text-white/85 ring-1 ring-white/20"}`}
+                  className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-extrabold transition max-md:min-h-11 ${active ? "bg-[#F5C518] text-[#4A3300] shadow-[0_4px_12px_rgba(0,0,0,0.25)]" : "bg-white/12 text-white/85 ring-1 ring-white/20"}`}
                 >
                   {g ? gameLabel(g) : "All games"}
                 </button>
@@ -283,7 +283,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
 
           <section className="mt-3 rounded-[1.35rem] bg-gradient-to-br from-[#EDE7FF] to-[#E1DBFF] p-4 shadow-[0_4px_18px_rgba(106,90,224,0.12)]">
             {showYourRankCard ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 max-[360px]:flex-wrap">
                 <PlayerAvatar size="md" ringClass="ring-[#6A5AE0]" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#6A5AE0]">Your rank</p>
@@ -292,7 +292,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
                   </p>
                   {forGame && game ? <p className="mt-0.5 text-[11px] font-bold text-[#6A5AE0]">{gameLabel(game)} board</p> : null}
                 </div>
-                <div className="text-right">
+                <div className="min-w-0 text-right max-[360px]:basis-full max-[360px]:text-left">
                   <p className="inline-flex items-center gap-1 font-display text-[20px] font-extrabold text-[#241A5E]">
                     <PbStarIcon className="h-5 w-5" />
                     {yourPoints.toLocaleString("en-IN")} PB
@@ -310,10 +310,10 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
               </div>
             ) : null}
             <div className={`grid grid-cols-2 gap-2 ${showYourRankCard ? "mt-3" : ""}`}>
-              <Link href="/pb/prizes" className="flex items-center justify-center gap-1.5 rounded-full bg-[#6A5AE0] py-2.5 text-[13px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-[0.98]">
+              <Link href="/pb/prizes" className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#6A5AE0] py-2.5 text-[13px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-[0.98] md:min-h-0">
                 🏆 Season prizes
               </Link>
-              <Link href="/profile" className="flex items-center justify-center gap-1.5 rounded-full bg-white py-2.5 text-[13px] font-extrabold text-[#6A5AE0] ring-1 ring-[#D4C8FF] active:scale-[0.98]">
+              <Link href="/profile" className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-white py-2.5 text-[13px] font-extrabold text-[#6A5AE0] ring-1 ring-[#D4C8FF] active:scale-[0.98] md:min-h-0">
                 My PB profile
               </Link>
             </div>

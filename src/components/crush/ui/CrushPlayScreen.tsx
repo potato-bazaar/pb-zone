@@ -514,13 +514,13 @@ export function CrushPlayScreen({
       <CrushEnvironment />
 
       {/* HUD */}
-      <header className="relative z-10 px-3" style={{ paddingTop: "max(2.75rem, calc(var(--header-top) - 0.25rem))" }}>
+      <header className="relative z-10 px-3" style={{ paddingTop: "max(0.75rem, calc(var(--header-top) - 0.25rem))" }}>
         <div className="flex items-stretch gap-2">
           <button
             type="button"
             onClick={openPause}
             aria-label="Pause"
-            className="crush-glass flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-full active:scale-95"
+            className="crush-glass flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-full active:scale-95 min-[380px]:h-14 min-[380px]:w-14"
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6 text-white drop-shadow" fill="currentColor" aria-hidden>
               <rect x="6" y="5" width="4" height="14" rx="1.2" />
@@ -528,7 +528,7 @@ export function CrushPlayScreen({
             </svg>
           </button>
 
-          <div className={`crush-glass flex min-w-[5.6rem] flex-col items-center justify-center rounded-2xl px-3 py-1.5 ${lowMoves ? "crush-moves-low" : ""}`}>
+          <div className={`crush-glass flex w-[4.5rem] min-w-0 shrink-0 flex-col items-center justify-center rounded-2xl px-2 py-1.5 min-[380px]:w-[5.6rem] min-[380px]:px-3 ${lowMoves ? "crush-moves-low" : ""}`}>
             <span className="crush-glass-label font-display text-[11px] font-bold uppercase tracking-[0.2em]">Moves</span>
             <span key={moves} className="crush-pop crush-hud-number font-display text-[30px] font-extrabold leading-none tabular-nums">
               {moves}

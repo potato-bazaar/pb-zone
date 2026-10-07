@@ -174,12 +174,12 @@ export function PotatoNinjaApp() {
         <button type="button" onClick={() => router.push("/games")} aria-label="Back to games" className="nj-wood absolute left-4 z-20 flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ top: "var(--header-top)" }}>
           <NinjaIcon name="back" className="h-5 w-5" />
         </button>
-        <div className="relative z-10 mt-[18vh] flex flex-col items-center">
+        <div className="relative z-10 mt-[18vh] flex flex-col items-center [@media(max-height:520px)]:mt-3">
           <Logo big />
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/games/ninja-hero.png" alt="" className="nj-hero pointer-events-none absolute left-1/2 top-[38%] h-[36vh] w-auto -translate-x-1/2 object-contain" draggable={false} />
-        <div className="relative z-10 mt-auto flex w-full flex-col items-center px-8" style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom, 0px))" }}>
+        <img src="/games/ninja-hero.png" alt="" className="nj-hero pointer-events-none absolute left-1/2 top-[38%] h-[36vh] w-auto -translate-x-1/2 object-contain [@media(max-height:520px)]:top-[22%] [@media(max-height:520px)]:h-[28vh]" draggable={false} />
+        <div className="relative z-10 mt-auto flex w-full flex-col items-center px-8" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
           <p className="nj-tagline mb-4 text-center font-display text-[15px] font-extrabold uppercase tracking-[0.12em] text-white">
             Slice your way
             <br />
@@ -207,14 +207,14 @@ export function PotatoNinjaApp() {
       <div className="nj-barn relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden">
         <div className="nj-barn-dim absolute inset-0" aria-hidden />
         <header className="relative z-10 flex items-center justify-between gap-2 px-4" style={{ paddingTop: "var(--header-top)" }}>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => router.push("/games")} aria-label="Back to games" className="nj-wood flex h-11 w-11 items-center justify-center rounded-2xl text-white">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <button type="button" onClick={() => router.push("/games")} aria-label="Back to games" className="nj-wood flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white">
               <NinjaIcon name="back" className="h-5 w-5" />
             </button>
-            <div className="nj-coinpill flex items-center gap-2 rounded-full py-1 pl-1 pr-3">
-              <SkinFace cell={selectedSkin.cell} size={34} className="rounded-full bg-black/30" />
-              <div className="leading-tight">
-                <p className="font-display text-[13px] font-extrabold text-white">Hi, {userName}!</p>
+            <div className="nj-coinpill flex min-w-0 items-center gap-2 rounded-full py-1 pl-1 pr-3">
+              <SkinFace cell={selectedSkin.cell} size={34} className="shrink-0 rounded-full bg-black/30" />
+              <div className="min-w-0 leading-tight">
+                <p className="truncate font-display text-[13px] font-extrabold text-white">Hi, {userName}!</p>
                 <p className="text-[10px] font-bold text-[#E8CFA6]">Best {bestOverall}</p>
               </div>
             </div>
@@ -222,11 +222,12 @@ export function PotatoNinjaApp() {
           <CoinPill coins={coins} onPlus={() => go("shop")} />
         </header>
 
-        <div className="relative z-10 mt-4 flex flex-col items-center">
+        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+        <div className="mt-4 flex flex-col items-center">
           <Logo />
         </div>
 
-        <div className="relative z-10 mx-auto mt-6 flex w-full max-w-xs flex-col gap-3 px-4">
+        <div className="mx-auto mt-6 flex w-full max-w-xs flex-col gap-3 px-4 pb-3">
           <NinjaButton variant="green" icon="play" onClick={() => chooseMode("classic")}>
             Classic Mode
           </NinjaButton>
@@ -240,19 +241,20 @@ export function PotatoNinjaApp() {
             Challenges
           </NinjaButton>
         </div>
+        </div>
 
-        <div className="relative z-10 mt-auto grid grid-cols-4 gap-2 px-6" style={{ paddingBottom: "calc(1.75rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="relative z-10 grid shrink-0 grid-cols-4 gap-2 px-4" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}>
           {[
             ["skins", "Skins", "🥷"],
             ["shop", "Shop", "🏪"],
             ["leaderboard", "Leaderboard", "🏆"],
             ["settings", "Settings", "⚙️"],
           ].map(([id, label, emoji]) => (
-            <button key={id} type="button" onClick={() => go(id as Screen)} className="flex flex-col items-center gap-1 active:scale-95">
-              <span className="nj-wood flex h-14 w-14 items-center justify-center rounded-2xl text-[26px]">
+            <button key={id} type="button" onClick={() => go(id as Screen)} className="flex min-w-0 flex-col items-center gap-1 active:scale-95">
+              <span className="nj-wood flex h-12 w-12 items-center justify-center rounded-2xl text-[22px] min-[380px]:h-14 min-[380px]:w-14 min-[380px]:text-[26px]">
                 {id === "skins" ? <SkinFace cell={selectedSkin.cell} size={40} /> : emoji}
               </span>
-              <span className="font-display text-[11px] font-extrabold text-[#F3E3C6]">{label}</span>
+              <span className="w-full text-center font-display text-[10px] font-extrabold leading-tight text-[#F3E3C6] min-[380px]:text-[11px]">{label}</span>
             </button>
           ))}
         </div>
