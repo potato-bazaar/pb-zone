@@ -74,7 +74,7 @@ export function TaterMatchHome({
       <div
         className="relative z-10 flex min-h-0 flex-1 flex-col px-4"
         style={{
-          paddingTop: "max(2.75rem, calc(var(--header-top) - 0.35rem))",
+          paddingTop: "max(0.35rem, var(--header-top))",
           paddingBottom: "calc(2.25rem + env(safe-area-inset-bottom, 0px))",
         }}
       >
@@ -83,7 +83,7 @@ export function TaterMatchHome({
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[#2B1F7A] shadow-[0_4px_14px_rgba(0,0,0,0.28)] ring-1 ring-white active:scale-95"
+            className="hit-slop flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[#2B1F7A] shadow-[0_4px_14px_rgba(0,0,0,0.28)] ring-1 ring-white active:scale-95"
           >
             <ChevronLeft />
           </button>

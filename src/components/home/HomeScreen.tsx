@@ -62,8 +62,14 @@ function formatCountdown(ms: number) {
 
 function Coin({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src="/images/home/coin.png" alt="" className={`${className} object-contain`} draggable={false} />
+    <Image
+      src="/images/home/coin.png"
+      alt=""
+      width={64}
+      height={64}
+      sizes="32px"
+      className={`${className} object-contain`}
+    />
   );
 }
 
@@ -238,10 +244,10 @@ export function HomeScreen() {
         </div>
       ) : null}
 
-      <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 px-4 pb-3" style={{ paddingTop: "var(--header-top)" }}>
+      <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 px-4 pb-3 [@media(max-height:520px)]:pb-1.5" style={{ paddingTop: "var(--header-top)" }}>
           <div className="home-rise flex min-w-0 items-center gap-3">
             <div className="home-avatar-ring relative shrink-0 rounded-full">
-              <Image src="/images/home/avatar.png" alt="" width={56} height={56} className="h-14 w-14 rounded-full object-cover ring-2 ring-white" unoptimized />
+              <Image src="/images/home/avatar.png" alt="" width={112} height={112} sizes="56px" className="h-14 w-14 rounded-full object-cover ring-2 ring-white [@media(max-height:520px)]:h-11 [@media(max-height:520px)]:w-11" />
               <span className="home-avatar-sprout absolute -top-2 left-1/2 -translate-x-1/2 text-[#3FB05C]" aria-hidden>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                   <path d="M12 22v-8M12 14c-4 0-7-3-7-7 4 0 7 3 7 7zm0 0c4 0 7-3 7-7-4 0-7 3-7 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -256,8 +262,7 @@ export function HomeScreen() {
             </div>
           </div>
           <div id="home-coin-pill" className="home-pill home-rise flex h-11 shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3" style={{ animationDelay: "0.1s" }} role="status" aria-label={`${coins} coins`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/home/coin.png" alt="" className="h-6 w-6 shrink-0 object-contain" draggable={false} />
+            <Coin className="h-6 w-6 shrink-0" />
             <span key={coinPop} className={`text-[15px] font-extrabold tabular-nums text-[#1a1a2e] ${coinPop ? "quiz-pop" : ""}`}>
               {coins.toLocaleString("en-IN")}
             </span>
@@ -266,10 +271,12 @@ export function HomeScreen() {
 
       <div
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "var(--shell-pad)" }}
       >
+          {/* On a short, wide screen (phone landscape) the score card and champion banner sit side by side so the call to action stays above the tab bar. Portrait stays stacked. */}
+          <div className="[@media(max-height:520px)_and_(min-width:520px)]:grid [@media(max-height:520px)_and_(min-width:520px)]:grid-cols-2 [@media(max-height:520px)_and_(min-width:520px)]:items-start [@media(max-height:520px)_and_(min-width:520px)]:gap-2">
           {/* PB score card: Season PB + rank (compete) and lifetime milestone (achieve). Coins live in the wallet pill above. */}
-          <section className="home-card home-rise mb-3 rounded-[1.35rem] px-3.5 py-3" style={{ animationDelay: "0.15s" }}>
+          <section className="home-card home-rise mb-3 rounded-[1.35rem] px-3.5 py-3 [@media(max-height:520px)]:mb-0 [@media(max-height:520px)]:py-2" style={{ animationDelay: "0.15s" }}>
             <div className="flex items-center gap-3">
               <Link href="/pb" className="flex min-w-0 flex-1 items-center gap-2.5">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDE7FF]">
@@ -283,9 +290,8 @@ export function HomeScreen() {
                 </span>
               </Link>
               <div className="mx-1 h-11 w-px bg-[#E6E0F8]" aria-hidden />
-              <Link href="/pb" className="flex shrink-0 items-center gap-2 pr-1">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/home/trophy-pb-clean.png" alt="" className="h-10 w-10 object-contain drop-shadow" draggable={false} />
+              <Link href="/pb" className="flex shrink-0 items-center gap-2 pr-1 max-md:min-h-11">
+                <Image src="/images/home/trophy-pb-clean.png" alt="" width={80} height={80} sizes="40px" className="h-10 w-10 object-contain drop-shadow" />
                 <span className="leading-tight">
                   <span className="block text-[10.5px] font-extrabold uppercase tracking-wider text-[#8B84A8]">Rank</span>
                   <span className="flex items-center gap-1.5 font-display text-[18px] font-extrabold text-[#241A5E]">
@@ -302,11 +308,12 @@ export function HomeScreen() {
           <div className="home-rise" style={{ animationDelay: "0.25s" }}>
             <ChampionBanner />
           </div>
+          </div>
 
           {/* Daily bonus */}
           <section className="home-card home-rise mb-5 mt-3 rounded-[1.35rem] p-3" style={{ animationDelay: "0.35s" }}>
             <div className="flex items-center gap-3">
-              <Image src="/images/home/gift.png" alt="" width={56} height={56} className="home-day-gift h-12 w-12 shrink-0 object-contain" unoptimized />
+              <Image src="/images/home/gift.png" alt="" width={96} height={96} sizes="48px" className="home-day-gift h-12 w-12 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
                 <h3 className="font-display text-[16px] font-extrabold text-[#241A5E]">Daily Bonus</h3>
                 <p className="text-[11px] leading-snug text-[#6B6488]">
@@ -319,7 +326,7 @@ export function HomeScreen() {
                 type="button"
                 onClick={claimDaily}
                 disabled={bonusError && !bonus ? false : !canClaim}
-                className={`relative shrink-0 rounded-full px-4 py-2 font-display text-[13px] font-extrabold transition active:scale-95 disabled:active:scale-100 ${
+                className={`relative shrink-0 rounded-full px-4 py-2 font-display text-[13px] font-extrabold transition active:scale-95 disabled:active:scale-100 max-md:min-h-11 ${
                   claimedToday
                     ? "bg-[#EEFBEA] text-[#1E8A3E] ring-1 ring-[#A9E9B2]"
                     : bonusLoading || claiming
@@ -339,7 +346,7 @@ export function HomeScreen() {
                 {canClaim ? <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" /> : null}
               </button>
             </div>
-            <div className="mt-3 grid grid-cols-7 gap-1.5">
+            <div className="mt-3 grid grid-cols-7 gap-1 min-[361px]:gap-1.5">
               {bonusDays.map((d, i) => {
                 const claimed = d.claimed;
                 const isToday = d.isToday && !d.claimed;
@@ -370,7 +377,7 @@ export function HomeScreen() {
           <section className="home-rise mb-4" style={{ animationDelay: "0.45s" }}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-[20px] font-extrabold text-[#241A5E]">Explore Games</h2>
-              <Link href="/games" className="home-pill inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold text-[#6A5AE0]">
+              <Link href="/games" className="home-pill inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold text-[#6A5AE0] max-md:min-h-11">
                 See All
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="m9 18 6-6-6-6" />
@@ -381,7 +388,7 @@ export function HomeScreen() {
           </section>
 
           {/* Quick links */}
-          <section className="home-rise grid grid-cols-3 gap-2.5" style={{ animationDelay: "0.55s" }}>
+          <section className="home-rise grid grid-cols-1 gap-2 min-[361px]:grid-cols-3 min-[361px]:gap-2.5" style={{ animationDelay: "0.55s" }}>
             <QuickLink href="/games/quiz-time" title="Quizzes" body="Test your knowledge, earn PB" emoji="🎓" />
             <QuickLink href="/rewards" title="Rewards" body="Lifetime PB milestones" emoji="🎁" />
             <QuickLink href="/orders" title="Your Orders" body="Track your purchases" emoji="🛍️" />
@@ -395,15 +402,17 @@ export function HomeScreen() {
 
 function QuickLink({ href, title, body, emoji }: { href: string; title: string; body: string; emoji: string }) {
   return (
-    <Link href={href} className="home-quick flex flex-col gap-1 rounded-2xl p-3">
+    <Link href={href} className="home-quick flex min-h-11 flex-col gap-1 rounded-2xl p-3 max-[360px]:flex-row max-[360px]:items-center max-[360px]:gap-3">
       <span className="text-[24px] leading-none">{emoji}</span>
-      <span className="mt-1 flex items-center justify-between font-display text-[13px] font-extrabold text-[#241A5E]">
-        {title}
-        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#6A5AE0]" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="m9 18 6-6-6-6" />
-        </svg>
+      <span className="min-[361px]:contents max-[360px]:min-w-0 max-[360px]:flex-1">
+        <span className="mt-1 flex items-center justify-between font-display text-[13px] font-extrabold text-[#241A5E] max-[360px]:mt-0 max-[360px]:text-base">
+          {title}
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#6A5AE0]" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+        <span className="text-[10px] leading-snug text-[#6B6488] max-[360px]:text-sm">{body}</span>
       </span>
-      <span className="text-[10px] leading-snug text-[#6B6488]">{body}</span>
     </Link>
   );
 }

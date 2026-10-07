@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -93,9 +94,15 @@ export function GameCarousel({ games }: GameCarouselProps) {
             key={game.id}
             className="home-feature relative w-full shrink-0 snap-start overflow-hidden rounded-[1.6rem] bg-transparent shadow-none [transform:translateZ(0)]"
           >
-            <div className="relative aspect-[16/11] w-full overflow-hidden rounded-[1.6rem] bg-transparent">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={game.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" draggable={false} />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.6rem] bg-transparent md:aspect-[16/11]">
+              <Image
+                src={game.image}
+                alt=""
+                fill
+                sizes="(max-width: 768px) calc(100vw - 2rem), 608px"
+                priority={i === 0}
+                className="object-cover object-[72%_center] md:object-center"
+              />
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d0733]/80 via-[#0d0733]/35 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0d0733]/60 via-transparent to-transparent" />
 
@@ -106,7 +113,7 @@ export function GameCarousel({ games }: GameCarouselProps) {
                   </svg>
                   {game.badge ?? "Featured Game"}
                 </span>
-                <h3 className="font-display text-[26px] font-extrabold leading-none text-white drop-shadow-[0_2px_0_rgba(0,0,0,0.35)]">{game.title}</h3>
+                <h3 className="font-display text-[1.35rem] font-extrabold leading-none text-white drop-shadow-[0_2px_0_rgba(0,0,0,0.35)] min-[361px]:text-[26px]">{game.title}</h3>
                 <p className="mt-1.5 max-w-[210px] text-[12px] font-semibold leading-snug text-white/90">{game.description}</p>
                 {game.tags?.length ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -119,7 +126,7 @@ export function GameCarousel({ games }: GameCarouselProps) {
                 ) : null}
                 <Link
                   href={game.href ?? "/games"}
-                  className="home-cta mt-3 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 font-display text-[14px] font-extrabold text-white"
+                  className="home-cta mt-3 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 font-display text-[14px] font-extrabold text-white max-md:min-h-11"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                     <path d="M7 5v14l11-7L7 5z" />
@@ -129,7 +136,7 @@ export function GameCarousel({ games }: GameCarouselProps) {
               </div>
 
               {i === 0 ? (
-                <span className="home-sticker absolute bottom-4 right-3 rounded-2xl px-3 py-1.5 text-center font-display text-[11px] font-extrabold leading-tight text-[#5A3200]">
+                <span className="home-sticker absolute right-3 top-3 rounded-2xl px-3 py-1.5 text-center font-display text-[11px] font-extrabold leading-tight text-[#5A3200] min-[361px]:bottom-4 min-[361px]:top-auto">
                   Earn PB
                   <br />
                   while you play!
@@ -140,7 +147,7 @@ export function GameCarousel({ games }: GameCarouselProps) {
         ))}
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-1.5" role="tablist" aria-label="Featured games">
+      <div className="mt-1 flex items-center justify-center gap-0 md:mt-3 md:gap-1.5" role="tablist" aria-label="Featured games">
         {games.map((game, i) => (
           <button
             key={game.id}
@@ -149,8 +156,12 @@ export function GameCarousel({ games }: GameCarouselProps) {
             aria-selected={i === active}
             aria-label={`Show ${game.title}`}
             onClick={() => goTo(i)}
-            className={`h-2 rounded-full transition-all duration-300 ${i === active ? "w-6 bg-[#6A5AE0]" : "w-2 bg-[#D4C8FF]"}`}
-          />
+            className="flex h-11 w-11 items-center justify-center md:h-2 md:w-auto"
+          >
+            <span
+              className={`h-2 rounded-full transition-all duration-300 ${i === active ? "w-6 bg-[#6A5AE0]" : "w-2 bg-[#D4C8FF]"}`}
+            />
+          </button>
         ))}
       </div>
     </div>

@@ -5,14 +5,10 @@ import type { QuizLanguage } from "@/lib/quizApi";
 import {
   ArrowRightIcon,
   Burst,
-  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  GlobeIcon,
-  LanguageMark,
   ScoreBadge,
   StarShape,
-  type LanguageMarkKind,
   type ScoreBadgeKind,
 } from "@/components/quiz/QuizHowToIcons";
 
@@ -139,17 +135,6 @@ const STEPS: Step[] = [
   },
 ];
 
-const LANG_OPTIONS: {
-  code: QuizLanguage;
-  label: string;
-  native: string;
-  mark: LanguageMarkKind;
-}[] = [
-  { code: "en", label: "English", native: "English", mark: "uk" },
-  { code: "hi", label: "Hindi", native: "हिंदी", mark: "in" },
-  { code: "gu", label: "Gujarati", native: "ગુજરાતી", mark: "gu" },
-];
-
 const DEFAULT_SCORING = {
   pointsPerCorrect: 20,
   completeQuizBonus: 30,
@@ -163,7 +148,6 @@ export function QuizHowToPlay({
   error = null,
   scoring,
 }: HowToPlayProps) {
-  const [language, setLanguage] = useState<QuizLanguage>("en");
   const [openStep, setOpenStep] = useState<string | null>(null);
   const uid = useId();
   const points = {
@@ -186,17 +170,17 @@ export function QuizHowToPlay({
     { kind: "complete", label: "Complete Quiz Bonus", value: points.completeQuizBonus },
   ];
   const scoringHeadingId = `${uid}-scoring`;
-  const languageHeadingId = `${uid}-language`;
 
   return (
     <div className="qh-bg relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden">
       <div
-        className="qh-scroll-fade relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-10 [-webkit-overflow-scrolling:touch]"
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4"
         style={{
-          paddingTop: "max(3.25rem, calc(var(--header-top) + 0.5rem))",
+          paddingTop: "max(0.65rem, env(safe-area-inset-top, 0px))",
+          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
         }}
       >
-        <header className="relative">
+        <header className="relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`${ART}/howto-header.webp`}
@@ -204,18 +188,18 @@ export function QuizHowToPlay({
             draggable={false}
             width={420}
             height={346}
-            className="qh-float pointer-events-none absolute -right-[14px] -top-7 w-[clamp(64px,20vw,84px)] select-none object-contain opacity-85"
+            className="qh-float pointer-events-none absolute -right-2 -top-1 w-[clamp(52px,16vw,72px)] select-none object-contain opacity-85"
           />
-          <div className="relative grid grid-cols-[2.75rem_1fr_2.75rem] items-center">
+          <div className="relative grid grid-cols-[2.5rem_1fr_2.5rem] items-center">
             <button
               type="button"
               onClick={onBack}
               aria-label="Back"
-              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#DFD8FA] bg-[linear-gradient(180deg,#FFFFFF,#F4F4FD)] text-[#180A5E] shadow-[0_4px_10px_-4px_rgba(91,63,217,0.25)] transition active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#7C5CFF] focus-visible:ring-offset-2"
+              className="hit-slop flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#DFD8FA] bg-[linear-gradient(180deg,#FFFFFF,#F4F4FD)] text-[#180A5E] shadow-[0_4px_10px_-4px_rgba(91,63,217,0.25)] transition active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#7C5CFF] focus-visible:ring-offset-2"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
-            <h1 className="relative justify-self-center whitespace-nowrap font-display text-[clamp(1.4rem,7.4vw,2rem)] font-bold uppercase leading-none tracking-[0.01em] text-[#1B0B63]">
+            <h1 className="relative max-w-full justify-self-center whitespace-nowrap font-display text-[clamp(1.05rem,5.4vw,1.75rem)] font-bold uppercase leading-none tracking-[0.01em] text-[#1B0B63]">
               <Burst
                 side="left"
                 className="qh-twinkle absolute -left-[0.95em] top-1/2 h-[0.75em] w-[0.75em] -translate-y-1/2 text-[#FDC403]"
@@ -231,7 +215,7 @@ export function QuizHowToPlay({
           />
         </header>
 
-        <ol role="list" className="mt-4 flex flex-col gap-2.5">
+        <ol role="list" className="mt-2 flex flex-col gap-1.5">
           {steps.map((step, i) => {
             const open = openStep === step.key;
             const detailId = `${uid}-step-${step.key}`;
@@ -241,10 +225,10 @@ export function QuizHowToPlay({
                 className="qh-rise"
                 style={{ animationDelay: `${60 + i * 70}ms` }}
               >
-                <div className="relative flex items-center gap-2.5 rounded-2xl border border-[#ECE8F9] bg-[linear-gradient(180deg,#FFFFFF_60%,#FAFAFD)] py-2.5 pl-2.5 pr-1.5 shadow-[0_6px_16px_-8px_rgba(91,63,217,0.18)] transition-transform has-[button:active]:scale-[0.985]">
+                <div className="relative flex items-center gap-2 rounded-2xl border border-[#ECE8F9] bg-[linear-gradient(180deg,#FFFFFF_60%,#FAFAFD)] py-1.5 pl-2 pr-1 shadow-[0_6px_16px_-8px_rgba(91,63,217,0.18)] transition-transform has-[button:active]:scale-[0.985]">
                   <span
                     aria-hidden
-                    className="qh-tile relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px]"
+                    className="qh-tile relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                     style={{ background: step.tone.tile }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -254,22 +238,22 @@ export function QuizHowToPlay({
                       draggable={false}
                       width={192}
                       height={192}
-                      className="h-11 w-11 object-contain"
+                      className="h-8 w-8 object-contain"
                       style={{ filter: `drop-shadow(0 5px 6px ${step.tone.glow})` }}
                     />
-                    <Burst className="absolute right-0.5 top-[3px] h-4 w-4 text-[#FDC403]" />
+                    <Burst className="absolute right-0 top-0.5 h-3 w-3 text-[#FDC403]" />
                   </span>
-                  <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <div className="flex min-w-0 flex-1 items-start gap-1.5">
                     <span
                       aria-hidden
-                      className="mt-px flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[12.5px] font-extrabold tabular-nums"
+                      className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold tabular-nums"
                       style={{ background: step.tone.badge, color: step.tone.digit }}
                     >
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h2
-                        className="text-[16px] font-extrabold leading-6"
+                        className="text-[14px] font-extrabold leading-tight"
                         style={{ color: step.tone.title }}
                       >
                         {/* The ::after overlay makes the whole card the hit area; z-[1] keeps it above the rotated chevron and fading detail. */}
@@ -284,7 +268,7 @@ export function QuizHowToPlay({
                         </button>
                       </h2>
                       <p
-                        className="mt-0.5 text-[13px] leading-[1.38] text-pretty"
+                        className="mt-0.5 text-[12px] leading-snug text-pretty"
                         style={{ color: step.tone.body }}
                       >
                         {step.body}
@@ -320,7 +304,7 @@ export function QuizHowToPlay({
 
         <section
           aria-labelledby={scoringHeadingId}
-          className="qh-rise qh-panel relative mt-5 overflow-hidden rounded-2xl p-2 pt-3"
+          className="qh-rise qh-panel relative mt-2 shrink-0 overflow-hidden rounded-2xl p-1.5 pt-2"
           style={{ animationDelay: "420ms" }}
         >
           <StarShape className="pointer-events-none absolute left-[5%] top-4 h-3.5 w-3.5 text-[#DCCFFD]" />
@@ -328,7 +312,7 @@ export function QuizHowToPlay({
           <StarShape className="pointer-events-none absolute right-[11%] top-8 h-2.5 w-2.5 text-[#DCCFFD]" />
           <h2
             id={scoringHeadingId}
-            className="relative flex items-center justify-center gap-2 font-display text-[19px] font-bold uppercase tracking-[0.03em] text-[#6514F0]"
+            className="relative flex items-center justify-center gap-1.5 font-display text-[16px] font-bold uppercase tracking-[0.03em] text-[#6514F0]"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -337,24 +321,24 @@ export function QuizHowToPlay({
               draggable={false}
               width={112}
               height={112}
-              className="h-7 w-7 object-contain"
+              className="h-6 w-6 object-contain"
             />
             Scoring System
           </h2>
           <ul
             role="list"
-            className="relative mt-2.5 rounded-xl bg-white px-3 shadow-[0_4px_14px_-8px_rgba(91,63,217,0.25),inset_0_0_0_1px_#F3F1FC]"
+            className="relative mt-1.5 rounded-xl bg-white px-2.5 shadow-[0_4px_14px_-8px_rgba(91,63,217,0.25),inset_0_0_0_1px_#F3F1FC]"
           >
             {scoringRows.map((row) => (
               <li
                 key={row.kind}
-                className="flex items-center gap-3 border-b border-[#E7E2F8] py-2.5 last:border-b-0"
+                className="flex items-center gap-2 border-b border-[#E7E2F8] py-1.5 last:border-b-0"
               >
-                <ScoreBadge kind={row.kind} className="h-8 w-8" />
-                <span className="min-w-0 flex-1 text-[15px] font-semibold text-[#07035D]">
+                <ScoreBadge kind={row.kind} className="h-7 w-7" />
+                <span className="min-w-0 flex-1 text-[13px] font-semibold text-[#07035D]">
                   {row.label}
                 </span>
-                <span className="shrink-0 rounded-[10px] bg-[#EDE8FD] px-3 py-1 text-[15px] font-extrabold tabular-nums text-[#5012F5]">
+                <span className="shrink-0 rounded-[10px] bg-[#EDE8FD] px-2.5 py-0.5 text-[13px] font-extrabold tabular-nums text-[#5012F5]">
                   +{row.value} PB
                 </span>
               </li>
@@ -363,81 +347,13 @@ export function QuizHowToPlay({
         </section>
       </div>
 
-      {/* Language and Start stay pinned together, so the language choice is always seen before starting. */}
       <div
-        className="relative z-20 shrink-0 px-4 pt-1"
+        className="relative z-20 shrink-0 px-4 pt-2"
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <p role="status" className="sr-only">
           {starting ? "Starting quiz…" : ""}
         </p>
-        <section aria-labelledby={languageHeadingId}>
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent to-[#C6BEF9]" />
-            <h2
-              id={languageHeadingId}
-              className="flex items-center gap-1.5 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-[#430FF5]"
-            >
-              <GlobeIcon className="h-[18px] w-[18px] text-[#552BF7]" />
-              Choose Language
-            </h2>
-            <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C6BEF9]" />
-          </div>
-          {/* Sized in em off one clamped font-size so all three chips fit on one row from 320px up; they wrap rather than truncate. */}
-          <div
-            role="radiogroup"
-            aria-labelledby={languageHeadingId}
-            className="mt-2.5 flex flex-wrap gap-[0.42em] text-[clamp(12px,3.72vw,14.5px)]"
-          >
-            {LANG_OPTIONS.map((opt) => {
-              const selected = language === opt.code;
-              return (
-                <label
-                  key={opt.code}
-                  className={`relative flex min-h-[4em] flex-auto cursor-pointer items-center gap-[0.42em] rounded-[1.25em] border py-[0.5em] pl-[0.5em] pr-[0.6em] transition-[background-color,border-color,box-shadow] duration-300 motion-reduce:transition-none has-[:focus-visible]:outline-hidden has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#7C5CFF] has-[:focus-visible]:ring-offset-2 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 ${
-                    selected
-                      ? "border-[#4318E5] bg-[linear-gradient(45deg,#452BD1_0%,#6A40F4_50%,#8A4FFB_100%)] text-white shadow-[0_8px_16px_-6px_rgba(105,64,244,0.55),inset_0_1px_0_#9558FD]"
-                      : "border-[#E2DAFB] bg-[linear-gradient(180deg,#FEFDFF,#F7F4FE)] text-[#260A87] shadow-[0_4px_12px_-8px_rgba(91,63,217,0.3)]"
-                  }`}
-                >
-                  {/* Covers the whole chip so touch exploration in screen readers lands on the radio. */}
-                  <input
-                    type="radio"
-                    name={`${uid}-language-choice`}
-                    value={opt.code}
-                    checked={selected}
-                    disabled={starting}
-                    onChange={() => setLanguage(opt.code)}
-                    className="absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none rounded-[inherit] opacity-0 disabled:cursor-not-allowed"
-                  />
-                  <LanguageMark kind={opt.mark} selected={selected} className="h-[1.95em] w-[1.95em]" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block whitespace-nowrap text-[1em] font-extrabold leading-tight">
-                      {opt.label}
-                    </span>
-                    <span
-                      lang={opt.code}
-                      aria-hidden={opt.native === opt.label || undefined}
-                      className={`block whitespace-nowrap text-[0.83em] font-medium leading-tight ${
-                        selected ? "text-white" : "text-[#5340AE]"
-                      }`}
-                    >
-                      {opt.native}
-                    </span>
-                  </span>
-                  {selected ? (
-                    <span
-                      aria-hidden
-                      className="qh-pop flex h-[1.4em] w-[1.4em] shrink-0 items-center justify-center rounded-full bg-white text-[#4A1FF0] shadow-[0_2px_6px_rgba(30,10,120,0.35)]"
-                    >
-                      <CheckIcon className="h-[0.9em] w-[0.9em]" />
-                    </span>
-                  ) : null}
-                </label>
-              );
-            })}
-          </div>
-        </section>
         {error ? (
           <p
             role="alert"
@@ -446,23 +362,23 @@ export function QuizHowToPlay({
             {error}
           </p>
         ) : null}
-        <div className="relative mt-3 px-2.5">
+        <div className="relative mt-2 px-2.5">
           <Burst side="left" className="qh-twinkle absolute -left-1 -top-2 h-6 w-6 text-[#FECC5B]" />
           <Burst className="qh-twinkle absolute -right-1 -top-2 h-6 w-6 text-[#FDD58A]" />
           {/* aria-disabled (not disabled) keeps focus on the button while the quiz starts. */}
           <button
             type="button"
             onClick={() => {
-              if (!starting) onStart(language);
+              if (!starting) onStart("en");
             }}
             aria-disabled={starting || undefined}
-            className="qh-start relative flex h-[60px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-full text-[22px] font-extrabold text-white forced-colors:border-2"
+            className="qh-start relative flex h-[52px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-full text-[20px] font-extrabold text-white forced-colors:border-2"
           >
             <span aria-hidden className="qh-sheen pointer-events-none absolute inset-0" />
             <span className="relative">{starting ? "Starting…" : "Start Quiz"}</span>
             <span
               aria-hidden
-              className="absolute right-2 flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(180deg,#FFFFFF,#F1F0FD)] text-[#4F1FE9] shadow-[0_4px_10px_-2px_rgba(40,20,140,0.45)]"
+              className="absolute right-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#FFFFFF,#F1F0FD)] text-[#4F1FE9] shadow-[0_4px_10px_-2px_rgba(40,20,140,0.45)]"
             >
               {starting ? (
                 <span className="quiz-spinner block h-5 w-5 rounded-full border-[2.5px] border-[#4F1FE9]/25 border-t-[#4F1FE9]" />

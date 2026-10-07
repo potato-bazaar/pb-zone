@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppBottomNav } from "@/components/layout/AppBottomNav";
@@ -118,7 +119,7 @@ export function PbProfileScreen() {
           </h1>
           <div className="mt-3 flex flex-col items-center">
             <PlayerAvatar size="xl" ringClass="ring-white" />
-            <h2 className="mt-3 font-display text-[24px] font-extrabold text-white drop-shadow">
+            <h2 className="mt-3 max-w-full break-words px-2 text-center font-display text-[clamp(1.15rem,6vw,1.5rem)] font-extrabold text-white drop-shadow">
               {userName || "Potato Player"}
             </h2>
             <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#6A5AE0] px-3 py-1 text-[12px] font-extrabold text-white shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
@@ -132,32 +133,30 @@ export function PbProfileScreen() {
       {/* Curved sheet on top — scroll clips content under the rounded edge */}
       <div
         className="relative z-40 -mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-[#F5F3FF] px-4 pt-5 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "var(--shell-pad)" }}
       >
           {/* Stats */}
           <div className="space-y-3.5">
           <SectionCard className="grid grid-cols-3 divide-x divide-[#F1EEFA] p-0 py-3">
-            <div className="px-2 text-center">
-              <p className="text-[11px] font-bold text-[#8B84A8]">Earned PB Coins</p>
-              <p className="mt-1 flex items-center justify-center gap-1 font-display text-[24px] font-extrabold text-[#241A5E]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/home/coin-transparent.png" alt="" className="h-6 w-6 object-contain" draggable={false} />
+            <div className="min-w-0 px-1.5 text-center min-[361px]:px-2">
+              <p className="text-[10px] font-bold leading-tight text-[#8B84A8] min-[361px]:text-[11px]">Earned PB Coins</p>
+              <p className="mt-1 flex items-center justify-center gap-1 font-display text-[1.15rem] font-extrabold text-[#241A5E] min-[361px]:text-[24px]">
+                <Image src="/images/home/coin-transparent.png" alt="" width={48} height={48} sizes="24px" className="h-6 w-6 object-contain" />
                 <span className="tabular-nums">{walletReady ? earnedCoins.toLocaleString("en-IN") : "—"}</span>
               </p>
               <p className="text-[10px] font-semibold text-[#8B84A8]">for rewards</p>
             </div>
-            <div className="px-2 text-center">
-              <p className="text-[11px] font-bold text-[#8B84A8]">Rank</p>
-              <p className="mt-1 font-display text-[24px] font-extrabold text-[#6A5AE0]">
+            <div className="min-w-0 px-1.5 text-center min-[361px]:px-2">
+              <p className="text-[10px] font-bold leading-tight text-[#8B84A8] min-[361px]:text-[11px]">Rank</p>
+              <p className="mt-1 font-display text-[1.15rem] font-extrabold text-[#6A5AE0] min-[361px]:text-[24px]">
                 {walletReady ? (shownRank != null ? `#${shownRank}` : "—") : "—"}
               </p>
               <p className="text-[10px] font-semibold text-[#8B84A8]">leaderboard</p>
             </div>
-            <div className="px-2 text-center">
-              <p className="text-[11px] font-bold text-[#8B84A8]">Bonus Coins</p>
-              <p className="mt-1 flex items-center justify-center gap-1 font-display text-[24px] font-extrabold text-[#241A5E]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/home/coin-transparent.png" alt="" className="h-6 w-6 object-contain" draggable={false} />
+            <div className="min-w-0 px-1.5 text-center min-[361px]:px-2">
+              <p className="text-[10px] font-bold leading-tight text-[#8B84A8] min-[361px]:text-[11px]">Bonus Coins</p>
+              <p className="mt-1 flex items-center justify-center gap-1 font-display text-[1.15rem] font-extrabold text-[#241A5E] min-[361px]:text-[24px]">
+                <Image src="/images/home/coin-transparent.png" alt="" width={48} height={48} sizes="24px" className="h-6 w-6 object-contain" />
                 <span className="tabular-nums">{walletReady ? bonusCoins.toLocaleString("en-IN") : "—"}</span>
               </p>
               <p className="text-[10px] font-semibold text-[#8B84A8]">welcome bonus</p>
@@ -193,7 +192,7 @@ export function PbProfileScreen() {
           <SectionCard>
             <div className="flex items-center justify-between">
               <h3 className="font-display text-[16px] font-extrabold text-[#241A5E]">Top Games This Season</h3>
-              <Link href="/pb" className="text-[12px] font-extrabold text-[#6A5AE0]">
+              <Link href="/pb" className="inline-flex min-h-11 items-center text-[12px] font-extrabold text-[#6A5AE0] md:min-h-0">
                 Leaderboards ›
               </Link>
             </div>
@@ -262,10 +261,10 @@ export function PbProfileScreen() {
           </SectionCard>
 
           <div className="grid grid-cols-2 gap-2 pb-2">
-            <Link href="/pb" className="flex items-center justify-center rounded-full bg-[#6A5AE0] py-3 text-[13px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-[0.98]">
+            <Link href="/pb" className="flex min-h-11 items-center justify-center rounded-full bg-[#6A5AE0] py-3 text-[13px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-[0.98]">
               🏆 Leaderboard
             </Link>
-            <Link href="/orders" className="flex items-center justify-center rounded-full bg-white py-3 text-[13px] font-extrabold text-[#6A5AE0] ring-1 ring-[#D4C8FF] active:scale-[0.98]">
+            <Link href="/orders" className="flex min-h-11 items-center justify-center rounded-full bg-white py-3 text-[13px] font-extrabold text-[#6A5AE0] ring-1 ring-[#D4C8FF] active:scale-[0.98]">
               🛍️ Your Orders
             </Link>
           </div>

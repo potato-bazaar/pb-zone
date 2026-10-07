@@ -138,13 +138,15 @@ export function AppBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 rounded-t-[1.75rem] bg-[#F5F3FF] shadow-[0_-4px_20px_rgba(106,90,224,0.06)]"
+      className="app-tabbar fixed inset-x-0 bottom-0 z-50 rounded-t-[1.75rem] bg-[#F5F3FF] shadow-[0_-4px_20px_rgba(106,90,224,0.06)]"
       aria-label="Main"
       style={{
-        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "var(--nav-pad)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
       }}
     >
-      <div className="mx-auto flex h-[4.25rem] w-full max-w-screen-sm items-center justify-around px-1.5 pt-1">
+      <div className="mx-auto flex w-full max-w-screen-sm items-center justify-around px-1.5 pt-1" style={{ height: "var(--nav-row)" }}>
         {tabs.map((tab) => {
           const active = tab.match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
           const Icon = tab.Icon;

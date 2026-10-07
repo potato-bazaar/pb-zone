@@ -94,7 +94,7 @@ export function SeasonPrizesScreen() {
 
   return (
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
-      <div className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]" style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]" style={{ paddingBottom: "var(--shell-pad)" }}>
         <div className="quiz-farm relative overflow-hidden pb-8">
           <div className="absolute inset-0 bg-gradient-to-b from-[#241A5E]/60 via-[#241A5E]/30 to-[#F5F3FF]" aria-hidden />
           <div className="relative z-10">
@@ -114,14 +114,14 @@ export function SeasonPrizesScreen() {
         </div>
 
         <div className="-mt-3 space-y-3 px-4">
-          <SectionCard className="flex items-center justify-between bg-gradient-to-br from-[#EDE7FF] to-[#E1DBFF]">
-            <div>
+          <SectionCard className="flex flex-col items-stretch gap-3 bg-gradient-to-br from-[#EDE7FF] to-[#E1DBFF] min-[361px]:flex-row min-[361px]:items-center min-[361px]:justify-between min-[361px]:gap-0">
+            <div className="min-w-0">
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#6A5AE0]">You right now</p>
               <p className="font-display text-[22px] font-extrabold text-[#241A5E]">
                 #{live?.rank ?? seasonRank} <span className="text-[14px] text-[#3D2E7A]">· {(live?.points ?? state.seasonPoints).toLocaleString("en-IN")} PB</span>
               </p>
             </div>
-            <Link href="/pb" className="rounded-full bg-[#6A5AE0] px-4 py-2 text-[12px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-95">
+            <Link href="/pb" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#6A5AE0] px-4 py-2 text-[12px] font-extrabold text-white shadow-[0_6px_16px_rgba(106,90,224,0.35)] active:scale-95 md:min-h-0">
               Leaderboard
             </Link>
           </SectionCard>

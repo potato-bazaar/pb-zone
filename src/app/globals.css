@@ -14,13 +14,33 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Status bar / notch — env() direct + generous fallback when inset is 0 (desktop preview) */
-  --header-top: max(3.75rem, calc(env(safe-area-inset-top, 0px) + 1rem));
+  /* Phones: sit under the notch when one exists, otherwise a small gap. */
+  --header-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  --nav-pad: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  --nav-row: 4.25rem;
+  /* Clears the tab bar. 4.25 + 1.25 + 1.75 = 7.25rem, matching the previous inset. */
+  --shell-pad: calc(var(--nav-row) + var(--nav-pad) + 1.75rem);
 }
 
-@media (min-height: 740px) {
+/* Desktop preview keeps the taller status-bar gap. */
+@media (min-width: 768px) {
+  :root {
+    --header-top: max(3.75rem, calc(env(safe-area-inset-top, 0px) + 1rem));
+  }
+}
+
+@media (min-width: 768px) and (min-height: 740px) {
   :root {
     --header-top: max(4rem, calc(env(safe-area-inset-top, 0px) + 1.125rem));
+  }
+}
+
+/* Phone landscape and other short viewports. Portrait phones are taller than this. */
+@media (max-height: 520px) {
+  :root {
+    --header-top: max(0.35rem, calc(env(safe-area-inset-top, 0px) + 0.2rem));
+    --nav-pad: max(0.35rem, env(safe-area-inset-bottom, 0px));
+    --nav-row: 3.25rem;
   }
 }
 
@@ -80,6 +100,23 @@ body {
 .touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Invisible 44px hit area. Visual size stays put, so the desktop column is unchanged. */
+@media (max-width: 767px) {
+  .hit-slop {
+    position: relative;
+  }
+
+  .hit-slop::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* Wavy grass divider between hero and content */

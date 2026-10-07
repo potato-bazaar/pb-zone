@@ -31,7 +31,7 @@ export function Sheet({
         className="crush-fade-in absolute inset-0 bg-[#1a0f3d]/55 backdrop-blur-[2px]"
       />
       <div
-        className={`crush-sheet-in relative w-full max-w-screen-sm rounded-t-[1.75rem] px-5 pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.25)] ${
+        className={`crush-sheet-in relative max-h-[calc(100dvh-0.75rem)] w-full max-w-screen-sm overflow-y-auto rounded-t-[1.75rem] px-5 pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.25)] ${
           tone === "dark" ? "bg-[#2B1A5E] text-white" : "bg-white text-[#1a1a2e]"
         }`}
         style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}

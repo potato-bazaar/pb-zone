@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -187,12 +188,13 @@ function PbRewardsSummaryCard({
         <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
           <SparkleIcon className="absolute -left-0.5 top-0 h-2.5 w-2.5 text-[#F5C84A]" />
           <SparkleIcon className="absolute -right-0.5 bottom-0 h-2.5 w-2.5 text-[#FFD76A]" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/images/home/coin-transparent.png"
             alt=""
+            width={88}
+            height={88}
+            sizes="44px"
             className="relative z-10 h-11 w-11 object-contain drop-shadow-[0_4px_8px_rgba(180,120,0,0.28)]"
-            draggable={false}
           />
         </div>
 
@@ -288,11 +290,20 @@ function RewardModal({
   const title = state === "locked" ? "Keep Growing!" : state === "claimed" ? (physical ? "Reward Claimed!" : "Reward Unlocked!") : "Reward Unlocked!";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="pb-reward-title">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-3"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pb-reward-title"
+      style={{
+        paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       <button type="button" aria-label="Close dialog" className="absolute inset-0 bg-[#1a1a2e]/55 backdrop-blur-[3px]" onClick={onClose} />
-      <div className="relative w-full max-w-[23rem] overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_60px_rgba(26,26,46,0.35)] ring-4 ring-[#B39DFF]/50">
+      <div className="relative flex min-h-0 w-full max-w-[23rem] flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_60px_rgba(26,26,46,0.35)] ring-4 ring-[#B39DFF]/50" style={{ maxHeight: "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))" }}>
         {/* Hero */}
-        <div className="relative h-[15.5rem] overflow-hidden bg-[#2A1E6E]">
+        <div className="relative h-[clamp(7.5rem,32dvh,15.5rem)] shrink-0 overflow-hidden bg-[#2A1E6E]">
           <div
             className="absolute inset-0"
             aria-hidden
@@ -310,7 +321,7 @@ function RewardModal({
               aria-hidden
             />
           ))}
-          <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm active:scale-95">
+          <button type="button" aria-label="Close" onClick={onClose} className="hit-slop absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm active:scale-95">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
               <path d="M6 6l12 12M18 6 6 18" />
             </svg>
@@ -321,7 +332,7 @@ function RewardModal({
             <div className={`relative z-10 -mb-3 flex items-center justify-center ${state === "locked" ? "grayscale" : ""}`}>
               {m.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.image} alt="" className="h-32 w-32 object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.45)]" draggable={false} />
+                <img src={m.image} alt="" className="h-[clamp(4.5rem,22dvh,8rem)] w-auto max-w-[8rem] object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.45)]" draggable={false} />
               ) : (
                 <span className="text-[88px] leading-none drop-shadow-[0_12px_20px_rgba(0,0,0,0.45)]">{m.emoji}</span>
               )}
@@ -342,7 +353,7 @@ function RewardModal({
         </div>
 
         {/* Body */}
-        <div className="px-5 pb-5 pt-4 text-center">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-4 text-center">
           <h2 id="pb-reward-title" className="font-display text-[26px] font-extrabold leading-none text-[#241A5E]">
             {title.split(" ")[0]} <span className="text-[#6A5AE0]">{title.split(" ").slice(1).join(" ")}</span>
           </h2>
@@ -418,27 +429,31 @@ function RewardModal({
             </div>
           )}
 
+          {state === "claimable" ? (
+            <div className="mt-3 flex items-start gap-3 rounded-2xl bg-[#EDE7FF] px-4 py-3 text-left">
+              <span className="mt-0.5 shrink-0 text-[#6A5AE0]">
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
+                  <path d="M12 2.5a7 7 0 0 0-7 7c0 5.25 7 12 7 12s7-6.75 7-12a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-[#241A5E]">Add your address details</p>
+                <p className="text-[12px] font-semibold leading-snug text-[#6B6488]">We&apos;ll need your delivery details to send this reward to you.</p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="shrink-0 px-5 pb-4 pt-2 text-center">
           {state === "need-coins" ? (
-            <Link href="/games" className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+            <Link href="/games" className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Play to earn coins
             </Link>
           ) : state === "claimable" ? (
             <>
-              <div className="mt-3 flex items-start gap-3 rounded-2xl bg-[#EDE7FF] px-4 py-3 text-left">
-                <span className="mt-0.5 text-[#6A5AE0]">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
-                    <path d="M12 2.5a7 7 0 0 0-7 7c0 5.25 7 12 7 12s7-6.75 7-12a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-[14px] font-extrabold text-[#241A5E]">Add your address details</p>
-                  <p className="text-[12px] font-semibold leading-snug text-[#6B6488]">We&apos;ll need your delivery details to send this reward to you.</p>
-                </div>
-              </div>
               <button
                 type="button"
                 onClick={onClaim}
-                className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]"
+                className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] px-3 py-3.5 font-display text-[15px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99] min-[380px]:text-[17px]"
               >
                 <TruckIcon className="h-5 w-5" />
                 Add Address &amp; Claim
@@ -446,16 +461,16 @@ function RewardModal({
                   <path d="m9 18 6-6-6-6" />
                 </svg>
               </button>
-              <button type="button" onClick={onClose} className="mt-2 w-full py-2 text-[14px] font-bold text-[#8B84A8]">
+              <button type="button" onClick={onClose} className="mt-1 w-full py-2 text-[14px] font-bold text-[#8B84A8]">
                 Maybe later
               </button>
             </>
           ) : state === "locked" ? (
-            <Link href="/games" className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+            <Link href="/games" className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Play to earn PB
             </Link>
           ) : (
-            <button type="button" onClick={onClose} className="mt-4 flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+            <button type="button" onClick={onClose} className="flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Awesome!
             </button>
           )}
@@ -538,12 +553,14 @@ export function PbRewardsScreen() {
       {/* Hero — full banner, no side crop */}
       <div className="relative z-30 shrink-0 overflow-hidden bg-[#7EB8E8]">
         <h1 className="sr-only">PB Rewards</h1>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/rewards/pb-rewards-hero.png?v=2"
+        <Image
+          src="/images/rewards/pb-rewards-hero.png"
           alt=""
-          className="pointer-events-none relative z-10 block w-full h-auto"
-          draggable={false}
+          width={1280}
+          height={720}
+          sizes="(max-width: 768px) 100vw, 640px"
+          priority
+          className="pointer-events-none relative z-10 block h-auto w-full"
         />
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-8 bg-gradient-to-b from-transparent to-[#F5F3FF]"
@@ -554,7 +571,7 @@ export function PbRewardsScreen() {
       {/* Curved sheet — ladder scrolls under the rounded edge */}
       <div
         className="relative z-40 -mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-[#F5F3FF] px-4 pt-5 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "calc(7.25rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "var(--shell-pad)" }}
       >
         <div className="space-y-3.5">
           <PbRewardsSummaryCard
@@ -621,7 +638,7 @@ export function PbRewardsScreen() {
                   <button
                     type="button"
                     onClick={() => setOpen(m)}
-                    className={`flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-2.5 text-left transition active:scale-[0.99] ${card} ${rs === "locked" ? "opacity-90" : ""}`}
+                    className={`flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-2.5 text-left transition active:scale-[0.99] max-[360px]:flex-wrap ${card} ${rs === "locked" ? "opacity-90" : ""}`}
                   >
                     <MilestoneArt m={m} />
                     <div className="min-w-0 flex-1">
@@ -635,6 +652,7 @@ export function PbRewardsScreen() {
                       </p>
                       <p className="text-[10.5px] font-semibold text-[#8B84A8]">{m.typeLabel}</p>
                     </div>
+                    <span className="contents max-[360px]:flex max-[360px]:w-full max-[360px]:basis-full max-[360px]:items-center max-[360px]:justify-between max-[360px]:gap-2 max-[360px]:pl-[4.15rem]">
                     {rs === "claimed" ? (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#DDF5E4] px-2.5 py-1.5 text-[11px] font-extrabold text-[#1E8A3E]">
                         <CheckIcon className="h-3.5 w-3.5" /> Claimed
@@ -644,11 +662,11 @@ export function PbRewardsScreen() {
                         <TruckIcon className="h-4 w-4" /> Claim Now
                       </span>
                     ) : rs === "need-coins" ? (
-                      <span className="w-[5.75rem] shrink-0 text-right text-[10px] font-extrabold leading-tight text-[#6A5AE0]">
+                      <span className="w-[5.75rem] shrink-0 text-right text-[10px] font-extrabold leading-tight text-[#6A5AE0] max-[360px]:w-auto max-[360px]:flex-1 max-[360px]:text-left max-[360px]:text-[13px]">
                         Need {(m.points - earnedCoins).toLocaleString("en-IN")} coins
                       </span>
                     ) : (
-                      <span className="w-[5.75rem] shrink-0 text-right">
+                      <span className="w-[5.75rem] shrink-0 text-right max-[360px]:w-auto max-[360px]:flex-1 max-[360px]:text-left">
                         <span className="block text-[10px] font-bold tabular-nums text-[#8B84A8]">
                           {leadership.toLocaleString("en-IN")} /{" "}
                           {m.points.toLocaleString("en-IN")} PB
@@ -673,6 +691,7 @@ export function PbRewardsScreen() {
                     >
                       <path d="m9 18 6-6-6-6" />
                     </svg>
+                    </span>
                   </button>
                 </li>
               );

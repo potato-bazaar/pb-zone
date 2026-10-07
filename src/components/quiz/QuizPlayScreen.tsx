@@ -701,10 +701,11 @@ export function QuizPlayScreen({
           <p className="quiz-fade mb-2 shrink-0 rounded-2xl bg-[#FEE2E2] px-3 py-1.5 text-center text-[12px] font-semibold text-[#DC2626]">{error}</p>
         ) : null}
 
-        {/* Question card — content-sized, not stretched */}
+        {/* Question card scrolls when the question is long. Lifelines stay pinned below. */}
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
         <section
           key={question.index}
-          className="quiz-card quiz-card-in relative mt-2 shrink-0 rounded-[1.5rem] p-3.5 pb-3"
+          className="quiz-card quiz-card-in relative shrink-0 rounded-[1.5rem] p-3.5 pb-3"
         >
           {timerUrgent ? (
             <span className="quiz-card-urgent pointer-events-none absolute inset-0 rounded-[1.5rem]" aria-hidden />
@@ -865,9 +866,10 @@ export function QuizPlayScreen({
             </div>
           ) : null}
         </section>
+        </div>
 
-        {/* Lifelines — lifted above phone gesture / home bar */}
-        <div className="mt-auto shrink-0 pt-3 pb-1">
+        {/* Lifelines — stay visible when the question card scrolls */}
+        <div className="shrink-0 pt-3 pb-1">
           <div className="quiz-card flex items-stretch rounded-[1.35rem] px-1 py-2">
             <LifelineButton
               label="50:50"

@@ -165,11 +165,11 @@ export function PbHeader({
     <header className="relative z-30 px-4 pb-2" style={{ paddingTop: "var(--header-top)" }}>
       <div className="relative flex min-h-[2.25rem] items-center justify-center">
         {backHref ? (
-          <Link href={backHref} aria-label="Back" className={`absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
+          <Link href={backHref} aria-label="Back" className={`hit-slop absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
             {back}
           </Link>
         ) : onBack ? (
-          <button type="button" onClick={onBack} aria-label="Back" className={`absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
+          <button type="button" onClick={onBack} aria-label="Back" className={`hit-slop absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
             {back}
           </button>
         ) : null}
