@@ -87,7 +87,7 @@ export function TaterMatchPlay({ questions, coins, points, onExit, onComplete }:
   const [learned, setLearned] = useState<string[]>([]);
   const [startedAt] = useState(() => Date.now());
   const [qStartedAt, setQStartedAt] = useState(() => Date.now());
-  const [timeLeft, setTimeLeft] = useState(TATER_SCORING.answerSeconds);
+  const [timeLeft, setTimeLeft] = useState<number>(TATER_SCORING.answerSeconds);
   const [timedOut, setTimedOut] = useState(false);
 
   // Presentation-only state (SPEC §4.3).
