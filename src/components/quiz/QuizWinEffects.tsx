@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 type Piece = {
   x1: number;
@@ -32,7 +32,14 @@ function rng(seed: number) {
  * A fan of confetti: each piece flies out along an angle (degrees; 0 = right, -90 = up),
  * slows, then falls with gravity while spinning and fading.
  */
-function makeBurst(count: number, seed: number, angle: [number, number], speed: [number, number], delayMs: number): Piece[] {
+function makeBurst(
+  count: number,
+  seed: number,
+  angle: [number, number],
+  speed: [number, number],
+  delayMs: number,
+  colors: string[] = COLORS,
+): Piece[] {
   const r = rng(seed);
   return Array.from({ length: count }, () => {
     const a = ((angle[0] + (angle[1] - angle[0]) * r()) * Math.PI) / 180;
@@ -49,17 +56,13 @@ function makeBurst(count: number, seed: number, angle: [number, number], speed: 
       w: round ? 7 : 6 + Math.round(r() * 4),
       h: round ? 7 : 10 + Math.round(r() * 7),
       round,
-      color: COLORS[Math.floor(r() * COLORS.length)],
+      color: colors[Math.floor(r() * colors.length)],
       delay: Math.round(delayMs + r() * 180),
       dur: Math.round(2000 + r() * 900),
       flip: Math.round(260 + r() * 340),
     };
   });
 }
-
-const CENTER = makeBurst(40, 7, [-168, -12], [90, 200], 180);
-const LEFT_POPPER = makeBurst(18, 21, [-82, -48], [170, 250], 430);
-const RIGHT_POPPER = makeBurst(18, 33, [-132, -98], [170, 250], 430);
 
 function Pieces({ pieces }: { pieces: Piece[] }) {
   return pieces.map((p, i) => (
@@ -95,10 +98,19 @@ function Pieces({ pieces }: { pieces: Piece[] }) {
 /**
  * One-shot "you finished!" celebration: a flash and a confetti fan from behind the title, plus
  * two party poppers firing in from the sides. Purely decorative; hidden under reduced motion and
- * unmounted once the pieces have landed.
+ * unmounted once the pieces have landed. `colors` swaps the palette (default: the quiz set); the
+ * piece sets are built per instance with the same seeds, so the output stays deterministic.
  */
-export function WinBurst() {
+export function WinBurst({ colors = COLORS }: { colors?: string[] }) {
   const [active, setActive] = useState(true);
+  const [center, leftPopper, rightPopper] = useMemo(
+    () => [
+      makeBurst(40, 7, [-168, -12], [90, 200], 180, colors),
+      makeBurst(18, 21, [-82, -48], [170, 250], 430, colors),
+      makeBurst(18, 33, [-132, -98], [170, 250], 430, colors),
+    ],
+    [colors],
+  );
   useEffect(() => {
     const t = window.setTimeout(() => setActive(false), 3800);
     return () => window.clearTimeout(t);
@@ -108,13 +120,13 @@ export function WinBurst() {
     <div aria-hidden className="pointer-events-none absolute inset-0 z-30 overflow-hidden motion-reduce:hidden">
       <div className="qd-burst-origin absolute left-1/2">
         <span className="qd-flash" />
-        <Pieces pieces={CENTER} />
+        <Pieces pieces={center} />
       </div>
       <div className="qd-burst-origin absolute left-[6%] translate-y-[130px]">
-        <Pieces pieces={LEFT_POPPER} />
+        <Pieces pieces={leftPopper} />
       </div>
       <div className="qd-burst-origin absolute right-[6%] translate-y-[130px]">
-        <Pieces pieces={RIGHT_POPPER} />
+        <Pieces pieces={rightPopper} />
       </div>
     </div>
   );

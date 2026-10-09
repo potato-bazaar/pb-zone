@@ -8,10 +8,12 @@ import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { recordGameLeaderboard } from "@/lib/leaderboardApi";
 import { withBackendPhotos } from "@/lib/taterMatchApi";
 import {
+  DAILY_QUESTIONS,
   TATER_SCORING,
   applyRoundToProgress,
   buildMixedRound,
   buildRound,
+  INITIAL_TATER_PROGRESS,
   loadTaterProgress,
   modeMeta,
   saveTaterProgress,
@@ -25,6 +27,7 @@ import { TaterMatchHowTo } from "@/components/match/TaterMatchHowTo";
 import { TaterMatchPlay } from "@/components/match/TaterMatchPlay";
 import { TaterMatchProgress } from "@/components/match/TaterMatchProgress";
 import { TaterMatchResult } from "@/components/match/TaterMatchResult";
+import { TaterLoader } from "@/components/match/TaterUi";
 
 type Phase = "home" | "howto" | "progress" | "play" | "result";
 type RoundMode = TaterModeId | "mixed";
@@ -40,8 +43,6 @@ type RoundResult = {
   daily: boolean;
 };
 
-const DAILY_QUESTIONS = 5;
-
 function roundTitle(mode: RoundMode, daily: boolean) {
   if (daily) return "Daily Challenge";
   if (mode === "mixed") return "Mixed Match";
@@ -54,7 +55,9 @@ export function TaterMatchApp() {
   const { coins, pbPoints, addCoins } = usePbCoins();
   const { awardPoints, state: pbState } = usePbPoints();
   const [phase, setPhase] = useState<Phase>("home");
-  const [progress, setProgress] = useState<TaterProgress>(() => loadTaterProgress());
+  // Saved progress lives in localStorage. Start from the empty record so the first
+  // server and client render match, then read the saved record after mount.
+  const [progress, setProgress] = useState<TaterProgress>(INITIAL_TATER_PROGRESS);
   const [mode, setMode] = useState<RoundMode>("mixed");
   const [daily, setDaily] = useState(false);
   const [questions, setQuestions] = useState<TaterQuestion[]>([]);
@@ -67,6 +70,8 @@ export function TaterMatchApp() {
   const dailyAvailable = progress.dailyDoneDate !== todayKey();
 
   useEffect(() => {
+    // localStorage is unavailable during the first render; read it once after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- saved progress is client-only
     setProgress(loadTaterProgress());
   }, []);
 
@@ -165,13 +170,7 @@ export function TaterMatchApp() {
     pushPhase("result");
   }
 
-  const loadingOverlay = startingRound ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
-      <span className="rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-[#1E3A8A] shadow">
-        Loading round…
-      </span>
-    </div>
-  ) : null;
+  const loadingOverlay = startingRound ? <TaterLoader /> : null;
 
   if (phase === "howto") {
     return (

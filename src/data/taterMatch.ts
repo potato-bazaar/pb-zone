@@ -102,8 +102,13 @@ export const TATER_SCORING = {
   coinsDaily: 15,
   pointsDaily: 20,
   fastSeconds: 8,
+  /** Seconds to answer each question. At 0 the match is missed. */
+  answerSeconds: 25,
   questionsPerRound: 10,
 } as const;
+
+/** Questions in the Daily Challenge (a shorter mixed round, once a day). */
+export const DAILY_QUESTIONS = 5;
 
 const VARIETY_BANK: TaterQuestion[] = [
   {
