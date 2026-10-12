@@ -10,11 +10,12 @@ import {
   TaterScreen,
   TaterScroll,
   WalletPills,
+  type TaterTone,
 } from "@/components/match/TaterUi";
 import { SparkleIcon } from "@/components/quiz/QuizCompleteIcons";
-import { ArrowRightIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/quiz/QuizHowToIcons";
-import type { TaterModeId, TaterModeMeta, TaterProgress } from "@/data/taterMatch";
-import { DAILY_QUESTIONS, TATER_MODES, TATER_SCORING } from "@/data/taterMatch";
+import { ArrowRightIcon, CheckIcon, ChevronLeftIcon } from "@/components/quiz/QuizHowToIcons";
+import type { TaterModeId, TaterProgress } from "@/data/taterMatch";
+import { DAILY_QUESTIONS, TATER_SCORING } from "@/data/taterMatch";
 
 type Props = {
   coins: number;
@@ -27,8 +28,32 @@ type Props = {
   onProgress: () => void;
 };
 
-/** Entrance stagger of the mode cards. */
-const MODE_DELAYS = [180, 250, 320] as const;
+/** Entrance stagger of the guideline cards. */
+const GUIDE_DELAYS = [180, 250, 320] as const;
+
+const S = TATER_SCORING;
+
+/** Short lobby guide. Play Now mixes every topic, so the home screen teaches the round instead of asking for a mode. */
+const GUIDES: { tone: TaterTone; icon: string; title: string; body: string }[] = [
+  {
+    tone: "variety",
+    icon: `${ART}/howto-cards.webp`,
+    title: "Match what you see",
+    body: "Varieties, diseases and growth stages, mixed in every round.",
+  },
+  {
+    tone: "disease",
+    icon: `${ART}/howto-tap.webp`,
+    title: "Tap the right photo",
+    body: `Read the prompt and tap once. You have ${S.answerSeconds} seconds.`,
+  },
+  {
+    tone: "growth",
+    icon: `${ART}/howto-learn.webp`,
+    title: "Learn and earn",
+    body: `A tip follows every try. Correct matches pay +${S.pointsCorrect} PB and +${S.coinsCorrect} coins.`,
+  },
+];
 
 /** UI feedback for every press on this screen; the first press also unlocks iOS audio. */
 function press() {
@@ -39,9 +64,8 @@ function press() {
 
 /**
  * Home — the storybook-farm lobby (same scenery as Play): illustrated hero with the detective
- * potato, stats strip, gold daily challenge, mode cards with themed scenery, and the wooden board
- * holding Play Now over the soil. Mode cards and the daily card start a round directly; Play Now
- * starts a mixed round.
+ * potato, stats strip, gold daily challenge, a short how-to-play guide, and the wooden board
+ * holding Play Now over the soil. The daily card and Play Now both start a mixed round.
  */
 export function TaterMatchHome({
   coins,
@@ -212,7 +236,7 @@ export function TaterMatchHome({
           </button>
         </div>
 
-        {/* Mode list. */}
+        {/* How to play — fills the lobby where mode picking used to sit. */}
         <p className="mt-3 flex h-4 items-center gap-1.5 text-[11px] font-extrabold uppercase leading-none tracking-[0.18em] text-[#2F4A30]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -223,22 +247,14 @@ export function TaterMatchHome({
             height={137}
             className="h-4 w-auto select-none"
           />
-          Pick a mode
+          How to play
           <span aria-hidden className="ml-1 h-px flex-1 bg-[#B4CDA1]/70" />
         </p>
-        <ul role="list" className="mt-2 flex flex-col gap-2.5">
-          {TATER_MODES.map((mode, i) => (
-            <ModeCard
-              key={mode.id}
-              mode={mode}
-              delay={MODE_DELAYS[i] ?? 320}
-              onPlay={() => {
-                press();
-                onPlay(mode.id);
-              }}
-            />
+        <ol role="list" className="mt-2 flex flex-col gap-2.5">
+          {GUIDES.map((guide, i) => (
+            <GuideCard key={guide.title} guide={guide} step={i + 1} delay={GUIDE_DELAYS[i] ?? 320} />
           ))}
-        </ul>
+        </ol>
       </TaterScroll>
 
       {/* Footer: Play Now on a wooden board, then the two cream buttons, all over the soil. */}
@@ -321,26 +337,19 @@ function Stat({ icon, value, label, text }: { icon: string; value: string; label
   );
 }
 
-function ModeCard({ mode, delay, onPlay }: { mode: TaterModeMeta; delay: number; onPlay: () => void }) {
-  const tone = TM_TONES[mode.id];
+function GuideCard({
+  guide,
+  step,
+  delay,
+}: {
+  guide: (typeof GUIDES)[number];
+  step: number;
+  delay: number;
+}) {
+  const tone = TM_TONES[guide.tone];
   return (
-    // The rise runs on the li so `.tm-mode:active`'s press transform is not pinned by the animation fill.
     <li className="qh-rise" style={{ animationDelay: `${delay}ms` }}>
-      <button
-        type="button"
-        onClick={onPlay}
-        aria-label={`Play ${mode.title} — ${mode.subtitle}`}
-        className="tm-mode-card tm-mode relative flex h-[62px] w-full items-center gap-3 overflow-hidden rounded-[20px] pl-2 pr-2.5 text-left"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`${ART}/scene-${mode.id}.webp`}
-          alt=""
-          draggable={false}
-          width={600}
-          height={338}
-          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[60%] select-none object-cover object-right"
-        />
+      <div className="tm-mode-card relative flex min-h-[62px] w-full items-center gap-3 overflow-hidden rounded-[20px] py-2 pl-2 pr-3 text-left">
         <span
           aria-hidden
           className="tm-mode-tile relative flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[14px]"
@@ -348,7 +357,7 @@ function ModeCard({ mode, delay, onPlay }: { mode: TaterModeMeta; delay: number;
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`${ART}/mode-${mode.id}.webp`}
+            src={guide.icon}
             alt=""
             draggable={false}
             width={192}
@@ -358,19 +367,19 @@ function ModeCard({ mode, delay, onPlay }: { mode: TaterModeMeta; delay: number;
           />
         </span>
         <span className="relative min-w-0 flex-1">
-          <span className="block truncate font-display text-[18px] font-bold leading-[1.1]" style={{ color: tone.title }}>
-            {mode.title}
+          <span className="block font-display text-[16px] font-bold leading-[1.15]" style={{ color: tone.title }}>
+            {guide.title}
           </span>
-          <span className="mt-0.5 block truncate text-[12px] font-semibold leading-tight text-[#4A5A4C]">{mode.subtitle}</span>
+          <span className="mt-0.5 block text-[12px] font-semibold leading-snug text-[#4A5A4C]">{guide.body}</span>
         </span>
         <span
           aria-hidden
-          className="tm-mode-go relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-          style={{ background: `linear-gradient(180deg, ${tone.accent} 0%, ${tone.ink} 100%)` }}
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold tabular-nums"
+          style={{ background: tone.badge, color: tone.digit }}
         >
-          <ChevronRightIcon className="h-5 w-5" />
+          {step}
         </span>
-      </button>
+      </div>
     </li>
   );
 }

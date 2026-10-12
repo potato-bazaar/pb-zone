@@ -39,12 +39,12 @@ const S = TATER_SCORING;
 
 const STEPS: Step[] = [
   {
-    key: "mode",
+    key: "round",
     tone: "variety",
     icon: `${ART}/howto-cards.webp`,
-    title: "Pick a mode",
-    body: "Variety, Disease or Growth — each one teaches a potato skill.",
-    detail: `Play Now mixes all three. The Daily Challenge is ${DAILY_QUESTIONS} mixed matches, once a day.`,
+    title: "Play a mixed round",
+    body: "Every round mixes variety, disease and growth matches.",
+    detail: `Play Now starts ${S.questionsPerRound} matches. The Daily Challenge is ${DAILY_QUESTIONS} matches, once a day.`,
   },
   {
     key: "tap",
