@@ -23,6 +23,8 @@ import { GameConfigSetupView } from './components/gameconfig/GameConfigSetupView
 import { GameConfigLibraryView } from './components/gameconfig/GameConfigLibraryView';
 import { GameConfigTelemetryView } from './components/gameconfig/GameConfigTelemetryView';
 import { GameConfigPreviewModal } from './components/gameconfig/GameConfigPreviewModal';
+import { Button, EmptyState, Panel } from './components/ui/pb';
+import { CheckCircle2, Gift, Package } from 'lucide-react';
 
 type GameSection = 'active' | 'edit' | 'setup' | 'library' | 'quiz-management' | 'questions' | 'telemetry';
 
@@ -62,6 +64,7 @@ export function App() {
   const [analytics, setAnalytics] = useState<QuizAnalytics | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [headerScrolled, setHeaderScrolled] = useState(false);
   const [isConfigPreviewOpen, setIsConfigPreviewOpen] = useState(false);
   const [regenTargetQuestion, setRegenTargetQuestion] = useState<QuizQuestion | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -267,23 +270,21 @@ export function App() {
   const renderEmptyState = (gameId: string) => {
     const noun = configKind ? CONFIG_LABELS[configKind].packs : 'Quizzes';
     return (
-      <div className="bg-white border border-[#E2E2E2] p-12 text-center space-y-4">
-        <span className="text-4xl">{activeGame?.icon || '🎮'}</span>
-        <h3 className="text-base font-bold text-black">
-          No {noun} Created for "{activeGame?.name}" Yet
-        </h3>
-        <p className="text-xs text-[#6B6B6B] max-w-md mx-auto">
-          {configKind
-            ? `Generate a ${CONFIG_LABELS[configKind].pack.toLowerCase()} with the AI designer. Every ${CONFIG_LABELS[configKind].item.toLowerCase()} can be hand-edited afterwards.`
-            : 'This game has no quiz decks yet. Open Manage to work with the live question bank.'}
-        </p>
-        <button
-          onClick={() => navigate(configKind ? `/games/${gameId}/setup` : `/games/${gameId}/questions`)}
-          className="px-5 py-2.5 bg-black text-white text-xs font-bold hover:bg-[#262626]"
-        >
-          {configKind ? 'Go to Setup' : 'Go to Questions'}
-        </button>
-      </div>
+      <Panel>
+        <EmptyState
+          title={`No ${noun} created for "${activeGame?.name}" yet`}
+          description={
+            configKind
+              ? `Generate a ${CONFIG_LABELS[configKind].pack.toLowerCase()} with the AI designer. Every ${CONFIG_LABELS[configKind].item.toLowerCase()} can be hand-edited afterwards.`
+              : 'This game has no quiz decks yet. Open Manage to work with the live question bank.'
+          }
+          action={
+            <Button onClick={() => navigate(configKind ? `/games/${gameId}/setup` : `/games/${gameId}/questions`)}>
+              {configKind ? 'Go to Setup' : 'Go to Questions'}
+            </Button>
+          }
+        />
+      </Panel>
     );
   };
 
@@ -468,28 +469,33 @@ export function App() {
   const shellSidebar = <Sidebar onNavigate={() => setMobileNavOpen(false)} />;
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground">
-      <div className="hidden h-full md:flex">{shellSidebar}</div>
+    <div className="flex h-screen w-full bg-[#F4FBF6] text-foreground">
+      <div className="hidden h-full lg:flex">{shellSidebar}</div>
       {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
             aria-label="Close navigation"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="relative h-full w-72 max-w-[18rem]">{shellSidebar}</div>
+          <div className="relative h-full w-fit max-w-[85vw] shadow-xl">{shellSidebar}</div>
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className="flex min-w-0 flex-1 flex-col overflow-y-auto"
+        onScroll={(e) => setHeaderScrolled(e.currentTarget.scrollTop > 4)}
+      >
         <Navbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenMobileNav={() => setMobileNavOpen(true)}
+          scrolled={headerScrolled}
+          pendingClaims={winners.filter((w) => !w.prizeClaimed).length}
         />
 
-        <main className="flex-1 overflow-y-auto p-3">
+        <main className="flex-1 px-4 pb-6 pt-2 sm:px-5 xl:px-6 xl:pt-3 2xl:px-[26px]">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route
@@ -531,6 +537,7 @@ export function App() {
                 <PlaceholderView
                   title="Rewards"
                   description="Prize tiers and gift fulfillment for PB Zone games."
+                  icon={Gift}
                 />
               }
             />
@@ -543,6 +550,7 @@ export function App() {
                 <PlaceholderView
                   title="Orders / Claims"
                   description="Reward orders and pending prize claims."
+                  icon={Package}
                 />
               }
             />
@@ -566,8 +574,8 @@ export function App() {
       </div>
 
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-4 py-3 text-xs font-semibold shadow-xl border border-black flex items-center gap-2 animate-fade-in">
-          <span className="h-2 w-2 rounded-full bg-white" />
+        <div className="fixed bottom-4 left-4 right-4 z-50 flex items-center gap-2.5 rounded-xl bg-[#14532D] px-4 py-3 text-sm font-medium text-white shadow-xl sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#86EFAC]" />
           <span>{toastMessage}</span>
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, Eye, Plus, Save, Sparkles, Trash2, Undo2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Save, Sparkles, Trash2, Undo2 } from 'lucide-react';
 import { Game } from '../../types/quiz';
 import {
   CONFIG_LABELS,
@@ -24,6 +24,8 @@ import { ItemRegenModal } from './ItemRegenModal';
 import { GameConfigJsonPanel } from './GameConfigJsonPanel';
 import { summarizeItem } from './configSummary';
 import { Card, DifficultyPill, GhostButton, IconButton, OutlineButton, Pill, PrimaryButton, labelCls } from './ui';
+import { Button, buttonClass, panelClass } from '../ui/pb';
+import { cn } from '../../lib/utils';
 
 interface GameConfigEditorViewProps {
   config: GameConfig;
@@ -44,6 +46,19 @@ const QUICK_PROMPTS: Record<GameConfig['kind'], string[]> = {
   spin: ['Make it a bigger prize', 'Turn it into a small consolation prize', 'Fries-themed voucher', 'Rare but exciting'],
   rush: ['More obstacles, faster pace', 'Add more power-ups', 'Longer run with a coin trail', 'Beginner-friendly warm-up'],
 };
+
+/* Inline-editable title/description: reads as text until hovered or focused. */
+const editableCls =
+  '-mx-2 block w-[calc(100%+1rem)] rounded-xl border border-transparent bg-transparent px-2 py-1 transition-colors hover:border-[#E2E8E4] focus:border-[#86D19A] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#16A34A]/10';
+const collapsedCls = 'rounded-xl bg-[#F6F9F7] px-4 py-3 text-sm text-[#64748B]';
+
+/* Framed from sm up; on phones the previews (which carry their own frames) get the full width. */
+const PreviewFrame: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="min-w-0 sm:rounded-xl sm:border sm:border-[#E6ECE8] sm:bg-white sm:p-4">
+    <span className={labelCls}>{label}</span>
+    {children}
+  </div>
+);
 
 export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
   config,
@@ -133,14 +148,13 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
       case 'crush': {
         const level = content.levels[index];
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-3">
-              <CrushLevelEditor level={level} settings={content.settings} onChange={(l) => updateItem(index, l)} />
-            </div>
-            <div className="lg:col-span-2">
-              <span className={labelCls}>Board preview</span>
-              <CrushLevelPreview level={level} settings={content.settings} />
-            </div>
+          <div className="space-y-5">
+            <CrushLevelEditor level={level} settings={content.settings} onChange={(l) => updateItem(index, l)} />
+            <PreviewFrame label="Board preview">
+              <div className="overflow-x-auto">
+                <CrushLevelPreview level={level} settings={content.settings} />
+              </div>
+            </PreviewFrame>
           </div>
         );
       }
@@ -148,26 +162,26 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
         const seg = content.segments[index];
         const total = content.segments.reduce((s, x) => s + Math.max(0, x.weight), 0);
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
+            <div className="min-w-0">
               <SpinSegmentEditor segment={seg} totalWeight={total} onChange={(s) => updateItem(index, s)} />
             </div>
-            <div className="lg:col-span-2">
-              <span className={labelCls}>Wheel preview</span>
-              <SpinWheelPreview segments={content.segments} settings={content.settings} interactive={false} size={220} />
-            </div>
+            <PreviewFrame label="Wheel preview">
+              <div className="pt-1">
+                <SpinWheelPreview segments={content.segments} settings={content.settings} interactive={false} size={220} />
+              </div>
+            </PreviewFrame>
           </div>
         );
       }
       case 'rush': {
         const run = content.runs[index];
         return (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <RushRunEditor run={run} settings={content.settings} onChange={(r) => updateItem(index, r)} />
-            <div>
-              <span className={labelCls}>Track preview</span>
+            <PreviewFrame label="Track preview">
               <RushRunPreview run={run} settings={content.settings} />
-            </div>
+            </PreviewFrame>
           </div>
         );
       }
@@ -181,16 +195,20 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-base">{s.emoji}</span>
-          <span className="font-bold text-sm text-black">{s.title}</span>
+          <span className="text-sm font-semibold text-[#0F172A]">{s.title}</span>
           <DifficultyPill value={s.badge} />
           {s.chips.map((c) => (
             <Pill key={c}>{c}</Pill>
           ))}
         </div>
-        {content.kind === 'crush' && <CrushLevelPreview level={candidate as CrushLevel} settings={content.settings} />}
-        {content.kind === 'spin' && <p className="text-xs text-[#333333]">{(candidate as WheelSegment).description}</p>}
+        {content.kind === 'crush' && (
+          <div className="overflow-x-auto">
+            <CrushLevelPreview level={candidate as CrushLevel} settings={content.settings} />
+          </div>
+        )}
+        {content.kind === 'spin' && <p className="text-sm text-[#334155]">{(candidate as WheelSegment).description}</p>}
         {content.kind === 'rush' && <RushRunPreview run={candidate as RushRun} settings={content.settings} compact />}
-        <p className="text-[11px] text-[#6B6B6B] italic">
+        <p className="text-xs italic text-[#64748B]">
           {'designerNote' in candidate ? candidate.designerNote : (candidate as WheelSegment).prizeValue}
         </p>
       </div>
@@ -200,63 +218,72 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
   const regenItem = regenIndex !== null ? items[regenIndex] : null;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="flex flex-col gap-4 pb-24 sm:gap-5">
       {/* Header */}
-      <div className="border-b border-[#E2E2E2] pb-5 flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-        <div className="flex-1 space-y-2 max-w-3xl">
-          <div className="flex items-center gap-2 flex-wrap">
+      <section className={cn(panelClass, 'flex flex-col gap-4 p-4 sm:p-5 xl:flex-row xl:items-start xl:justify-between')}>
+        <div className="min-w-0 max-w-3xl flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Pill tone="dark">
               {labels.emoji} {labels.pack}
             </Pill>
-            <Pill tone={config.status === 'published' ? 'green' : 'default'}>{config.status}</Pill>
+            <Pill tone={config.status === 'published' ? 'green' : 'default'} className="capitalize">
+              <span className={`h-1.5 w-1.5 rounded-full ${config.status === 'published' ? 'bg-[#16A34A]' : 'bg-[#94A3B8]'}`} />
+              {config.status}
+            </Pill>
             <Pill tone={draft.generatedBy === 'groq' ? 'purple' : 'default'}>
               {draft.generatedBy === 'groq' ? 'Groq AI' : 'Offline Designer'}
             </Pill>
-            <span className="text-[10px] font-mono text-[#6B6B6B]">
+            <span className="font-mono text-[11px] text-[#64748B]">
               v{draft.version} · {draft.id}
             </span>
           </div>
           <input
             value={draft.title}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            className="w-full text-2xl font-bold tracking-tight text-black bg-transparent border-b border-transparent hover:border-[#E2E2E2] focus:border-black focus:outline-none"
+            className={cn(editableCls, 'text-lg font-bold tracking-[-0.01em] text-[#0B1220] sm:text-xl')}
           />
           <textarea
             rows={2}
             value={draft.description}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            className="w-full text-xs text-[#545454] bg-transparent border border-transparent hover:border-[#E2E2E2] focus:border-black focus:outline-none p-1 -ml-1 resize-none"
+            className={cn(editableCls, 'resize-none text-sm leading-relaxed text-[#5F6F83]')}
           />
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <OutlineButton onClick={onOpenPreview}>
-            <Eye className="h-3.5 w-3.5" /> Preview
+            <Eye className="h-4 w-4" /> Preview
           </OutlineButton>
           <GhostButton onClick={onNavigateToSetup}>
-            <Sparkles className="h-3.5 w-3.5" /> Generate another
+            <Sparkles className="h-4 w-4" /> Generate another
           </GhostButton>
           <GhostButton onClick={handleDiscard} disabled={!isDirty}>
-            <Undo2 className="h-3.5 w-3.5" /> Discard
+            <Undo2 className="h-4 w-4" /> Discard
           </GhostButton>
           <PrimaryButton onClick={handleSave} disabled={!isDirty}>
-            <Save className="h-3.5 w-3.5" /> Save Changes
+            <Save className="h-4 w-4" /> Save Changes
           </PrimaryButton>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 sm:gap-5 xl:col-span-2">
           {/* Hand-edited settings */}
           <Card
             title="Game Settings"
             subtitle="Set by hand. The AI never changes these, it only designs content that respects them."
             right={
-              <button onClick={() => setShowSettings((v) => !v)} className="text-xs font-semibold text-[#6B6B6B] hover:text-black">
+              <button
+                type="button"
+                onClick={() => setShowSettings((v) => !v)}
+                aria-expanded={showSettings}
+                className={buttonClass('ghost', 'sm')}
+              >
+                {showSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 {showSettings ? 'Collapse' : 'Expand'}
               </button>
             }
           >
-            {showSettings ? renderSettingsForm() : <p className="text-xs text-[#6B6B6B]">Settings collapsed.</p>}
+            {showSettings ? renderSettingsForm() : <p className={collapsedCls}>Settings collapsed.</p>}
           </Card>
 
           {/* Items */}
@@ -264,62 +291,79 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
             title={`${labels.items} (${items.length})`}
             subtitle={`Expand a row to edit it. Regenerate asks ${groqOn ? 'Groq' : 'the offline designer'} for a replacement that keeps the same slot.`}
             right={
-              <PrimaryButton onClick={addItem}>
-                <Plus className="h-3.5 w-3.5" /> Add {labels.item}
-              </PrimaryButton>
+              <Button variant="secondary" onClick={addItem}>
+                <Plus className="h-4 w-4" /> Add {labels.item}
+              </Button>
             }
           >
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2.5">
               {items.map((item, index) => {
                 const s = summarizeItem(draft.content, item);
                 const open = expandedId === item.id;
                 return (
-                  <div key={item.id} className={`border bg-white transition-colors ${open ? 'border-black' : 'border-[#E2E2E2] hover:border-black'}`}>
-                    <div className="flex flex-wrap items-center gap-2 p-3">
-                      <span className="flex h-6 w-6 items-center justify-center bg-black text-white font-mono font-bold text-xs shrink-0">
-                        #{item.order}
-                      </span>
-                      <span className="text-base">{s.emoji}</span>
-                      <button
-                        onClick={() => setExpandedId(open ? null : item.id)}
-                        className="font-bold text-xs text-black hover:underline text-left"
-                      >
-                        {s.title}
-                      </button>
-                      <DifficultyPill value={s.badge} />
-                      <div className="flex flex-wrap gap-1">
-                        {s.chips.slice(0, 5).map((c) => (
-                          <Pill key={c}>{c}</Pill>
-                        ))}
+                  <div
+                    key={item.id}
+                    className={`overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow] ${
+                      open ? 'border-[#86D19A] ring-4 ring-[#16A34A]/10' : 'border-[#E6ECE8] hover:border-[#CFE6D6]'
+                    }`}
+                  >
+                    <div className={`flex flex-col gap-3 p-3 md:flex-row md:items-center ${open ? 'bg-[#F0FAF2]' : ''}`}>
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <span
+                          className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg px-1.5 font-mono text-xs font-bold ${
+                            open ? 'bg-[#16A34A] text-white' : 'bg-[#E3F7E7] text-[#14532D]'
+                          }`}
+                        >
+                          #{item.order}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-h-8 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-base leading-none">{s.emoji}</span>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(open ? null : item.id)}
+                              className="min-w-0 text-left text-sm font-semibold text-[#0F172A] transition-colors hover:text-[#15803D]"
+                            >
+                              {s.title}
+                            </button>
+                            <DifficultyPill value={s.badge} />
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {s.chips.slice(0, 5).map((c) => (
+                              <Pill key={c}>{c}</Pill>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                      <div className="flex shrink-0 items-center justify-end gap-0.5">
                         <IconButton onClick={() => moveItem(index, -1)} disabled={index === 0} title="Move up">
-                          <ArrowUp className="h-3.5 w-3.5" />
+                          <ArrowUp className="h-4 w-4" />
                         </IconButton>
                         <IconButton onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} title="Move down">
-                          <ArrowDown className="h-3.5 w-3.5" />
+                          <ArrowDown className="h-4 w-4" />
                         </IconButton>
-                        <div className="h-4 w-px bg-[#E2E2E2] mx-1" />
+                        <div className="mx-1 h-5 w-px bg-[#E2E8E4]" />
                         <button
+                          type="button"
                           onClick={() => setRegenIndex(index)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold border border-black hover:bg-black hover:text-white transition-all text-black"
+                          className={buttonClass('secondary', 'xs', 'mx-0.5')}
                           title={`Regenerate ${labels.item.toLowerCase()} #${item.order}`}
                         >
-                          <Sparkles className="h-3 w-3" />
+                          <Sparkles className="h-3.5 w-3.5" />
                           <span>Regenerate</span>
                         </button>
                         <IconButton onClick={() => duplicateItem(index)} title="Duplicate">
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-4 w-4" />
                         </IconButton>
                         <IconButton onClick={() => removeItem(index)} disabled={items.length <= 1} title="Delete" danger>
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </IconButton>
                         <IconButton onClick={() => setExpandedId(open ? null : item.id)} title={open ? 'Collapse' : 'Edit'}>
                           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </IconButton>
                       </div>
                     </div>
-                    {open && <div className="border-t border-[#E2E2E2] p-4 bg-[#FAFAFA]">{renderItemEditor(index)}</div>}
+                    {open && <div className="border-t border-[#DCEFE1] p-3 sm:p-4">{renderItemEditor(index)}</div>}
                   </div>
                 );
               })}
@@ -328,29 +372,43 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
         </div>
 
         {/* JSON */}
-        <div className="space-y-4 xl:sticky xl:top-20 self-start">
+        <div className="min-w-0 space-y-4 self-start xl:sticky xl:top-20">
           <Card
             title="JSON Payload"
             subtitle="Live view of the draft. Copy or download for the game client."
             right={
-              <button onClick={() => setShowJson((v) => !v)} className="text-xs font-semibold text-[#6B6B6B] hover:text-black">
+              <button
+                type="button"
+                onClick={() => setShowJson((v) => !v)}
+                aria-expanded={showJson}
+                className={buttonClass('ghost', 'sm')}
+              >
+                {showJson ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 {showJson ? 'Hide' : 'Show'}
               </button>
             }
           >
-            {showJson ? <GameConfigJsonPanel config={draft} /> : <p className="text-xs text-[#6B6B6B]">JSON hidden.</p>}
+            {showJson ? <GameConfigJsonPanel config={draft} /> : <p className={collapsedCls}>JSON hidden.</p>}
           </Card>
         </div>
       </div>
 
       {isDirty && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-black text-white px-4 py-2.5 text-xs font-semibold shadow-xl flex items-center gap-3">
-          <span className="h-2 w-2 rounded-full bg-[#F5B301]" />
+        <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl bg-[#14532D] py-2 pl-4 pr-2 text-sm font-medium text-white shadow-xl sm:bottom-6">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-[#F5B301]" />
           <span>Unsaved changes</span>
-          <button onClick={handleSave} className="underline font-bold">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="h-8 rounded-lg bg-white px-3 text-xs font-semibold text-[#14532D] transition-colors hover:bg-[#E3F7E7]"
+          >
             Save now
           </button>
-          <button onClick={handleDiscard} className="text-white/70 hover:text-white">
+          <button
+            type="button"
+            onClick={handleDiscard}
+            className="h-8 rounded-lg px-2.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
             Discard
           </button>
         </div>
@@ -367,7 +425,7 @@ export const GameConfigEditorView: React.FC<GameConfigEditorViewProps> = ({
           }
           currentSummary={
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-xs text-black">{summarizeItem(draft.content, regenItem).title}</span>
+              <span className="text-sm font-semibold text-[#0F172A]">{summarizeItem(draft.content, regenItem).title}</span>
               {summarizeItem(draft.content, regenItem).chips.map((c) => (
                 <Pill key={c}>{c}</Pill>
               ))}

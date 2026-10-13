@@ -1,14 +1,14 @@
 import React from 'react';
+import { buttonClass, hintClass, labelClass } from '../ui/pb';
 
-/* Small shared form/layout primitives for the game-config screens.
-   Styling follows the existing Uber-minimalist light theme of the admin panel. */
+/* Small shared form/layout primitives for the game-config screens, in the PB Zone admin style (see ui/pb.tsx). */
 
-export const inputCls =
-  'w-full bg-white border border-[#E2E2E2] p-2 text-xs text-black focus:border-black focus:outline-none disabled:bg-[#F6F6F6] disabled:text-[#6B6B6B]';
-export const labelCls = 'block text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B] mb-1';
+const fieldCls =
+  'rounded-xl border border-[#E2E8E4] bg-white px-3 py-2 text-sm text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#86D19A] focus:outline-none focus:ring-4 focus:ring-[#16A34A]/10 disabled:cursor-not-allowed disabled:bg-[#F3F6F4] disabled:text-[#64748B]';
+export const inputCls = `w-full ${fieldCls}`;
+export const labelCls = labelClass;
 /* Same look as inputCls but without w-full, for controls that size themselves inside a row. */
-export const compactInputCls =
-  'bg-white border border-[#E2E2E2] p-2 text-xs text-black focus:border-black focus:outline-none disabled:bg-[#F6F6F6] disabled:text-[#6B6B6B]';
+export const compactInputCls = fieldCls;
 
 export const Field: React.FC<{ label: string; hint?: string; className?: string; children: React.ReactNode }> = ({
   label,
@@ -19,7 +19,7 @@ export const Field: React.FC<{ label: string; hint?: string; className?: string;
   <div className={className}>
     <label className={labelCls}>{label}</label>
     {children}
-    {hint && <p className="text-[10px] text-[#6B6B6B] mt-1 leading-snug">{hint}</p>}
+    {hint && <p className={hintClass}>{hint}</p>}
   </div>
 );
 
@@ -94,7 +94,7 @@ export const NumberField: React.FC<{
           className={`${inputCls} font-mono ${suffix ? 'pr-12' : ''}`}
         />
         {suffix && (
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#6B6B6B] pointer-events-none">
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#64748B]">
             {suffix}
           </span>
         )}
@@ -132,8 +132,8 @@ export const ToggleField: React.FC<{
 }> = ({ label, checked, onChange, hint, className = '', disabled }) => (
   <div className={className}>
     <label
-      className={`flex items-center gap-2 p-2 bg-[#F6F6F6] border border-[#E2E2E2] text-xs ${
-        disabled ? 'opacity-50' : 'cursor-pointer'
+      className={`flex items-center gap-2.5 rounded-xl border border-[#E6ECE8] bg-[#F6F9F7] px-3 py-2.5 text-sm transition-colors ${
+        disabled ? 'opacity-50' : 'cursor-pointer hover:border-[#CFE6D6]'
       }`}
     >
       <input
@@ -141,11 +141,11 @@ export const ToggleField: React.FC<{
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-black"
+        className="h-4 w-4 rounded accent-[#16A34A]"
       />
-      <span className="font-semibold text-black">{label}</span>
+      <span className="font-semibold text-[#0F172A]">{label}</span>
     </label>
-    {hint && <p className="text-[10px] text-[#6B6B6B] mt-1 leading-snug">{hint}</p>}
+    {hint && <p className={hintClass}>{hint}</p>}
   </div>
 );
 
@@ -156,12 +156,12 @@ export const Card: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ title, subtitle, right, className = '', children }) => (
-  <div className={`bg-white border border-[#E2E2E2] p-5 space-y-4 ${className}`}>
+  <div className={`space-y-4 rounded-2xl bg-white p-4 shadow-card sm:p-5 ${className}`}>
     {(title || right) && (
-      <div className="flex items-start justify-between gap-3 border-b border-[#E2E2E2] pb-3">
-        <div>
-          {title && <h3 className="text-sm font-bold text-black uppercase tracking-wider">{title}</h3>}
-          {subtitle && <p className="text-xs text-[#6B6B6B] mt-0.5">{subtitle}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EEF2F6] pb-3">
+        <div className="min-w-[min(100%,14rem)] flex-1">
+          {title && <h3 className="text-base font-bold text-[#0B1220]">{title}</h3>}
+          {subtitle && <p className="mt-0.5 text-sm text-[#5F6F83]">{subtitle}</p>}
         </div>
         {right}
       </div>
@@ -177,17 +177,17 @@ export const Pill: React.FC<{
   title?: string;
 }> = ({ children, tone = 'default', className = '', title }) => {
   const tones: Record<string, string> = {
-    default: 'bg-[#F6F6F6] border-[#E2E2E2] text-[#333333]',
-    green: 'bg-[#EBF7EE] border-[#0E8345] text-[#0E8345]',
-    amber: 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]',
-    dark: 'bg-black border-black text-white',
-    purple: 'bg-[#EDE9FE] border-[#C4B5FD] text-[#6D28D9]',
-    red: 'bg-[#FCEBEB] border-[#C62828] text-[#C62828]',
+    default: 'bg-[#F1F5F9] text-[#334155]',
+    green: 'bg-[#E3F8E8] text-[#14532D]',
+    amber: 'bg-[#FFF3D6] text-[#92400E]',
+    dark: 'bg-[#14532D] text-white',
+    purple: 'bg-[#F1EDFD] text-[#6D28D9]',
+    red: 'bg-[#FDE8EC] text-[#BE123C]',
   };
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 border text-[10px] font-semibold whitespace-nowrap ${tones[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${tones[tone]} ${className}`}
     >
       {children}
     </span>
@@ -195,43 +195,35 @@ export const Pill: React.FC<{
 };
 
 export const DifficultyPill: React.FC<{ value: string }> = ({ value }) => (
-  <span className="uppercase text-[10px] font-bold text-[#545454] bg-[#EEEEEE] px-2 py-0.5 whitespace-nowrap">{value}</span>
+  <span className="whitespace-nowrap rounded-full bg-[#EEF2F6] px-2.5 py-0.5 text-xs font-medium capitalize text-[#475569]">{value}</span>
 );
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export const PrimaryButton: React.FC<ButtonProps> = ({ className = '', children, ...rest }) => (
-  <button
-    {...rest}
-    className={`inline-flex items-center gap-2 px-4 py-2 bg-black text-white text-xs font-bold whitespace-nowrap hover:bg-[#262626] transition-all disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
-  >
+  <button type="button" {...rest} className={buttonClass('primary', 'md', className)}>
     {children}
   </button>
 );
 
 export const OutlineButton: React.FC<ButtonProps> = ({ className = '', children, ...rest }) => (
-  <button
-    {...rest}
-    className={`inline-flex items-center gap-2 px-4 py-2 bg-white border border-black text-black text-xs font-bold whitespace-nowrap hover:bg-black hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
-  >
+  <button type="button" {...rest} className={buttonClass('outline', 'md', className)}>
     {children}
   </button>
 );
 
 export const GhostButton: React.FC<ButtonProps> = ({ className = '', children, ...rest }) => (
-  <button
-    {...rest}
-    className={`inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#6B6B6B] hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
-  >
+  <button type="button" {...rest} className={buttonClass('ghost', 'md', className)}>
     {children}
   </button>
 );
 
 export const IconButton: React.FC<ButtonProps & { danger?: boolean }> = ({ className = '', danger, children, ...rest }) => (
   <button
+    type="button"
     {...rest}
-    className={`p-1.5 text-[#6B6B6B] transition-colors disabled:opacity-20 ${
-      danger ? 'hover:text-[#C62828]' : 'hover:text-black hover:bg-[#F6F6F6]'
+    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] transition-colors disabled:opacity-30 ${
+      danger ? 'hover:bg-[#FDE8EC] hover:text-[#BE123C]' : 'hover:bg-[#EEF3EF] hover:text-[#0F172A]'
     } ${className}`}
   >
     {children}

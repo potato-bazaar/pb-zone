@@ -4,18 +4,39 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  ChevronDown,
   Copy,
   ExternalLink,
   ImageOff,
+  Images,
+  ListChecks,
   Loader2,
   RefreshCw,
+  Rocket,
   RotateCcw,
   ShieldCheck,
+  Wrench,
   X,
   XCircle,
+  type LucideIcon,
 } from 'lucide-react';
-import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
+import {
+  Button,
+  EmptyState,
+  IconTile,
+  PageHeader,
+  Panel,
+  Pill,
+  Switch,
+  Tabs,
+  inputClass,
+  insetClass,
+  panelClass,
+  softClass,
+  textareaClass,
+  type Tone,
+} from '../ui/pb';
 import {
   taterMatchApi,
   type TaterCategory,
@@ -61,42 +82,29 @@ const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'So
 const isActiveJob = (job: TaterJob | null | undefined) =>
   !!job && (job.status === 'queued' || job.status === 'running');
 
-function Button({
-  children,
-  variant = 'primary',
-  size = 'md',
-  className,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'outline' | 'ghost' | 'danger' | 'success';
-  size?: 'sm' | 'md';
-}) {
+function Loading({ label }: { label: string }) {
   return (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-        size === 'sm' ? 'h-7 px-2 text-xs' : 'h-8 px-3 text-sm',
-        variant === 'primary' && 'bg-black text-white hover:bg-black/85',
-        variant === 'outline' && 'border border-[#E2E2E2] bg-white hover:bg-[#F4F4F4]',
-        variant === 'ghost' && 'hover:bg-[#F4F4F4]',
-        variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700',
-        variant === 'success' && 'bg-emerald-600 text-white hover:bg-emerald-700',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
+    <div className="flex items-center justify-center gap-2 py-12 text-sm text-[#64748B]">
+      <Loader2 className="h-4 w-4 animate-spin text-[#16A34A]" /> {label}
+    </div>
+  );
+}
+
+function ErrorNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl bg-[#FDE8EC] px-3.5 py-2.5 text-sm text-[#BE123C]">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="min-w-0 break-words">{children}</span>
+    </div>
   );
 }
 
 function ProgressBar({ value, max, failed }: { value: number; max: number; failed?: boolean }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-black/10" role="progressbar" aria-valuenow={pct}>
+    <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEF3EF]" role="progressbar" aria-valuenow={pct}>
       <div
-        className={cn('h-full rounded-full transition-all duration-500', failed ? 'bg-red-500' : 'bg-emerald-500')}
+        className={cn('h-full rounded-full transition-all duration-500', failed ? 'bg-[#F43F5E]' : 'bg-[#22C55E]')}
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -141,27 +149,27 @@ function JobProgress({ job, categoryId }: { job: TaterJob; categoryId?: string }
   const latest = lastEvent(job, categoryId);
   const activity = job.scope === 'audit' ? 'Re-checking images' : 'Fetching images';
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
-      <div className="flex flex-wrap items-center gap-2">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        <span className="font-medium">{job.status === 'queued' ? 'Queued' : activity}</span>
-        <span>{numbers.summary}</span>
+    <div className={cn(insetClass, 'flex flex-col gap-2 px-3 py-2.5 text-xs')}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#16A34A]" />
+        <span className="font-semibold text-[#0F172A]">{job.status === 'queued' ? 'Queued' : activity}</span>
+        <span className="tabular-nums text-[#5F6F83]">{numbers.summary}</span>
       </div>
       <ProgressBar value={numbers.value} max={numbers.max} />
       {latest && (
-        <div className={cn('truncate', latest.level === 'error' ? 'text-red-700' : 'text-amber-800')}>
+        <div className={cn('truncate', latest.level === 'error' ? 'text-[#BE123C]' : 'text-[#64748B]')}>
           {latest.message}
         </div>
       )}
-      {entry?.note && <div className="truncate text-amber-700">({entry.note})</div>}
+      {entry?.note && <div className="truncate text-[#B45309]">({entry.note})</div>}
     </div>
   );
 }
 
 const EVENT_STYLES: Record<TaterJobEvent['level'], string> = {
-  info: 'text-[#444]',
-  warn: 'text-amber-700',
-  error: 'text-red-700 font-medium',
+  info: 'text-[#334155]',
+  warn: 'text-[#B45309]',
+  error: 'text-[#BE123C] font-medium',
 };
 
 const formatTime = (iso: string) =>
@@ -196,81 +204,91 @@ function LiveActivity({
   const running = isActiveJob(shown);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[#E2E2E2] bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Activity className="h-4 w-4" /> Image fetcher activity
-          {active.length > 0 ? (
-            <Badge className="border-transparent bg-amber-100 text-amber-800">
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Running
-            </Badge>
-          ) : (
-            <Badge variant="secondary">Idle</Badge>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {jobs.slice(0, 10).map((job) => {
-            const done = job.status === 'completed';
-            const failed = job.status === 'failed';
-            return (
-              <button
-                key={job.id}
-                type="button"
-                onClick={() => setSelectedJobId(job.id)}
-                title={`${jobLabel(job, categoryById)} · ${job.status}`}
-                className={cn(
-                  'flex max-w-[11rem] items-center gap-1 truncate rounded border px-1.5 py-0.5 text-[11px]',
-                  job.id === shown.id ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white hover:bg-[#F4F4F4]',
-                )}
-              >
-                {isActiveJob(job) && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
-                {done && <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500" />}
-                {failed && <XCircle className="h-3 w-3 shrink-0 text-red-500" />}
-                <span className="truncate">{jobLabel(job, categoryById)}</span>
-              </button>
-            );
-          })}
-        </div>
+    <Panel
+      icon={Activity}
+      title="Image fetcher activity"
+      actions={
+        active.length > 0 ? (
+          <Pill tone="amber">
+            <Loader2 className="h-3 w-3 animate-spin" /> Running
+          </Pill>
+        ) : (
+          <Pill tone="gray" dot>
+            Idle
+          </Pill>
+        )
+      }
+      bodyClassName="flex flex-col gap-4"
+    >
+      <div className="flex flex-wrap gap-1.5">
+        {jobs.slice(0, 10).map((job) => {
+          const done = job.status === 'completed';
+          const failed = job.status === 'failed';
+          return (
+            <button
+              key={job.id}
+              type="button"
+              onClick={() => setSelectedJobId(job.id)}
+              title={`${jobLabel(job, categoryById)} · ${job.status}`}
+              className={cn(
+                'flex h-7 max-w-[14rem] items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors',
+                job.id === shown.id
+                  ? 'bg-[#E3F7E7] text-[#14532D] ring-1 ring-[#86D19A]'
+                  : 'bg-white text-[#475569] ring-1 ring-[#E2E8E4] hover:bg-[#F6F9F7] hover:text-[#0F172A]',
+              )}
+            >
+              {isActiveJob(job) && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
+              {done && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#16A34A]" />}
+              {failed && <XCircle className="h-3.5 w-3.5 shrink-0 text-[#E11D48]" />}
+              <span className="truncate">{jobLabel(job, categoryById)}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
-          <span className="font-medium">{jobLabel(shown, categoryById)}</span>
-          <span className="text-muted-foreground">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-xs">
+          <span className="font-semibold text-[#0F172A]">{jobLabel(shown, categoryById)}</span>
+          <span className="tabular-nums text-[#5F6F83]">
             {numbers.summary} · {running ? (shown.status === 'queued' ? 'queued' : 'running') : shown.status}
           </span>
         </div>
         <ProgressBar value={numbers.value} max={numbers.max} failed={shown.status === 'failed'} />
-        {shown.error && (
-          <div className="rounded-md bg-red-50 px-2.5 py-1.5 text-xs text-red-700">Job failed: {shown.error}</div>
-        )}
+        {shown.error && <ErrorNote>Job failed: {shown.error}</ErrorNote>}
       </div>
 
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">Activity log (newest first)</span>
-        <label className="flex cursor-pointer items-center gap-1.5">
-          <input type="checkbox" checked={problemsOnly} onChange={(e) => setProblemsOnly(e.target.checked)} />
-          <AlertTriangle className="h-3 w-3 text-amber-600" /> Problems only ({problemCount})
-        </label>
-      </div>
-      <div className="max-h-64 overflow-y-auto rounded-md border border-[#EEE] bg-[#FAFAFA] p-2 font-mono text-[11px] leading-5">
-        {events.length === 0 ? (
-          <div className="text-muted-foreground">
-            {problemsOnly ? 'No problems in this job.' : 'No activity recorded for this job.'}
-          </div>
-        ) : (
-          events.map((event, index) => (
-            <div key={`${event.at}-${index}`} className={cn('flex gap-2', EVENT_STYLES[event.level])}>
-              <span className="shrink-0 text-muted-foreground">{formatTime(event.at)}</span>
-              {event.categoryId && shown.categoryIds.length > 1 && (
-                <span className="shrink-0 text-muted-foreground">[{event.categoryId}]</span>
-              )}
-              <span className="break-words">{event.message}</span>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="font-semibold text-[#334155]">Activity log (newest first)</span>
+          <label className="flex cursor-pointer items-center gap-1.5 text-[#334155]">
+            <input
+              type="checkbox"
+              checked={problemsOnly}
+              onChange={(e) => setProblemsOnly(e.target.checked)}
+              className="h-3.5 w-3.5 cursor-pointer accent-[#16A34A]"
+            />
+            <AlertTriangle className="h-3.5 w-3.5 text-[#D97706]" /> Problems only ({problemCount})
+          </label>
+        </div>
+        <div className="max-h-64 overflow-y-auto rounded-xl bg-[#F6F9F7] p-3 font-mono text-[11px] leading-5">
+          {events.length === 0 ? (
+            <div className="text-[#64748B]">
+              {problemsOnly ? 'No problems in this job.' : 'No activity recorded for this job.'}
             </div>
-          ))
-        )}
+          ) : (
+            events.map((event, index) => (
+              <div key={`${event.at}-${index}`} className={cn('flex gap-2', EVENT_STYLES[event.level])}>
+                <span className="shrink-0 text-[#94A3B8]">{formatTime(event.at)}</span>
+                {event.categoryId && shown.categoryIds.length > 1 && (
+                  <span className="shrink-0 text-[#94A3B8]">[{event.categoryId}]</span>
+                )}
+                <span className="min-w-0 break-words">{event.message}</span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -323,37 +341,39 @@ function QuestionCard({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-white p-4',
-        question.isActive ? 'border-[#E2E2E2]' : 'border-dashed border-[#D0D0D0] opacity-70',
+        'flex flex-col gap-4 rounded-2xl p-4',
+        question.isActive ? 'bg-white shadow-card' : 'border border-dashed border-[#CBD5D0] bg-white/70 opacity-70',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <Badge variant="outline">{MODE_LABELS[question.mode]}</Badge>
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+            <Pill tone="gray">{MODE_LABELS[question.mode]}</Pill>
             {question.ready ? (
-              <Badge className="border-transparent bg-emerald-100 text-emerald-800">Ready</Badge>
+              <Pill tone="green" dot>
+                Ready
+              </Pill>
             ) : (
-              <Badge className="border-transparent bg-amber-100 text-amber-800">
+              <Pill tone="amber" dot>
                 Needs photos: {question.options.filter((o) => o.approvedCount === 0).length}
-              </Badge>
+              </Pill>
             )}
-            <span className="text-[11px] text-muted-foreground">{question.id}</span>
+            <span className="text-[11px] text-[#94A3B8]">{question.id}</span>
           </div>
-          <div className="text-sm font-semibold">{question.prompt}</div>
-          {question.hint && <div className="text-xs text-muted-foreground">{question.hint}</div>}
+          <div className="text-[15px] font-semibold leading-snug text-[#0B1220]">{question.prompt}</div>
+          {question.hint && <div className="mt-0.5 text-xs text-[#64748B]">{question.hint}</div>}
         </div>
         <label
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-medium"
+          className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-semibold text-[#334155]"
           title="Off = never shown to players, even after publishing"
         >
-          <input type="checkbox" checked={question.isActive} disabled={toggling} onChange={handleToggle} />
           In game
+          <Switch checked={question.isActive} disabled={toggling} onChange={() => void handleToggle()} />
         </label>
       </div>
       {!question.ready && question.isActive && (
-        <div className="flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
-          <span>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FFF8EB] px-3 py-2 text-xs text-[#92400E]">
+          <span className="min-w-0">
             Approve a photo for:{' '}
             {question.options
               .filter((o) => o.approvedCount === 0)
@@ -362,7 +382,7 @@ function QuestionCard({
           </span>
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={handleRefresh}
             disabled={refreshing || !!busyJob}
             title="Fetch new photos for this question's options"
@@ -374,25 +394,25 @@ function QuestionCard({
       )}
 
       {busyJob && <JobProgress job={busyJob} />}
-      {error && <div className="text-xs text-red-600">{error}</div>}
+      {error && <div className="text-xs text-[#BE123C]">{error}</div>}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {question.options.map((option) => {
           const isCorrect = option.id === question.correctOptionId;
           const revealed = picked !== null;
           const shown = option.previewImage ?? option.pendingPreviewImage;
           const isPendingPreview = !option.previewImage && !!option.pendingPreviewImage;
           return (
-            <div key={option.id} className="flex flex-col gap-1">
+            <div key={option.id} className="flex min-w-0 flex-col gap-1.5">
               <button
                 type="button"
                 onClick={() => setPicked(option.id)}
                 className={cn(
-                  'relative aspect-square overflow-hidden rounded-md border-2 bg-[#F4F4F4] transition-colors',
-                  !revealed && 'border-transparent hover:border-black',
-                  revealed && isCorrect && 'border-emerald-500',
-                  revealed && !isCorrect && picked === option.id && 'border-red-500',
-                  revealed && !isCorrect && picked !== option.id && 'border-transparent opacity-60',
+                  'relative aspect-square overflow-hidden rounded-xl bg-[#F1F5F3] transition',
+                  !revealed && 'ring-1 ring-[#E6ECE8] hover:ring-2 hover:ring-[#16A34A]',
+                  revealed && isCorrect && 'ring-2 ring-[#22C55E]',
+                  revealed && !isCorrect && picked === option.id && 'ring-2 ring-[#F43F5E]',
+                  revealed && !isCorrect && picked !== option.id && 'opacity-60 ring-1 ring-[#E6ECE8]',
                 )}
               >
                 {shown?.url ? (
@@ -403,33 +423,40 @@ function QuestionCard({
                     className={cn('h-full w-full object-cover', isPendingPreview && 'opacity-80')}
                   />
                 ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center text-xs text-muted-foreground">
-                    <ImageOff className="h-5 w-5" />
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center text-xs text-[#64748B]">
+                    <ImageOff className="h-5 w-5 text-[#94A3B8]" />
                     No images yet — click Refresh
                   </div>
                 )}
                 {isPendingPreview && (
-                  <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 text-[10px] font-semibold text-white">
+                  <Pill tone="amber" className="absolute bottom-1.5 left-1.5 shadow-sm">
                     Pending review
-                  </span>
+                  </Pill>
                 )}
-                <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 text-[11px] font-bold uppercase text-white">
+                <span className="absolute left-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-lg bg-white/90 px-1.5 text-xs font-bold uppercase text-[#0B1220] shadow-sm">
                   {option.id}
                 </span>
                 {revealed && isCorrect && (
-                  <span className="absolute right-1 top-1 rounded-full bg-emerald-500 p-0.5 text-white">
-                    <Check className="h-3.5 w-3.5" />
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-[#16A34A] p-1 text-white shadow-sm">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
                   </span>
                 )}
               </button>
               <button
                 type="button"
                 onClick={() => onOpenCategory(option.art)}
-                className="flex items-center justify-between gap-1 text-left text-[11px] text-muted-foreground hover:text-black"
+                className="group flex min-w-0 flex-col items-start text-left"
                 title="Open this image pool"
               >
-                <span className="truncate">{option.label || option.categoryLabel}</span>
-                <span className={cn('shrink-0', option.approvedCount === 0 && 'font-semibold text-amber-700')}>
+                <span className="w-full truncate text-xs font-medium text-[#334155] transition-colors group-hover:text-[#14532D]">
+                  {option.label || option.categoryLabel}
+                </span>
+                <span
+                  className={cn(
+                    'text-[11px] tabular-nums',
+                    option.approvedCount === 0 ? 'font-semibold text-[#B45309]' : 'text-[#64748B]',
+                  )}
+                >
                   {option.approvedCount} approved
                   {option.pendingCount > 0 && ` · ${option.pendingCount} pending`}
                 </span>
@@ -440,19 +467,19 @@ function QuestionCard({
       </div>
 
       {picked && (
-        <div className="flex items-start justify-between gap-2 rounded-md bg-[#F7F7F7] p-2.5 text-xs">
+        <div className={cn(softClass, 'flex items-start justify-between gap-2 p-3 text-xs leading-relaxed text-[#334155]')}>
           <div>
             <span
               className={cn(
                 'font-semibold',
-                picked === question.correctOptionId ? 'text-emerald-700' : 'text-red-600',
+                picked === question.correctOptionId ? 'text-[#15803D]' : 'text-[#BE123C]',
               )}
             >
               {picked === question.correctOptionId ? 'Correct! ' : 'Not quite. '}
             </span>
             {question.learn}
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setPicked(null)} title="Reset demo">
+          <Button variant="ghost" size="icon-sm" onClick={() => setPicked(null)} title="Reset demo">
             <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -477,18 +504,23 @@ function StoredUrl({ url, storageKey }: { url: string; storageKey: string | null
     }
   };
   return (
-    <div className="flex items-center gap-1 rounded bg-[#F7F7F7] px-1.5 py-1" title={url}>
-      <span className="shrink-0 font-semibold text-muted-foreground">{url.includes('.s3.') ? 'S3' : 'URL'}</span>
-      <a href={url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono hover:underline">
+    <div className="flex items-center gap-1.5 rounded-lg bg-[#F6F9F7] px-2 py-1" title={url}>
+      <span className="shrink-0 font-semibold text-[#64748B]">{url.includes('.s3.') ? 'S3' : 'URL'}</span>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="min-w-0 flex-1 truncate font-mono text-[#334155] hover:text-[#14532D] hover:underline"
+      >
         {storageKey ?? url}
       </a>
       <button
         type="button"
         onClick={copy}
-        className="shrink-0 text-muted-foreground hover:text-black"
+        className="shrink-0 text-[#94A3B8] transition-colors hover:text-[#0F172A]"
         title="Copy image URL"
       >
-        {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+        {copied ? <Check className="h-3 w-3 text-[#16A34A]" /> : <Copy className="h-3 w-3" />}
       </button>
     </div>
   );
@@ -509,73 +541,73 @@ function ImageTile({
   return (
     <div
       className={cn(
-        'flex flex-col overflow-hidden rounded-md border bg-white',
-        selected ? 'border-black ring-1 ring-black' : 'border-[#E2E2E2]',
+        'flex flex-col overflow-hidden rounded-xl bg-white transition-shadow',
+        selected ? 'ring-2 ring-[#16A34A]' : 'ring-1 ring-[#E6ECE8] hover:shadow-card',
       )}
     >
       <button
         type="button"
-        className="relative aspect-square bg-[#F4F4F4]"
+        className="relative aspect-square bg-[#F1F5F3]"
         onClick={reviewable ? onToggle : undefined}
         disabled={!reviewable}
       >
         {image.url ? (
           <img src={image.url} alt={image.title ?? ''} loading="lazy" className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-[11px] text-muted-foreground">
-            <ImageOff className="h-5 w-5" />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-[11px] text-[#64748B]">
+            <ImageOff className="h-5 w-5 text-[#94A3B8]" />
             Not stored
           </div>
         )}
         {image.aiScore !== null && (
-          <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 text-[11px] font-semibold text-white">
+          <span className="absolute right-1.5 top-1.5 rounded-full bg-[#0B1220]/70 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white backdrop-blur-sm">
             AI {Math.round(Number(image.aiScore) * 100)}%
           </span>
         )}
         {reviewable && (
           <span
             className={cn(
-              'absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded border',
-              selected ? 'border-black bg-black text-white' : 'border-white bg-white/80',
+              'absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-[6px] border-2 shadow-sm',
+              selected ? 'border-[#16A34A] bg-[#16A34A] text-white' : 'border-white bg-white/80',
             )}
           >
-            {selected && <Check className="h-3 w-3" />}
+            {selected && <Check className="h-3 w-3" strokeWidth={3} />}
           </span>
         )}
       </button>
-      <div className="flex flex-1 flex-col gap-1 p-2 text-[11px]">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 text-[11px] text-[#64748B]">
         <div className="flex items-center justify-between gap-1">
-          <span className="font-medium capitalize">{image.source}</span>
+          <span className="font-semibold capitalize text-[#0F172A]">{image.source}</span>
           <a
             href={image.sourcePageUrl || image.originalUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-muted-foreground hover:text-black"
+            className="text-[#94A3B8] transition-colors hover:text-[#0F172A]"
             title="Open source page"
           >
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
         {image.url && <StoredUrl url={image.url} storageKey={image.storageKey} />}
         {(image.author || image.license) && (
-          <div className="truncate text-muted-foreground" title={[image.author, image.license].filter(Boolean).join(' · ')}>
+          <div className="truncate" title={[image.author, image.license].filter(Boolean).join(' · ')}>
             {[image.author, image.license].filter(Boolean).join(' · ')}
           </div>
         )}
         {image.aiReason && (
-          <div className="line-clamp-2 text-muted-foreground" title={image.aiReason}>
+          <div className="line-clamp-2" title={image.aiReason}>
             {image.aiReason}
           </div>
         )}
         {reviewable && (
-          <div className="mt-auto flex gap-1 pt-1">
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
             {image.status !== 'approved' && (
-              <Button variant="success" size="sm" className="flex-1" onClick={() => onSetStatus('approved')}>
+              <Button size="xs" className="flex-1" onClick={() => onSetStatus('approved')}>
                 <Check className="h-3 w-3" /> Approve
               </Button>
             )}
             {image.status !== 'rejected' && (
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => onSetStatus('rejected')}>
+              <Button variant="outline" size="xs" className="flex-1" onClick={() => onSetStatus('rejected')}>
                 <X className="h-3 w-3" /> Reject
               </Button>
             )}
@@ -688,153 +720,155 @@ function CategoryPanel({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-[#E2E2E2] bg-white p-4">
-        <div className="min-w-0">
-          <div className="text-base font-semibold">{category.label}</div>
-          <div className="text-xs text-muted-foreground">{category.description}</div>
-          <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-            <Badge
-              className={cn(
-                'border-transparent',
-                category.counts.approved >= targetPoolSize
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-amber-100 text-amber-800',
-              )}
-            >
-              {category.counts.approved}/{targetPoolSize} approved
-            </Badge>
-            <Badge variant="outline">{category.counts.pending} pending</Badge>
-            <Badge variant="outline">{category.counts.rejected} rejected</Badge>
-            <Badge variant="outline">{category.counts.discarded} auto-removed</Badge>
-            {category.usedByQuestions.length > 0 && (
-              <Badge variant="secondary">Used by {category.usedByQuestions.length} questions</Badge>
-            )}
-          </div>
+      <Panel
+        icon={Images}
+        title={category.label}
+        description={category.description}
+        actions={
+          <>
+            <label className="flex items-center gap-2 text-xs font-semibold text-[#334155]">
+              Fetch
+              <span className="block w-[72px]">
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={target}
+                  onChange={(e) => setTarget(Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
+                  className={inputClass}
+                />
+              </span>
+            </label>
+            <Button onClick={refresh} disabled={queuing || !!job}>
+              <RefreshCw className={cn('h-4 w-4', (queuing || job) && 'animate-spin')} />
+              Refresh images
+            </Button>
+          </>
+        }
+        bodyClassName="flex flex-col gap-3"
+      >
+        <div className="flex flex-wrap gap-1.5">
+          <Pill tone={category.counts.approved >= targetPoolSize ? 'green' : 'amber'} dot>
+            {category.counts.approved}/{targetPoolSize} approved
+          </Pill>
+          <Pill tone="gray">{category.counts.pending} pending</Pill>
+          <Pill tone="gray">{category.counts.rejected} rejected</Pill>
+          <Pill tone="gray">{category.counts.discarded} auto-removed</Pill>
+          {category.usedByQuestions.length > 0 && (
+            <Pill tone="blue">Used by {category.usedByQuestions.length} questions</Pill>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-            Fetch
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={target}
-              onChange={(e) => setTarget(Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
-              className="h-8 w-14 rounded-md border border-[#E2E2E2] px-2 text-sm text-black"
-            />
-          </label>
-          <Button onClick={refresh} disabled={queuing || !!job}>
-            <RefreshCw className={cn('h-4 w-4', (queuing || job) && 'animate-spin')} />
-            Refresh images
-          </Button>
-        </div>
-        {job && (
-          <div className="w-full">
-            <JobProgress job={job} categoryId={category.id} />
-          </div>
-        )}
-      </div>
+        {job && <JobProgress job={job} categoryId={category.id} />}
+      </Panel>
 
-      <details className="rounded-lg border border-[#E2E2E2] bg-white p-4 text-sm">
-        <summary className="cursor-pointer font-medium">Search queries ({category.searchQueries.length})</summary>
-        <p className="mt-2 text-xs text-muted-foreground">
+      <details className={cn(panelClass, 'group p-4 sm:p-5')}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-[#0B1220] [&::-webkit-details-marker]:hidden">
+          Search queries ({category.searchQueries.length})
+          <ChevronDown className="h-4 w-4 shrink-0 text-[#64748B] transition-transform group-open:rotate-180" />
+        </summary>
+        <p className="mt-3 text-xs text-[#64748B]">
           One query per line. The fetcher searches these across all sources on the next refresh.
         </p>
         <textarea
           value={queries}
           onChange={(e) => setQueries(e.target.value)}
           rows={4}
-          className="mt-2 w-full rounded-md border border-[#E2E2E2] p-2 font-mono text-xs"
+          className={cn(textareaClass, 'mt-2 font-mono')}
         />
-        <div className="mt-2 flex justify-end">
+        <div className="mt-3 flex justify-end">
           <Button size="sm" onClick={saveQueries} disabled={!queriesDirty || savingQueries}>
             {savingQueries ? 'Saving…' : 'Save queries'}
           </Button>
         </div>
       </details>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-md border border-[#E2E2E2] bg-white p-0.5">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setStatus(tab.id)}
-              className={cn(
-                'rounded px-2.5 py-1 text-xs font-medium',
-                status === tab.id ? 'bg-black text-white' : 'text-muted-foreground hover:text-black',
+      <section className={cn(panelClass, 'flex flex-col gap-4 p-4 sm:p-5')}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Tabs
+            items={STATUS_TABS.map((tab) => ({
+              id: tab.id,
+              label: tab.label,
+              badge: (
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 text-[11px] font-semibold tabular-nums',
+                    status === tab.id ? 'bg-[#E3F8E8] text-[#14532D]' : 'bg-white/70 text-[#64748B]',
+                  )}
+                >
+                  {category.counts[tab.id]}
+                </span>
+              ),
+            }))}
+            value={status}
+            onChange={setStatus}
+          />
+          {status !== 'discarded' && reviewableIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setSelected((prev) => (prev.size === reviewableIds.length ? new Set() : new Set(reviewableIds)))
+                }
+              >
+                {selected.size === reviewableIds.length ? 'Clear selection' : 'Select all'}
+              </Button>
+              {status !== 'approved' && (
+                <Button
+                  size="sm"
+                  disabled={selected.size === 0}
+                  onClick={() => setImagesStatus([...selected], 'approved')}
+                >
+                  Approve {selected.size || ''}
+                </Button>
               )}
-            >
-              {tab.label} ({category.counts[tab.id]})
-            </button>
-          ))}
+              {status !== 'rejected' && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={selected.size === 0}
+                  onClick={() => setImagesStatus([...selected], 'rejected')}
+                >
+                  Reject {selected.size || ''}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-        {status !== 'discarded' && reviewableIds.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                setSelected((prev) => (prev.size === reviewableIds.length ? new Set() : new Set(reviewableIds)))
-              }
-            >
-              {selected.size === reviewableIds.length ? 'Clear selection' : 'Select all'}
-            </Button>
-            {status !== 'approved' && (
-              <Button
-                variant="success"
-                size="sm"
-                disabled={selected.size === 0}
-                onClick={() => setImagesStatus([...selected], 'approved')}
-              >
-                Approve {selected.size || ''}
-              </Button>
-            )}
-            {status !== 'rejected' && (
-              <Button
-                variant="danger"
-                size="sm"
-                disabled={selected.size === 0}
-                onClick={() => setImagesStatus([...selected], 'rejected')}
-              >
-                Reject {selected.size || ''}
-              </Button>
-            )}
+
+        {error && <ErrorNote>{error}</ErrorNote>}
+
+        {loading && images.length === 0 ? (
+          <Loading label="Loading images…" />
+        ) : images.length === 0 ? (
+          <EmptyState
+            icon={ImageOff}
+            tone="gray"
+            title={`No ${STATUS_TABS.find((t) => t.id === status)?.label.toLowerCase()} images`}
+            description={status === 'pending' ? 'Click “Refresh images” to fetch new candidates.' : undefined}
+            className={softClass}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
+            {images.map((image) => (
+              <ImageTile
+                key={image.id}
+                image={image}
+                selected={selected.has(image.id)}
+                onToggle={() =>
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(image.id)) next.delete(image.id);
+                    else next.add(image.id);
+                    return next;
+                  })
+                }
+                onSetStatus={(next) => setImagesStatus([image.id], next)}
+              />
+            ))}
           </div>
         )}
-      </div>
-
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-
-      {loading && images.length === 0 ? (
-        <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading images…
-        </div>
-      ) : images.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[#E2E2E2] py-10 text-center text-sm text-muted-foreground">
-          No {STATUS_TABS.find((t) => t.id === status)?.label.toLowerCase()} images.
-          {status === 'pending' && ' Click “Refresh images” to fetch new candidates.'}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {images.map((image) => (
-            <ImageTile
-              key={image.id}
-              image={image}
-              selected={selected.has(image.id)}
-              onToggle={() =>
-                setSelected((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(image.id)) next.delete(image.id);
-                  else next.add(image.id);
-                  return next;
-                })
-              }
-              onSetStatus={(next) => setImagesStatus([image.id], next)}
-            />
-          ))}
-        </div>
-      )}
+      </section>
     </div>
   );
 }
@@ -878,31 +912,26 @@ function ReviewGroup({ group, onSaved }: { group: TaterReviewGroup; onSaved: () 
     });
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-[#E2E2E2] bg-white p-4">
+    <section className={cn(panelClass, 'flex flex-col gap-4 p-4 sm:p-5')}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold">{group.label}</h3>
-            <Badge variant="outline">{group.images.length} waiting</Badge>
-            <Badge
-              className={cn(
-                'border-transparent',
-                group.approvedCount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800',
-              )}
-            >
+            <h3 className="text-base font-bold text-[#0B1220]">{group.label}</h3>
+            <Pill tone="gray">{group.images.length} waiting</Pill>
+            <Pill tone={group.approvedCount > 0 ? 'green' : 'amber'} dot>
               {group.approvedCount} live
-            </Badge>
+            </Pill>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">Should show: {group.description}</p>
+          <p className="mt-1 text-sm text-[#5F6F83]">Should show: {group.description}</p>
         </div>
-        <Button variant="success" onClick={() => void save()} disabled={saving}>
+        <Button onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           Approve {keepIds.length}
           {rejected.size > 0 && ` · reject ${rejected.size}`}
         </Button>
       </div>
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
         {group.images.map((image) => {
           const isRejected = rejected.has(image.id);
           return (
@@ -912,8 +941,8 @@ function ReviewGroup({ group, onSaved }: { group: TaterReviewGroup; onSaved: () 
               onClick={() => toggle(image.id)}
               title={isRejected ? 'Will be rejected · tap to keep' : 'Will be approved · tap to reject'}
               className={cn(
-                'relative aspect-square overflow-hidden rounded-md border-2 bg-[#F4F4F4]',
-                isRejected ? 'border-red-500' : 'border-transparent hover:border-black',
+                'relative aspect-square overflow-hidden rounded-xl bg-[#F1F5F3] transition',
+                isRejected ? 'ring-2 ring-[#F43F5E]' : 'ring-1 ring-[#E6ECE8] hover:ring-2 hover:ring-[#16A34A]',
               )}
             >
               {image.url ? (
@@ -921,15 +950,17 @@ function ReviewGroup({ group, onSaved }: { group: TaterReviewGroup; onSaved: () 
                   src={image.url}
                   alt={image.title ?? group.label}
                   loading="lazy"
-                  className={cn('h-full w-full object-cover', isRejected && 'opacity-30 grayscale')}
+                  className={cn('h-full w-full object-cover transition', isRejected && 'opacity-30 grayscale')}
                 />
               ) : (
-                <ImageOff className="m-auto h-5 w-5 text-muted-foreground" />
+                <span className="flex h-full w-full items-center justify-center text-[#94A3B8]">
+                  <ImageOff className="h-5 w-5" />
+                </span>
               )}
               {isRejected && (
                 <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="rounded-full bg-red-600 p-1.5 text-white">
-                    <X className="h-5 w-5" />
+                  <span className="rounded-full bg-[#E11D48] p-1.5 text-white shadow-md">
+                    <X className="h-5 w-5" strokeWidth={2.5} />
                   </span>
                 </span>
               )}
@@ -959,28 +990,31 @@ function ReviewStep({ onChanged }: { onChanged: () => void }) {
     void load();
   }, [load]);
 
-  if (error) return <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>;
+  if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!groups) {
     return (
-      <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading photos…
+      <div className={panelClass}>
+        <Loading label="Loading photos…" />
       </div>
     );
   }
   if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[#E2E2E2] py-12 text-center">
-        <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-        <div className="text-sm font-semibold">All photos reviewed</div>
-        <div className="text-xs text-muted-foreground">Go to Questions to check them, then Publish.</div>
-      </div>
+      <Panel>
+        <EmptyState
+          icon={CheckCircle2}
+          title="All photos reviewed"
+          description="Go to Questions to check them, then Publish."
+        />
+      </Panel>
     );
   }
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Every photo below will be <b>approved</b>. Tap a photo that is wrong to mark it <b>rejected</b>, then press
-        Approve for that group. Approved photos go live in the game after you Publish.
+      <p className="text-sm text-[#5F6F83]">
+        Every photo below will be <b className="font-semibold text-[#14532D]">approved</b>. Tap a photo that is wrong to
+        mark it <b className="font-semibold text-[#BE123C]">rejected</b>, then press Approve for that group. Approved
+        photos go live in the game after you Publish.
       </p>
       {groups.map((group) => (
         <ReviewGroup
@@ -1003,6 +1037,31 @@ function ReviewStep({ onChanged }: { onChanged: () => void }) {
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
+function PublishStat({
+  icon,
+  tone,
+  label,
+  value,
+  note,
+}: {
+  icon: LucideIcon;
+  tone: Tone;
+  label: string;
+  value: number;
+  note: string;
+}) {
+  return (
+    <div className={cn(panelClass, 'flex items-start gap-3.5 p-4')}>
+      <IconTile icon={icon} tone={tone} />
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-[#1F2937]">{label}</p>
+        <p className="text-[22px] font-extrabold leading-tight tabular-nums text-[#0B1220]">{value}</p>
+        <p className="mt-0.5 text-xs text-[#64748B]">{note}</p>
+      </div>
+    </div>
+  );
+}
+
 function PublishStep({
   status,
   onChanged,
@@ -1017,8 +1076,8 @@ function PublishStep({
 
   if (!status) {
     return (
-      <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      <div className={panelClass}>
+        <Loading label="Loading…" />
       </div>
     );
   }
@@ -1043,56 +1102,50 @@ function PublishStep({
 
   return (
     <div className="flex flex-col gap-4">
-      <div
+      <section
         className={cn(
-          'flex flex-wrap items-center justify-between gap-4 rounded-lg border p-5',
-          status.published ? 'border-emerald-200 bg-emerald-50' : 'border-[#E2E2E2] bg-white',
+          'flex flex-col gap-5 rounded-2xl p-5 shadow-card md:flex-row md:items-center md:justify-between sm:p-6',
+          status.published ? 'bg-gradient-to-br from-[#E6F7EB] via-white to-white ring-1 ring-[#CDEBD6]' : 'bg-white',
         )}
       >
-        <div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            {status.published ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Live: {status.liveCount} questions
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-muted-foreground" /> Not published
-              </>
+        <div className="flex min-w-0 items-start gap-4">
+          <IconTile icon={status.published ? CheckCircle2 : XCircle} tone={status.published ? 'green' : 'gray'} />
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold leading-tight text-[#0B1220]">
+              {status.published ? <>Live: {status.liveCount} questions</> : 'Not published'}
+            </h2>
+            <p className="mt-1 text-sm text-[#5F6F83]">
+              {status.published
+                ? `Players get these questions with real photos. Published ${
+                    status.publishedAt ? formatDate(status.publishedAt) : ''
+                  }.`
+                : 'Players still see the built-in drawings. Publish to switch the game to real photos.'}
+            </p>
+            {status.published && status.newReadyCount > 0 && (
+              <p className="mt-1.5 text-sm font-medium text-[#15803D]">
+                {status.newReadyCount} more ready question{status.newReadyCount === 1 ? '' : 's'} not live yet. Publish
+                again to add {status.newReadyCount === 1 ? 'it' : 'them'}.
+              </p>
+            )}
+            {status.brokenCount > 0 && (
+              <p className="mt-1.5 text-sm font-medium text-[#B45309]">
+                {status.brokenCount} published question{status.brokenCount === 1 ? ' is' : 's are'} hidden from players:
+                an option has no approved photo any more.
+              </p>
             )}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {status.published
-              ? `Players get these questions with real photos. Published ${
-                  status.publishedAt ? formatDate(status.publishedAt) : ''
-                }.`
-              : 'Players still see the built-in drawings. Publish to switch the game to real photos.'}
-          </p>
-          {status.published && status.newReadyCount > 0 && (
-            <p className="mt-1 text-sm font-medium text-emerald-800">
-              {status.newReadyCount} more ready question{status.newReadyCount === 1 ? '' : 's'} not live yet. Publish
-              again to add {status.newReadyCount === 1 ? 'it' : 'them'}.
-            </p>
-          )}
-          {status.brokenCount > 0 && (
-            <p className="mt-1 text-sm font-medium text-amber-800">
-              {status.brokenCount} published question{status.brokenCount === 1 ? ' is' : 's are'} hidden from players:
-              an option has no approved photo any more.
-            </p>
-          )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 md:shrink-0">
           {status.published && (
-            <Button variant="outline" onClick={() => void run('unpublish')} disabled={!!busy}>
+            <Button variant="outline" size="lg" onClick={() => void run('unpublish')} disabled={!!busy}>
               {busy === 'unpublish' && <Loader2 className="h-4 w-4 animate-spin" />}
               Unpublish
             </Button>
           )}
           <Button
-            variant="success"
+            size="lg"
             onClick={() => void run('publish')}
             disabled={!!busy || status.readyCount === 0 || (status.published && !hasChanges)}
-            className="h-10 px-5 text-base"
           >
             {busy === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             {status.published
@@ -1102,44 +1155,56 @@ function PublishStep({
               : `Publish ${status.readyCount} questions`}
           </Button>
         </div>
-      </div>
+      </section>
 
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-[#E2E2E2] bg-white p-3">
-          <div className="text-xs text-muted-foreground">Ready to play</div>
-          <div className="text-xl font-semibold text-emerald-700">{status.readyCount}</div>
-          <div className="text-[11px] text-muted-foreground">every option has an approved photo</div>
-        </div>
-        <div className="rounded-lg border border-[#E2E2E2] bg-white p-3">
-          <div className="text-xs text-muted-foreground">Need photos</div>
-          <div className="text-xl font-semibold text-amber-700">{status.notReady.length}</div>
-          <div className="text-[11px] text-muted-foreground">left out until their photos are approved</div>
-        </div>
-        <div className="rounded-lg border border-[#E2E2E2] bg-white p-3">
-          <div className="text-xs text-muted-foreground">Questions in game</div>
-          <div className="text-xl font-semibold">{status.totalActive}</div>
-          <div className="text-[11px] text-muted-foreground">switched off ones are never shown</div>
-        </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <PublishStat
+          icon={CheckCircle2}
+          tone="green"
+          label="Ready to play"
+          value={status.readyCount}
+          note="every option has an approved photo"
+        />
+        <PublishStat
+          icon={ImageOff}
+          tone="amber"
+          label="Need photos"
+          value={status.notReady.length}
+          note="left out until their photos are approved"
+        />
+        <PublishStat
+          icon={ListChecks}
+          tone="blue"
+          label="Questions in game"
+          value={status.totalActive}
+          note="switched off ones are never shown"
+        />
       </div>
 
       {status.notReady.length > 0 && (
-        <div className="rounded-lg border border-[#E2E2E2] bg-white p-4">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-semibold">Not ready yet</div>
+        <Panel
+          icon={AlertTriangle}
+          tone="amber"
+          title="Not ready yet"
+          actions={
             <Button variant="outline" size="sm" onClick={onOpenReview}>
               Review photos
             </Button>
-          </div>
-          <ul className="flex flex-col divide-y divide-[#F0F0F0] text-sm">
+          }
+        >
+          <ul className="flex flex-col divide-y divide-[#EEF2F6] text-sm">
             {status.notReady.map((question) => (
-              <li key={question.id} className="flex flex-wrap items-baseline justify-between gap-2 py-1.5">
-                <span>
-                  <span className="mr-1.5 text-[11px] text-muted-foreground">{question.id}</span>
+              <li
+                key={question.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span className="min-w-0 text-[#0F172A]">
+                  <span className="mr-1.5 text-[11px] text-[#94A3B8]">{question.id}</span>
                   {question.prompt}
                 </span>
-                <span className="text-xs text-amber-800">
+                <span className="text-xs text-[#B45309]">
                   needs{' '}
                   {question.missing
                     .map((m) => `${m.label}${m.pending ? ` (${m.pending} waiting)` : ' (none found)'}`)
@@ -1148,7 +1213,7 @@ function PublishStep({
               </li>
             ))}
           </ul>
-        </div>
+        </Panel>
       )}
     </div>
   );
@@ -1159,6 +1224,52 @@ function PublishStep({
 /* ------------------------------------------------------------------ */
 
 type Step = 'review' | 'questions' | 'publish' | 'tools';
+
+const STEP_ICONS: Record<Step, LucideIcon> = {
+  review: Images,
+  questions: ListChecks,
+  publish: Rocket,
+  tools: Wrench,
+};
+
+function StepCard({
+  active,
+  done,
+  icon,
+  label,
+  hint,
+  title,
+  onClick,
+}: {
+  active: boolean;
+  done?: boolean;
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  title?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'flex min-w-0 items-center gap-3 rounded-2xl p-3 text-left shadow-card ring-inset transition-colors sm:p-4',
+        active ? 'bg-[#F0FAF3] ring-2 ring-[#16A34A]' : 'bg-white ring-1 ring-transparent hover:ring-[#CFE7D6]',
+      )}
+    >
+      <IconTile icon={icon} tone={active ? 'green' : 'gray'} className="hidden sm:flex" />
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-[#0B1220]">
+          {done && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#16A34A]" />}
+          {label}
+        </span>
+        <span className={cn('mt-0.5 block text-xs', active ? 'text-[#15803D]' : 'text-[#64748B]')}>{hint}</span>
+      </span>
+    </button>
+  );
+}
 
 export function TaterMatchView() {
   const [step, setStep] = useState<Step>('review');
@@ -1278,58 +1389,44 @@ export function TaterMatchView() {
   ];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold">Tater Match</h1>
-          <p className="text-sm text-muted-foreground">
-            Approve real photos, check the questions, then publish them to the game.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /> Reload
-        </Button>
-      </div>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Tater Match"
+        description="Approve real photos, check the questions, then publish them to the game."
+        actions={
+          <Button variant="outline" onClick={() => void load()} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /> Reload
+          </Button>
+        }
+      />
 
-      <div className="flex flex-wrap items-stretch gap-2">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {steps.map((s) => (
-          <button
+          <StepCard
             key={s.id}
-            type="button"
+            active={step === s.id}
+            done={s.done}
+            icon={STEP_ICONS[s.id]}
+            label={s.label}
+            hint={s.hint}
             onClick={() => setStep(s.id)}
-            className={cn(
-              'flex min-w-[10rem] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors',
-              step === s.id ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white hover:bg-[#FAFAFA]',
-            )}
-          >
-            <span className="flex items-center gap-1.5 text-sm font-semibold">
-              {s.done && <CheckCircle2 className={cn('h-4 w-4', step === s.id ? 'text-emerald-300' : 'text-emerald-600')} />}
-              {s.label}
-            </span>
-            <span className={cn('text-xs', step === s.id ? 'text-white/70' : 'text-muted-foreground')}>{s.hint}</span>
-          </button>
+          />
         ))}
-        <button
-          type="button"
-          onClick={() => setStep('tools')}
-          className={cn(
-            'flex flex-col items-start rounded-lg border px-3 py-2 text-left',
-            step === 'tools' ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white hover:bg-[#FAFAFA]',
-          )}
+        <StepCard
+          active={step === 'tools'}
+          icon={STEP_ICONS.tools}
+          label="Tools"
+          hint={anyJobActive ? 'Fetching…' : 'Photo pools'}
           title="Image pools per category, fetching new photos, search queries and the fetcher log"
-        >
-          <span className="text-sm font-semibold">Tools</span>
-          <span className={cn('text-xs', step === 'tools' ? 'text-white/70' : 'text-muted-foreground')}>
-            {anyJobActive ? 'Fetching…' : 'Photo pools'}
-          </span>
-        </button>
+          onClick={() => setStep('tools')}
+        />
       </div>
 
-      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
       {loading && categories.length === 0 ? (
-        <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading Tater Match…
+        <div className={panelClass}>
+          <Loading label="Loading Tater Match…" />
         </div>
       ) : step === 'review' ? (
         <ReviewStep onChanged={() => void load(true)} />
@@ -1337,32 +1434,33 @@ export function TaterMatchView() {
         <PublishStep status={publishStatus} onChanged={() => load(true)} onOpenReview={() => setStep('review')} />
       ) : step === 'questions' ? (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'variety', 'disease', 'growth'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setModeFilter(mode)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium',
-                  modeFilter === mode
-                    ? 'border-black bg-black text-white'
-                    : 'border-[#E2E2E2] bg-white text-muted-foreground hover:text-black',
-                )}
-              >
-                {mode === 'all' ? 'All modes' : MODE_LABELS[mode]}
-              </button>
-            ))}
-            <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-              <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
-              Only questions that need photos
-            </label>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <Tabs<ModeFilter>
+                items={(['all', 'variety', 'disease', 'growth'] as const).map((mode) => ({
+                  id: mode,
+                  label: mode === 'all' ? 'All modes' : MODE_LABELS[mode],
+                }))}
+                value={modeFilter}
+                onChange={setModeFilter}
+              />
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[#334155]">
+                <input
+                  type="checkbox"
+                  checked={onlyMissing}
+                  onChange={(e) => setOnlyMissing(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer accent-[#16A34A]"
+                />
+                Only questions that need photos
+              </label>
+            </div>
+            <p className="text-sm text-[#5F6F83]">
+              Tap an option to play the question like a player. Switch off any question you don't want in the game.
+              Only <b className="font-semibold text-[#0F172A]">Ready</b> questions that are{' '}
+              <b className="font-semibold text-[#0F172A]">In game</b> get published.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Tap an option to play the question like a player. Switch off any question you don't want in the game.
-            Only <b>Ready</b> questions that are <b>In game</b> get published.
-          </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 min-[1680px]:grid-cols-4">
             {visibleQuestions.map((question) => (
               <QuestionCard
                 key={question.id}
@@ -1381,13 +1479,15 @@ export function TaterMatchView() {
             ))}
           </div>
           {visibleQuestions.length === 0 && (
-            <div className="py-10 text-center text-sm text-muted-foreground">No questions match this filter.</div>
+            <div className={cn(panelClass, 'py-12 text-center text-sm text-[#64748B]')}>
+              No questions match this filter.
+            </div>
           )}
         </>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-3xl text-sm text-[#5F6F83]">
               Every photo pool, with fetching and search settings. You only need this when a category has too few
               photos.
             </p>
@@ -1401,13 +1501,16 @@ export function TaterMatchView() {
             </Button>
           </div>
           <LiveActivity jobs={jobs} categoryById={categoryById} />
-          <div className="flex flex-col gap-4 lg:flex-row">
-            <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-60">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <aside
+              className={cn(
+                panelClass,
+                'flex max-h-80 w-full shrink-0 flex-col gap-4 overflow-y-auto p-3 lg:max-h-none lg:w-60 xl:w-64 2xl:w-72',
+              )}
+            >
               {groupedCategories.map(([group, list]) => (
                 <div key={group}>
-                  <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {GROUP_LABELS[group] ?? group}
-                  </div>
+                  <div className="mb-1.5 px-2.5 text-xs font-semibold text-[#64748B]">{GROUP_LABELS[group] ?? group}</div>
                   <div className="flex flex-col gap-0.5">
                     {list.map((category) => {
                       const active = selectedCategory?.id === category.id;
@@ -1417,22 +1520,26 @@ export function TaterMatchView() {
                           type="button"
                           onClick={() => setSelectedCategoryId(category.id)}
                           className={cn(
-                            'flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm',
-                            active ? 'bg-[#E8E8E8] font-medium' : 'hover:bg-[#F4F4F4]',
+                            'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors',
+                            active
+                              ? 'bg-[#E3F7E7] text-[#14532D]'
+                              : 'text-[#334155] hover:bg-[#F6F9F7] hover:text-[#0F172A]',
                           )}
                         >
                           <span className="truncate">{category.label}</span>
-                          <span className="flex shrink-0 items-center gap-1">
-                            {isActiveJob(category.activeJob) && <Loader2 className="h-3 w-3 animate-spin" />}
+                          <span className="flex shrink-0 items-center gap-1.5">
+                            {isActiveJob(category.activeJob) && (
+                              <Loader2 className="h-3 w-3 animate-spin text-[#16A34A]" />
+                            )}
                             {category.counts.pending > 0 && (
-                              <span className="rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">
+                              <span className="rounded-full bg-[#FFF3D6] px-1.5 text-[10px] font-semibold tabular-nums text-[#92400E]">
                                 {category.counts.pending}
                               </span>
                             )}
                             <span
                               className={cn(
-                                'text-[11px]',
-                                category.counts.approved >= targetPoolSize ? 'text-emerald-700' : 'text-muted-foreground',
+                                'text-[11px] tabular-nums',
+                                category.counts.approved >= targetPoolSize ? 'text-[#15803D]' : 'text-[#94A3B8]',
                               )}
                             >
                               {category.counts.approved}/{targetPoolSize}

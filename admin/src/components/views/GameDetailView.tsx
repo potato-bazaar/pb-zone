@@ -1,24 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar,
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
   Clock,
-  Play,
   RefreshCw,
-  TrendingUp,
   Trophy,
   Users,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { Game, GameFormat, Quiz } from '../../types/quiz';
 import { ConfigKind, FORMAT_LABELS, GameConfig } from '../../types/gameConfig';
 import { useQuizTelemetry } from '../../hooks/useQuizTelemetry';
 import type { QuizTelemetryPlayer } from '../../services/quizBankApi';
 import { GameConfigActiveView } from '../gameconfig/GameConfigActiveView';
 import { QuizDetailView } from '../editor/QuizDetailView';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { PlaySolid, UsersSolid } from '../dashboard/dashboardIcons';
+import { Button, IconTile, Panel, Pill, buttonClass, panelClass, softClass, tableClass, type Tone } from '../ui/pb';
 import { cn, formatNumber } from '../../lib/utils';
 
 const RANGE_OPTIONS = [
@@ -52,14 +53,20 @@ interface GameDetailViewProps {
 
 type SessionStatus = 'completed' | 'in-progress' | 'skipped';
 
-function statusLook(status: Game['status']) {
-  if (status === 'active') {
-    return { label: 'Active', badge: 'bg-green-100 text-green-800 hover:bg-green-100', dot: 'bg-green-600' };
-  }
-  if (status === 'maintenance') {
-    return { label: 'Paused', badge: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100', dot: 'bg-yellow-500' };
-  }
-  return { label: 'Draft', badge: 'bg-gray-100 text-gray-800 hover:bg-gray-100', dot: 'bg-gray-400' };
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+
+const SESSION_LOOK: Record<SessionStatus, { label: string; tone: Tone }> = {
+  completed: { label: 'Completed', tone: 'green' },
+  'in-progress': { label: 'In Progress', tone: 'amber' },
+  skipped: { label: 'Skipped', tone: 'gray' },
+};
+
+const emptyClass = cn(softClass, 'px-4 py-10 text-center text-sm text-[#64748B]');
+
+function statusLook(status: Game['status']): { label: string; tone: Tone } {
+  if (status === 'active') return { label: 'Active', tone: 'green' };
+  if (status === 'maintenance') return { label: 'Paused', tone: 'amber' };
+  return { label: 'Draft', tone: 'gray' };
 }
 
 function initials(name: string) {
@@ -172,11 +179,17 @@ function ParticipationChart({ plays, winners }: { plays: number[]; winners: numb
   const winnerLine = winnerPoints.map((point, index) => `${index === 0 ? 'M' : 'L'}${point}`).join(' ');
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-[168px] w-full" role="img" aria-label="Live participation">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      className="h-[140px] w-full sm:h-[168px]"
+      role="img"
+      aria-label="Live participation"
+    >
       <defs>
         <linearGradient id="playFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#22c55e" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
+          <stop offset="0%" stopColor="#22C55E" stopOpacity="0.24" />
+          <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
         </linearGradient>
       </defs>
       {[0.25, 0.5, 0.75].map((line) => (
@@ -186,13 +199,30 @@ function ParticipationChart({ plays, winners }: { plays: number[]; winners: numb
           x2={width - padX}
           y1={padY + (height - padY * 2) * line}
           y2={padY + (height - padY * 2) * line}
-          stroke="hsl(var(--border))"
+          stroke="#EEF2F6"
           strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
         />
       ))}
       <path d={area} fill="url(#playFill)" />
-      <path d={playLine} fill="none" stroke="#16a34a" strokeWidth="2.25" strokeLinejoin="round" />
-      <path d={winnerLine} fill="none" stroke="#166534" strokeWidth="1.75" strokeDasharray="4 3" strokeLinejoin="round" />
+      <path
+        d={playLine}
+        fill="none"
+        stroke="#16A34A"
+        strokeWidth="2.25"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        d={winnerLine}
+        fill="none"
+        stroke="#14532D"
+        strokeWidth="1.75"
+        strokeDasharray="4 3"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
@@ -201,48 +231,49 @@ function MetricCard({
   title,
   value,
   note,
-  icon: Icon,
+  icon,
+  tone,
 }: {
   title: string;
   value: string;
   note: string;
-  icon: LucideIcon;
+  icon: IconType;
+  tone: Tone;
 }) {
   return (
-    <Card className="shadow-none">
-      <div className="flex items-start justify-between gap-2 p-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{title}</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums leading-none">{value}</p>
-          <p className="mt-1 flex items-center gap-1 text-[11px] text-green-700">
-            <TrendingUp className="h-3 w-3" />
-            {note}
-          </p>
-        </div>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700">
-          <Icon className="h-3.5 w-3.5" />
-        </span>
+    <div className={cn(panelClass, 'flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-3.5')}>
+      <IconTile icon={icon} tone={tone} />
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-[#1F2937] sm:text-sm">{title}</p>
+        <p className="text-[22px] font-extrabold leading-tight tabular-nums text-[#0B1220] sm:text-2xl">{value}</p>
+        <p className="mt-0.5 text-xs leading-snug text-[#64748B]">{note}</p>
       </div>
-    </Card>
+    </div>
   );
 }
 
 function RankMark({ rank }: { rank: number }) {
   if (rank <= 3) {
-    const tone =
-      rank === 1
-        ? 'bg-amber-100 text-amber-800'
-        : rank === 2
-          ? 'bg-gray-100 text-gray-700'
-          : 'bg-orange-100 text-orange-800';
+    const tone = rank === 1 ? 'bg-[#FFF3D6]' : rank === 2 ? 'bg-[#F1F5F9]' : 'bg-[#FFF1DC]';
     return (
-      <span className={cn('flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold', tone)}>
+      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm', tone)}>
         {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
       </span>
     );
   }
   return (
-    <span className="flex h-7 w-7 items-center justify-center text-xs font-medium text-muted-foreground">{rank}</span>
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center text-xs font-semibold tabular-nums text-[#64748B]">
+      {rank}
+    </span>
+  );
+}
+
+function ViewAllButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="secondary" size="sm" onClick={onClick}>
+      View All
+      <ArrowRight className="h-3.5 w-3.5" />
+    </Button>
   );
 }
 
@@ -319,57 +350,14 @@ export const GameDetailView: React.FC<GameDetailViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 pb-10">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setRangeOpen((open) => !open)}
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm hover:bg-accent"
-            >
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              {rangeLabel}
-            </button>
-            {rangeOpen && (
-              <div className="absolute right-0 z-20 mt-1 w-44 rounded-md border bg-popover p-1 shadow-md">
-                {RANGE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    className="w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      setRange(opt.id);
-                      setRangeOpen(false);
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {liveFromApi && (
-            <button
-              type="button"
-              onClick={refreshAll}
-              disabled={busy}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-sm hover:bg-accent disabled:opacity-60"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', busy ? 'animate-spin' : '')} />
-              Refresh
-            </button>
-          )}
-        </div>
-      </div>
-
-      <Card className="shadow-none">
-        <div className="flex flex-wrap items-start gap-3 p-3">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+    <div className="flex flex-col gap-4 pb-10">
+      <section className={cn(panelClass, 'flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between')}>
+        <div className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 sm:items-start sm:gap-y-1.5">
+          <div className="h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-[#EEF3EF] sm:row-span-2 sm:h-20 sm:w-[120px]">
             <img
               src={cover}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-right"
               onError={(event) => {
                 const img = event.currentTarget;
                 if (game.imageUrl && img.src !== game.imageUrl) {
@@ -380,269 +368,277 @@ export const GameDetailView: React.FC<GameDetailViewProps> = ({
               }}
             />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h1 className="text-lg font-semibold leading-tight">{game.name}</h1>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {game.tagline || FORMAT_LABELS[game.format]}
-                </p>
-              </div>
-              <Badge className={look.badge}>
-                <span className={cn('mr-1.5 inline-block h-1.5 w-1.5 rounded-full', look.dot)} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-[15px] font-bold leading-tight text-[#0B1220]">{game.name}</h2>
+              <Pill tone={look.tone} dot>
                 {look.label}
-              </Badge>
+              </Pill>
             </div>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{game.description}</p>
+            <p className="mt-0.5 text-sm text-[#5F6F83]">{game.tagline || FORMAT_LABELS[game.format]}</p>
           </div>
+          <p className="col-span-2 max-w-3xl text-sm leading-relaxed text-[#334155] sm:col-span-1 sm:col-start-2">
+            {game.description}
+          </p>
         </div>
-      </Card>
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setRangeOpen((open) => !open)}
+              aria-expanded={rangeOpen}
+              className={buttonClass('outline', 'md')}
+            >
+              <CalendarDays className="h-4 w-4 text-[#64748B]" />
+              {rangeLabel}
+              <ChevronDown className={cn('h-4 w-4 text-[#64748B] transition-transform', rangeOpen && 'rotate-180')} />
+            </button>
+            {rangeOpen && (
+              <div className="absolute left-0 z-20 mt-2 w-44 rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-black/5 lg:left-auto lg:right-0">
+                {RANGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-[#F0FAF2]',
+                      opt.id === range ? 'font-semibold text-[#14532D]' : 'text-[#334155]',
+                    )}
+                    onClick={() => {
+                      setRange(opt.id);
+                      setRangeOpen(false);
+                    }}
+                  >
+                    {opt.label}
+                    {opt.id === range && <Check className="h-4 w-4" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {liveFromApi && (
+            <Button variant="outline" onClick={refreshAll} disabled={busy}>
+              <RefreshCw className={cn('h-4 w-4', busy ? 'animate-spin' : '')} />
+              Refresh
+            </Button>
+          )}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           title="Total Plays"
           value={loading ? '—' : formatNumber(totalPlays)}
           note={liveFromApi ? 'Quiz sessions' : 'Player sessions'}
-          icon={Play}
+          icon={PlaySolid}
+          tone="purple"
         />
         <MetricCard
           title="Unique Players"
           value={loading ? '—' : formatNumber(uniquePlayers)}
           note="Who started this game"
-          icon={Users}
+          icon={UsersSolid}
+          tone="green"
         />
         <MetricCard
           title="Winners"
           value={loading ? '—' : formatNumber(winnersCount)}
           note={liveFromApi ? `Finished all ${questionsPerQuiz} Qs` : 'Qualified sessions'}
           icon={Trophy}
+          tone="orange"
         />
         <MetricCard
           title="Completion Rate"
           value={loading ? '—' : `${completionRate}%`}
           note="Finished / started"
           icon={Clock}
+          tone="blue"
         />
       </div>
 
       {liveFromApi && live.error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{live.error}</p>
+        <p className="flex items-start gap-2.5 rounded-xl bg-[#FDE8EC] px-4 py-3 text-sm text-[#BE123C]">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="min-w-0 break-words">{live.error}</span>
+        </p>
       )}
 
-      <div className="grid grid-cols-1 gap-2 xl:grid-cols-5">
-        <Card className="shadow-none xl:col-span-3">
-          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 px-3 py-2.5">
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-medium">Live Session Overview</CardTitle>
-                {game.status === 'active' && (
-                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-green-600" />
-                    Live
-                  </Badge>
-                )}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+        <Panel
+          className="min-w-0 xl:col-span-3"
+          icon={Activity}
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              Live Session Overview
+              {game.status === 'active' && (
+                <Pill tone="green" dot>
+                  Live
+                </Pill>
+              )}
+            </span>
+          }
+          description="Real-time stats for the current session."
+        >
+          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { label: 'Total Players', value: uniquePlayers },
+              { label: 'Answered', value: answered },
+              { label: 'In Progress', value: inProgress },
+              { label: 'Skipped', value: skipped },
+            ].map((item) => (
+              <div key={item.label} className={cn(softClass, 'px-3.5 py-3')}>
+                <p className="text-xs font-medium text-[#64748B]">{item.label}</p>
+                <p className="mt-1 text-lg font-bold leading-tight tabular-nums text-[#0B1220]">
+                  {loading ? '—' : formatNumber(item.value)}
+                </p>
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">Real-time stats for the current session.</p>
+            ))}
+          </div>
+          <div className="rounded-xl border border-[#E6ECE8] px-2 pb-2 pt-3 sm:px-3">
+            <div className="mb-2 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 px-1 text-xs font-medium text-[#5F6F83]">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#16A34A]" />
+                Total Plays
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#14532D]" />
+                Winners
+              </span>
             </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-0">
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[
-                { label: 'Total Players', value: uniquePlayers },
-                { label: 'Answered', value: answered },
-                { label: 'In Progress', value: inProgress },
-                { label: 'Skipped', value: skipped },
-              ].map((item) => (
-                <div key={item.label} className="rounded-md border px-2.5 py-2">
-                  <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                  <p className="mt-0.5 text-base font-semibold tabular-nums">
-                    {loading ? '—' : formatNumber(item.value)}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-md border bg-muted/20 px-2 pt-2">
-              <div className="mb-1 flex items-center justify-end gap-3 px-1 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-green-600" />
-                  Total Plays
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-green-900" />
-                  Winners
-                </span>
-              </div>
-              <ParticipationChart plays={series.plays} winners={series.winners} />
-            </div>
-          </CardContent>
-        </Card>
+            <ParticipationChart plays={series.plays} winners={series.winners} />
+          </div>
+        </Panel>
 
-        <Card className="shadow-none xl:col-span-2">
-          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 px-3 py-2.5">
-            <div>
-              <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
-                <Trophy className="h-3.5 w-3.5 text-amber-600" />
-                Top Winners
-              </CardTitle>
-              <p className="mt-0.5 text-xs text-muted-foreground">Highest scores in this game (current session)</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate('/winners')}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              View All
-            </button>
-          </CardHeader>
-          <CardContent className="px-0 pb-1 pt-0">
-            {topWinners.length === 0 ? (
-              <p className="px-3 pb-3 text-sm text-muted-foreground">No winners yet</p>
-            ) : (
-              <ul>
-                {topWinners.map((player, index) => {
-                  const rank = player.rank || index + 1;
-                  const winner = isWinner(player, questionsPerQuiz);
-                  return (
-                    <li
-                      key={`${player.userId}-${player.sessionId}-${rank}`}
-                      className="flex items-center gap-2 border-t px-3 py-2"
-                    >
-                      <RankMark rank={rank} />
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
-                        {initials(player.playerName)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{player.playerName}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">{playerIdLabel(player)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold tabular-nums">
-                          {formatNumber(player.userPoints || player.sessionScore)}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">{formatDuration(player.durationSeconds)}</p>
-                      </div>
-                      {winner && (
-                        <Badge className="hidden bg-green-100 text-green-800 hover:bg-green-100 sm:inline-flex">
-                          Winner
-                        </Badge>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <Panel
+          className="min-w-0 xl:col-span-2"
+          icon={Trophy}
+          tone="amber"
+          title="Top Winners"
+          description="Highest scores in this game (current session)"
+          actions={<ViewAllButton onClick={() => navigate('/winners')} />}
+        >
+          {topWinners.length === 0 ? (
+            <p className={emptyClass}>No winners yet</p>
+          ) : (
+            <ul className="divide-y divide-[#EEF2F6]">
+              {topWinners.map((player, index) => {
+                const rank = player.rank || index + 1;
+                const winner = isWinner(player, questionsPerQuiz);
+                return (
+                  <li
+                    key={`${player.userId}-${player.sessionId}-${rank}`}
+                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <RankMark rank={rank} />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E3F8E8] text-xs font-bold text-[#14532D]">
+                      {initials(player.playerName)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[#0F172A]">{player.playerName}</p>
+                      <p className="truncate text-xs text-[#64748B]">{playerIdLabel(player)}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold tabular-nums text-[#0B1220]">
+                        {formatNumber(player.userPoints || player.sessionScore)}
+                      </p>
+                      <p className="text-xs tabular-nums text-[#64748B]">{formatDuration(player.durationSeconds)}</p>
+                    </div>
+                    {winner && (
+                      <Pill tone="green" className="hidden sm:inline-flex">
+                        Winner
+                      </Pill>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      <Card className="shadow-none">
-        <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 px-3 py-2.5">
-          <div>
-            <CardTitle className="text-sm font-medium">Recent Players</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">Latest players who participated in this game</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/players')}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            View All
-          </button>
-        </CardHeader>
-        <CardContent className="px-0 pb-0 pt-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="h-9 px-3">#</TableHead>
-                <TableHead className="h-9 px-3">Player</TableHead>
-                <TableHead className="h-9 px-3">Email / ID</TableHead>
-                <TableHead className="h-9 px-3">Score</TableHead>
-                <TableHead className="h-9 px-3">Time</TableHead>
-                <TableHead className="h-9 px-3">Date & Time</TableHead>
-                <TableHead className="h-9 px-3">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-16 px-3 text-center text-muted-foreground">
-                    Loading players…
-                  </TableCell>
-                </TableRow>
-              ) : recentPlayers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-16 px-3 text-center text-muted-foreground">
-                    {isQuiz ? 'No players yet' : 'Live player stats are available for Quiz Time'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                recentPlayers.map((player, index) => {
-                  const status = sessionStatus(player);
+      <Panel
+        className="min-w-0"
+        icon={Users}
+        tone="blue"
+        title="Recent Players"
+        description="Latest players who participated in this game"
+        actions={<ViewAllButton onClick={() => navigate('/players')} />}
+      >
+        {loading || recentPlayers.length === 0 ? (
+          <p className={emptyClass}>
+            {loading ? 'Loading players…' : isQuiz ? 'No players yet' : 'Live player stats are available for Quiz Time'}
+          </p>
+        ) : (
+          <div className={tableClass.wrap}>
+            <table className={cn(tableClass.table, 'min-w-[760px]')}>
+              <thead>
+                <tr>
+                  <th className={tableClass.th}>#</th>
+                  <th className={tableClass.th}>Player</th>
+                  <th className={tableClass.th}>Email / ID</th>
+                  <th className={tableClass.th}>Score</th>
+                  <th className={tableClass.th}>Time</th>
+                  <th className={tableClass.th}>Date & Time</th>
+                  <th className={tableClass.th}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentPlayers.map((player, index) => {
+                  const status = SESSION_LOOK[sessionStatus(player)];
                   return (
-                    <TableRow key={`${player.sessionId}-${player.userId}-${index}`}>
-                      <TableCell className="px-3 py-2 text-muted-foreground">{index + 1}</TableCell>
-                      <TableCell className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
+                    <tr key={`${player.sessionId}-${player.userId}-${index}`} className={tableClass.tr}>
+                      <td className={cn(tableClass.td, 'tabular-nums text-[#64748B]')}>{index + 1}</td>
+                      <td className={tableClass.td}>
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E3F8E8] text-[11px] font-bold text-[#14532D]">
                             {initials(player.playerName)}
                           </span>
-                          <span className="font-medium">{player.playerName}</span>
+                          <span className="whitespace-nowrap font-medium">{player.playerName}</span>
                         </div>
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-muted-foreground">{playerIdLabel(player)}</TableCell>
-                      <TableCell className="px-3 py-2 tabular-nums">
+                      </td>
+                      <td className={cn(tableClass.td, 'whitespace-nowrap text-[#64748B]')}>{playerIdLabel(player)}</td>
+                      <td className={cn(tableClass.td, 'font-semibold tabular-nums')}>
                         {formatNumber(player.userPoints || player.sessionScore)}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-muted-foreground">
+                      </td>
+                      <td className={cn(tableClass.td, 'whitespace-nowrap tabular-nums text-[#64748B]')}>
                         {formatDuration(player.durationSeconds)}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-muted-foreground">
+                      </td>
+                      <td className={cn(tableClass.td, 'whitespace-nowrap text-[#64748B]')}>
                         {formatWhen(player.completedAt || player.startedAt)}
-                      </TableCell>
-                      <TableCell className="px-3 py-2">
-                        <span
-                          className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                            status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : status === 'skipped'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-yellow-100 text-yellow-800',
-                          )}
-                        >
-                          {status === 'completed' ? 'Completed' : status === 'skipped' ? 'Skipped' : 'In Progress'}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                      <td className={tableClass.td}>
+                        <Pill tone={status.tone} dot>
+                          {status.label}
+                        </Pill>
+                      </td>
+                    </tr>
                   );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       {isQuiz && quiz && onUpdateQuiz && (
         <QuizDetailView quiz={quiz} onUpdateQuiz={onUpdateQuiz} liveFromApi={liveFromApi} />
       )}
 
       {isQuiz && !quiz && (
-        <Card className="shadow-none">
-          <p className="p-6 text-center text-sm text-muted-foreground">
-            Open Questions to work with the live question bank.
-          </p>
-        </Card>
+        <Panel>
+          <p className="py-4 text-center text-sm text-[#64748B]">Open Questions to work with the live question bank.</p>
+        </Panel>
       )}
 
       {!isQuiz && !config && onNavigateToSetup && (
-        <Card className="shadow-none">
-          <p className="p-6 text-center text-sm text-muted-foreground">
-            No configuration yet.{' '}
-            <button type="button" onClick={onNavigateToSetup} className="font-medium text-foreground underline">
+        <Panel>
+          <div className="flex flex-col items-center justify-center gap-3 py-4 text-center sm:flex-row">
+            <p className="text-sm text-[#64748B]">No configuration yet.</p>
+            <Button variant="secondary" size="sm" onClick={onNavigateToSetup}>
               Open Setup
-            </button>
-          </p>
-        </Card>
+            </Button>
+          </div>
+        </Panel>
       )}
 
       {!isQuiz && config && configKind && onNavigateToSetup && onOpenPreview && (

@@ -1,13 +1,25 @@
 import React from 'react';
+import { Gamepad2, Gift, Layers, Trophy } from 'lucide-react';
 import { Game } from '../../types/quiz';
 import { CONFIG_LABELS, ConfigKind, GameConfig, getItemCount } from '../../types/gameConfig';
-import { Pill } from './ui';
+import { IconTile, PageHeader, Pill, panelClass, tableClass, type Tone } from '../ui/pb';
+import { cn } from '../../lib/utils';
 
 interface GameConfigTelemetryViewProps {
   configs: GameConfig[];
   game: Game;
   kind: ConfigKind;
 }
+
+type Kpi = {
+  label: string;
+  value: string;
+  note: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+  tone: Tone;
+  /** Long text values (reward type) use a smaller, wrapping style. */
+  text?: boolean;
+};
 
 export const GameConfigTelemetryView: React.FC<GameConfigTelemetryViewProps> = ({ configs, game, kind }) => {
   const labels = CONFIG_LABELS[kind];
@@ -16,78 +28,101 @@ export const GameConfigTelemetryView: React.FC<GameConfigTelemetryViewProps> = (
   const winRate = totalPlays > 0 ? Math.round((totalWinners / totalPlays) * 100) : 0;
   const inRotation = configs.filter((c) => c.inRotation).length;
 
-  return (
-    <div className="space-y-6 pb-16">
-      <div className="border-b border-[#E2E2E2] pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-black">Telemetry · {game.name}</h1>
-        <p className="text-xs text-[#6B6B6B] mt-0.5">
-          Plays and winners per {labels.pack.toLowerCase()}. Counts update as the game client reports sessions.
-        </p>
-      </div>
+  const kpis: Kpi[] = [
+    { label: `${labels.packs}`, value: configs.length.toLocaleString(), note: `${inRotation} in rotation`, icon: Layers, tone: 'green' },
+    { label: 'Total Plays', value: totalPlays.toLocaleString(), note: 'All packs combined', icon: Gamepad2, tone: 'blue' },
+    { label: 'Total Winners', value: totalWinners.toLocaleString(), note: `${winRate}% win rate`, icon: Trophy, tone: 'purple' },
+    { label: 'Reward Type', value: game.rewardType, note: 'Configured on the game', icon: Gift, tone: 'orange', text: true },
+  ];
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: `${labels.packs}`, value: configs.length.toLocaleString(), note: `${inRotation} in rotation` },
-          { label: 'Total Plays', value: totalPlays.toLocaleString(), note: 'All packs combined' },
-          { label: 'Total Winners', value: totalWinners.toLocaleString(), note: `${winRate}% win rate` },
-          { label: 'Reward Type', value: game.rewardType, note: 'Configured on the game' },
-        ].map((kpi) => (
-          <div key={kpi.label} className="bg-white border border-[#E2E2E2] p-4">
-            <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">{kpi.label}</div>
-            <div className="text-lg font-bold text-black font-mono mt-1 truncate">{kpi.value}</div>
-            <div className="text-[11px] text-[#6B6B6B] mt-0.5">{kpi.note}</div>
+  return (
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <PageHeader
+        title={`Telemetry · ${game.name}`}
+        description={`Plays and winners per ${labels.pack.toLowerCase()}. Counts update as the game client reports sessions.`}
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={cn(panelClass, 'flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-3.5')}
+          >
+            <IconTile icon={kpi.icon} tone={kpi.tone} />
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-[#1F2937]">{kpi.label}</p>
+              <p
+                title={kpi.text ? kpi.value : undefined}
+                className={
+                  kpi.text
+                    ? 'line-clamp-2 text-[15px] font-bold leading-snug text-[#0B1220]'
+                    : 'text-[22px] font-extrabold leading-tight tabular-nums text-[#0B1220] sm:text-2xl'
+                }
+              >
+                {kpi.value}
+              </p>
+              <p className="mt-0.5 text-xs text-[#64748B]">{kpi.note}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white border border-[#E2E2E2] overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
-            <tr>
-              <th className="py-3 px-4">{labels.pack}</th>
-              <th className="py-3 px-4">{labels.items}</th>
-              <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4">Plays</th>
-              <th className="py-3 px-4">Winners</th>
-              <th className="py-3 px-4">Win Rate</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#E2E2E2]">
-            {configs.map((c) => {
-              const rate = c.playsCount > 0 ? Math.round((c.winnersCount / c.playsCount) * 100) : 0;
-              return (
-                <tr key={c.id} className="hover:bg-[#FAFAFA]">
-                  <td className="py-3 px-4 font-semibold text-black">{c.title}</td>
-                  <td className="py-3 px-4 font-mono">{getItemCount(c)}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-1">
-                      <Pill tone={c.status === 'published' ? 'green' : 'default'}>{c.status}</Pill>
-                      {c.inRotation && <Pill>rotation</Pill>}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 font-mono">{c.playsCount.toLocaleString()}</td>
-                  <td className="py-3 px-4 font-mono">{c.winnersCount.toLocaleString()}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 bg-[#EEEEEE] overflow-hidden">
-                        <div className="h-full bg-black" style={{ width: `${rate}%` }} />
+      <section className={cn(panelClass, 'p-4 sm:p-5')}>
+        <div className={tableClass.wrap}>
+          <table className={cn(tableClass.table, 'min-w-[680px]')}>
+            <thead>
+              <tr>
+                <th className={tableClass.th}>{labels.pack}</th>
+                <th className={tableClass.th}>{labels.items}</th>
+                <th className={tableClass.th}>Status</th>
+                <th className={tableClass.th}>Plays</th>
+                <th className={tableClass.th}>Winners</th>
+                <th className={tableClass.th}>Win Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {configs.map((c) => {
+                const rate = c.playsCount > 0 ? Math.round((c.winnersCount / c.playsCount) * 100) : 0;
+                return (
+                  <tr key={c.id} className={tableClass.tr}>
+                    <td className={cn(tableClass.td, 'font-semibold text-[#0F172A]')}>{c.title}</td>
+                    <td className={cn(tableClass.td, 'tabular-nums')}>{getItemCount(c)}</td>
+                    <td className={tableClass.td}>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Pill tone={c.status === 'published' ? 'green' : 'gray'} dot className="capitalize">
+                          {c.status}
+                        </Pill>
+                        {c.inRotation && (
+                          <Pill tone="blue" className="capitalize">
+                            rotation
+                          </Pill>
+                        )}
                       </div>
-                      <span className="font-mono">{rate}%</span>
-                    </div>
+                    </td>
+                    <td className={cn(tableClass.td, 'tabular-nums')}>{c.playsCount.toLocaleString()}</td>
+                    <td className={cn(tableClass.td, 'tabular-nums')}>{c.winnersCount.toLocaleString()}</td>
+                    <td className={tableClass.td}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-[#EEF3EF]">
+                          <div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${rate}%` }} />
+                        </div>
+                        <span className="font-medium tabular-nums">{rate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {configs.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#64748B]">
+                    No {labels.packs.toLowerCase()} yet.
                   </td>
                 </tr>
-              );
-            })}
-            {configs.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-[#6B6B6B]">
-                  No {labels.packs.toLowerCase()} yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };

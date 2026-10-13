@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Quiz, QuizAnalytics, WinnerRecord } from '../../types/quiz';
 import { storageService } from '../../services/storageService';
 import { useQuizTelemetry } from '../../hooks/useQuizTelemetry';
-import { RefreshCw } from 'lucide-react';
+import { AlertTriangle, BarChart3, Flag, Gamepad2, Gauge, RefreshCw, Search, Target, Trophy } from 'lucide-react';
+import { Button, IconTile, Pill, inputClass, panelClass, softClass, tableClass, type Tone } from '../ui/pb';
+import { cn } from '../../lib/utils';
 
 interface AnalyticsDashboardProps {
   quiz: Quiz;
@@ -11,6 +13,119 @@ interface AnalyticsDashboardProps {
   onRefresh: () => void;
   liveFromApi?: boolean;
 }
+
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+
+/** Stacked on phones and in the 5-up row; icon beside the numbers when the tiles are wide. */
+function MetricTile({
+  label,
+  value,
+  note,
+  icon,
+  tone,
+  className,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note: string;
+  icon: IconType;
+  tone: Tone;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        panelClass,
+        'flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-3.5 xl:flex-col xl:items-start xl:gap-3 min-[1680px]:flex-row min-[1680px]:items-center min-[1680px]:gap-3.5',
+        className,
+      )}
+    >
+      <IconTile icon={icon} tone={tone} />
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-[#1F2937]">{label}</p>
+        <p className="text-[22px] font-extrabold leading-tight tabular-nums text-[#0B1220] sm:text-2xl">{value}</p>
+        <p className="mt-0.5 text-xs text-[#64748B]">{note}</p>
+      </div>
+    </div>
+  );
+}
+
+function SectionHead({
+  icon,
+  tone,
+  title,
+  description,
+  children,
+}: {
+  icon: IconType;
+  tone: Tone;
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <h3 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">{title}</h3>
+          <p className="mt-0.5 text-sm text-[#5F6F83]">{description}</p>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const ACCURACY_LEGEND = [
+  { label: '>70% Accuracy', color: 'bg-[#22C55E]' },
+  { label: '50% - 70%', color: 'bg-[#F59E0B]' },
+  { label: '<50% (Hard)', color: 'bg-[#F43F5E]' },
+];
+
+const MEDAL: Record<number, string> = {
+  1: 'bg-[#FFF3D6] text-[#B45309] ring-1 ring-inset ring-[#FCE3A6]',
+  2: 'bg-[#EEF2F6] text-[#475569] ring-1 ring-inset ring-[#DCE3EA]',
+  3: 'bg-[#FDEBDD] text-[#C2410C] ring-1 ring-inset ring-[#F9D2B5]',
+};
+
+function RankBadge({ rank }: { rank: number }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex h-7 min-w-[28px] items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums',
+        MEDAL[rank] ?? 'text-[#64748B]',
+      )}
+    >
+      {rank}
+    </span>
+  );
+}
+
+function PlayerName({ name, avatar }: { name: string; avatar?: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <span
+        aria-hidden
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E3F8E8] text-[#14532D]',
+          avatar ? 'text-base' : 'text-xs font-bold uppercase',
+        )}
+      >
+        {avatar || name.trim().charAt(0) || '?'}
+      </span>
+      <span title={name} className="max-w-[180px] truncate font-semibold text-[#0F172A] sm:max-w-[240px]">
+        {name}
+      </span>
+    </div>
+  );
+}
+
+const TIER_TONE: Record<string, Tone> = {
+  'Grand Spud Master': 'purple',
+  'Golden Crispy': 'amber',
+  'Tater Prodigy': 'blue',
+};
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   quiz,
@@ -58,294 +173,308 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   };
 
   const loadingNumbers = liveFromApi && live.loading && live.data.players.length === 0;
+  const busy = live.loading || live.refreshing;
 
   return (
-    <div className="space-y-6 pb-16">
-      <div className="border-b border-[#E2E2E2] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-black">
-            Winners & Player Telemetry
-          </h1>
-          <p className="text-xs text-[#6B6B6B] mt-0.5">
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold leading-tight text-[#0B1220] sm:text-xl">Winners & Player Telemetry</h2>
+          <p className="mt-1 max-w-3xl text-sm text-[#5F6F83]">
             {liveFromApi
               ? `Live ${questionsPerQuiz}-question Quiz Time leaderboard. Highest points stay on top.`
               : `Performance metrics, winner fulfillment, and question accuracy for ${quiz.title}.`}
           </p>
         </div>
         {liveFromApi && (
-          <button
+          <Button
+            variant="outline"
             onClick={() => void live.refresh(false)}
-            disabled={live.loading || live.refreshing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black text-black text-xs font-bold hover:bg-[#F6F6F6] disabled:opacity-60"
+            disabled={busy}
+            className="self-start sm:self-auto"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${live.loading || live.refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin')} />
             Refresh
-          </button>
+          </Button>
         )}
       </div>
 
       {liveFromApi && live.error && (
-        <div className="bg-[#FDECEC] border border-[#C62828] text-[#C62828] text-xs px-4 py-3">
-          {live.error}
+        <div className="flex items-start gap-2.5 rounded-xl border border-[#FBD5DD] bg-[#FDE8EC] px-4 py-3 text-sm text-[#BE123C]">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{live.error}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Total Plays</div>
-          <div className="text-2xl font-bold text-black font-mono mt-1">
-            {loadingNumbers ? '—' : totalPlays.toLocaleString()}
-          </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi ? 'Unique players who played' : 'Web UI sessions'}
-          </p>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Winners</div>
-          <div className="text-2xl font-bold text-black font-mono mt-1">
-            {loadingNumbers ? '—' : totalWinners.toLocaleString()}
-          </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi
-              ? `Finished all ${questionsPerQuiz} Qs`
-              : `Scored ≥ ${quiz.passScore}/20`}
-          </p>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Win Rate</div>
-          <div className="text-2xl font-bold text-black font-mono mt-1">
-            {loadingNumbers ? '—' : `${winRate}%`}
-          </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi ? 'Winners / unique players' : 'Target: 30%'}
-          </p>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Completion</div>
-          <div className="text-2xl font-bold text-black font-mono mt-1">
-            {loadingNumbers ? '—' : `${completion}%`}
-          </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">
-            Finished all {questionsPerQuiz} Qs
-          </p>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4 col-span-2 lg:col-span-1">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Average Score</div>
-          <div className="text-2xl font-bold text-black font-mono mt-1">
-            {loadingNumbers ? '—' : averageScore}{' '}
-            <span className="text-xs text-[#6B6B6B]">/ {questionsPerQuiz}</span>
-          </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-0.5">Avg duration: {averageTime}m</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
+        <MetricTile
+          icon={Gamepad2}
+          tone="green"
+          label="Total Plays"
+          value={loadingNumbers ? '—' : totalPlays.toLocaleString()}
+          note={liveFromApi ? 'Unique players who played' : 'Web UI sessions'}
+        />
+        <MetricTile
+          icon={Trophy}
+          tone="purple"
+          label="Winners"
+          value={loadingNumbers ? '—' : totalWinners.toLocaleString()}
+          note={liveFromApi ? `Finished all ${questionsPerQuiz} Qs` : `Scored ≥ ${quiz.passScore}/20`}
+        />
+        <MetricTile
+          icon={Target}
+          tone="orange"
+          label="Win Rate"
+          value={loadingNumbers ? '—' : `${winRate}%`}
+          note={liveFromApi ? 'Winners / unique players' : 'Target: 30%'}
+        />
+        <MetricTile
+          icon={Flag}
+          tone="blue"
+          label="Completion"
+          value={loadingNumbers ? '—' : `${completion}%`}
+          note={`Finished all ${questionsPerQuiz} Qs`}
+        />
+        <MetricTile
+          icon={Gauge}
+          tone="red"
+          label="Average Score"
+          value={
+            <>
+              {loadingNumbers ? '—' : averageScore}{' '}
+              <span className="text-sm font-semibold text-[#64748B]">/ {questionsPerQuiz}</span>
+            </>
+          }
+          note={`Avg duration: ${averageTime}m`}
+          className="col-span-2 xl:col-span-1"
+        />
       </div>
 
-      <div className="bg-white border border-[#E2E2E2] p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E2E2] pb-4">
-          <div>
-            <h3 className="text-sm font-bold text-black uppercase tracking-wider">
-              {questionsPerQuiz}-Question Accuracy Breakdown
-            </h3>
-            <p className="text-xs text-[#6B6B6B]">
-              {liveFromApi
-                ? `Accuracy by question slot (Q1–Q${questionsPerQuiz}) across live player sessions.`
-                : 'Identifies which questions are too difficult or causing drop-offs. Click any bar to inspect telemetry.'}
-            </p>
+      <section className={cn(panelClass, 'p-4 sm:p-5')}>
+        <SectionHead
+          icon={BarChart3}
+          tone="green"
+          title={`${questionsPerQuiz}-Question Accuracy Breakdown`}
+          description={
+            liveFromApi
+              ? `Accuracy by question slot (Q1–Q${questionsPerQuiz}) across live player sessions.`
+              : 'Identifies which questions are too difficult or causing drop-offs. Click any bar to inspect telemetry.'
+          }
+        >
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-[#475569]">
+            {ACCURACY_LEGEND.map((item) => (
+              <span key={item.label} className="inline-flex items-center gap-1.5">
+                <span className={cn('h-2.5 w-2.5 rounded-full', item.color)} />
+                {item.label}
+              </span>
+            ))}
           </div>
+        </SectionHead>
 
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 bg-black" />
-              <span>&gt;70% Accuracy</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[#545454]">
-              <span className="h-2.5 w-2.5 bg-[#888888]" />
-              <span>50% - 70%</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[#C62828]">
-              <span className="h-2.5 w-2.5 bg-[#C62828]" />
-              <span>&lt;50% (Hard)</span>
-            </div>
-          </div>
-        </div>
-
-        <div className={`grid grid-cols-4 sm:grid-cols-6 ${questionsPerQuiz <= 12 ? 'lg:grid-cols-12' : 'lg:grid-cols-20'} gap-1.5 pt-2`}>
+        <div
+          className={cn(
+            'grid grid-cols-4 gap-2 sm:grid-cols-6',
+            questionsPerQuiz <= 12 ? 'md:grid-cols-12' : 'md:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))]',
+          )}
+        >
           {questionStats.map((stat) => {
             const isSelected = selectedStatQuestion === stat.questionNumber;
             const barBg =
               stat.correctPercentage >= 70
-                ? 'bg-black'
+                ? 'bg-[#22C55E]'
                 : stat.correctPercentage >= 50
-                ? 'bg-[#888888]'
-                : 'bg-[#C62828]';
+                ? 'bg-[#F59E0B]'
+                : 'bg-[#F43F5E]';
 
             return (
               <button
                 key={stat.questionNumber}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => setSelectedStatQuestion(stat.questionNumber)}
-                className={`p-2 border transition-all text-center flex flex-col justify-between h-28 ${
-                  isSelected ? 'border-black bg-[#F6F6F6] ring-1 ring-black' : 'border-[#E2E2E2] bg-white hover:border-black'
-                }`}
+                className={cn(
+                  'flex h-28 flex-col items-center justify-between rounded-xl border p-2 text-center transition-colors',
+                  isSelected
+                    ? 'border-[#86D19A] bg-[#F0FAF2] ring-2 ring-[#16A34A]/20'
+                    : 'border-[#E6ECE8] bg-white hover:border-[#BFE5C9] hover:bg-[#F8FBF9]',
+                )}
               >
-                <div className="text-[10px] font-mono font-bold text-[#6B6B6B]">
-                  Q{stat.questionNumber}
-                </div>
+                <span className="text-[11px] font-semibold text-[#64748B]">Q{stat.questionNumber}</span>
 
-                <div className="w-full bg-[#EEEEEE] h-12 flex flex-col justify-end">
-                  <div
-                    className={`w-full transition-all ${barBg}`}
+                <span className="flex h-14 w-4 flex-col justify-end overflow-hidden rounded-full bg-[#EEF3EF] sm:w-5">
+                  <span
+                    className={cn('w-full rounded-full transition-all', barBg)}
                     style={{ height: `${Math.max(stat.correctPercentage, 0)}%` }}
                   />
-                </div>
+                </span>
 
-                <div className="text-[10px] font-bold font-mono text-black">
-                  {stat.correctPercentage}%
-                </div>
+                <span className="text-[11px] font-bold tabular-nums text-[#0F172A]">{stat.correctPercentage}%</span>
               </button>
             );
           })}
         </div>
 
         {selectedStatQuestion !== null && (
-          <div className="p-3 bg-[#F6F6F6] border border-[#E2E2E2] flex items-center justify-between text-xs">
+          <div className={cn(softClass, 'mt-4 flex flex-col gap-3 p-4 text-sm sm:flex-row sm:items-start sm:justify-between')}>
             {(() => {
               const qStat = questionStats.find((s) => s.questionNumber === selectedStatQuestion);
               if (!qStat) return null;
               return (
                 <>
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-black">
+                  <div className="min-w-0 space-y-2">
+                    <div className="font-semibold text-[#0F172A]">
                       Question #{qStat.questionNumber}: {qStat.questionText}
                     </div>
-                    <div className="text-[#545454] space-x-3">
-                      <span>Correct: <strong>{qStat.correctPercentage}%</strong></span>
-                      <span>Incorrect: <strong>{qStat.wrongPercentage}%</strong></span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[#475569]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
+                        <span>Correct: <strong className="text-[#0F172A]">{qStat.correctPercentage}%</strong></span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#F43F5E]" />
+                        <span>Incorrect: <strong className="text-[#0F172A]">{qStat.wrongPercentage}%</strong></span>
+                      </span>
                       {'skipPercentage' in qStat && (
-                        <span>Skipped: <strong>{(qStat as { skipPercentage?: number }).skipPercentage ?? 0}%</strong></span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
+                          <span>Skipped: <strong className="text-[#0F172A]">{(qStat as { skipPercentage?: number }).skipPercentage ?? 0}%</strong></span>
+                        </span>
                       )}
-                      <span>Drop-off Rate: <strong>{qStat.dropoffPercentage}%</strong></span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
+                        <span>Drop-off Rate: <strong className="text-[#0F172A]">{qStat.dropoffPercentage}%</strong></span>
+                      </span>
                     </div>
                   </div>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
                     onClick={() => setSelectedStatQuestion(null)}
-                    className="text-[#6B6B6B] hover:text-black text-xs"
+                    className="self-start"
                   >
                     Close
-                  </button>
+                  </Button>
                 </>
               );
             })()}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="bg-white border border-[#E2E2E2] p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E2E2] pb-4">
-          <div>
-            <h3 className="text-sm font-bold text-black uppercase tracking-wider">
-              {liveFromApi ? 'Players Leaderboard' : 'Winning Players & Reward Fulfillment'}
-            </h3>
-            <p className="text-xs text-[#6B6B6B]">
-              {liveFromApi
-                ? 'Live players ranked by total points. Correct, skipped, wrong, score, and points for the latest session.'
-                : `Players who reached or exceeded the ${quiz.passScore}/20 pass threshold.`}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
+      <section className={cn(panelClass, 'p-4 sm:p-5')}>
+        <SectionHead
+          icon={Trophy}
+          tone="amber"
+          title={liveFromApi ? 'Players Leaderboard' : 'Winning Players & Reward Fulfillment'}
+          description={
+            liveFromApi
+              ? 'Live players ranked by total points. Correct, skipped, wrong, score, and points for the latest session.'
+              : `Players who reached or exceeded the ${quiz.passScore}/20 pass threshold.`
+          }
+        >
+          <div className="relative w-full shrink-0 md:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
             <input
               type="text"
               value={winnerSearch}
               onChange={(e) => setWinnerSearch(e.target.value)}
               placeholder={liveFromApi ? 'Search player name...' : 'Search winner name...'}
-              className="px-3 py-1.5 border border-[#E2E2E2] text-xs text-black focus:border-black focus:outline-none"
+              className={cn(inputClass, 'pl-9')}
             />
           </div>
-        </div>
+        </SectionHead>
 
-        <div className="overflow-x-auto border border-[#E2E2E2]">
+        <div className={tableClass.wrap}>
           {liveFromApi ? (
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
+            <table className={cn(tableClass.table, 'min-w-[640px]')}>
+              <thead>
                 <tr>
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Player</th>
-                  <th className="py-3 px-4">Correct</th>
-                  <th className="py-3 px-4">Skipped</th>
-                  <th className="py-3 px-4">Wrong</th>
-                  <th className="py-3 px-4">Score</th>
-                  <th className="py-3 px-4">Points</th>
+                  <th className={tableClass.th}>#</th>
+                  <th className={tableClass.th}>Player</th>
+                  <th className={tableClass.th}>Correct</th>
+                  <th className={tableClass.th}>Skipped</th>
+                  <th className={tableClass.th}>Wrong</th>
+                  <th className={tableClass.th}>Score</th>
+                  <th className={tableClass.th}>Points</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E2E2]">
+              <tbody>
                 {players.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 px-4 text-center text-[#6B6B6B]">
+                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#64748B]">
                       {live.loading ? 'Loading live players…' : 'No players have started Quiz Time yet.'}
                     </td>
                   </tr>
                 ) : (
                   players.map((player) => (
-                    <tr key={player.userId} className="hover:bg-[#FAFAFA]">
-                      <td className="py-3 px-4 font-mono font-bold text-black">{player.rank}</td>
-                      <td className="py-3 px-4 font-semibold text-black">{player.playerName}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-black">
+                    <tr key={player.userId} className={tableClass.tr}>
+                      <td className={tableClass.td}>
+                        <RankBadge rank={player.rank} />
+                      </td>
+                      <td className={tableClass.td}>
+                        <PlayerName name={player.playerName} />
+                      </td>
+                      <td className={cn(tableClass.td, 'font-semibold tabular-nums')}>
                         {player.correctCount}/{player.totalQuestions}
                       </td>
-                      <td className="py-3 px-4 font-mono text-[#6B6B6B]">{player.skippedCount}</td>
-                      <td className="py-3 px-4 font-mono text-[#6B6B6B]">{player.wrongCount}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-black">
-                        {player.sessionScore}{' '}
-                        <span className="text-[#6B6B6B] font-normal">({player.percentage}%)</span>
+                      <td className={cn(tableClass.td, 'tabular-nums text-[#64748B]')}>{player.skippedCount}</td>
+                      <td className={cn(tableClass.td, 'tabular-nums text-[#64748B]')}>{player.wrongCount}</td>
+                      <td className={cn(tableClass.td, 'whitespace-nowrap tabular-nums')}>
+                        <span className="font-semibold">{player.sessionScore}</span>{' '}
+                        <span className="text-[#64748B]">({player.percentage}%)</span>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-black">{player.userPoints}</td>
+                      <td className={cn(tableClass.td, 'font-bold tabular-nums text-[#14532D]')}>{player.userPoints}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
+            <table className={cn(tableClass.table, 'min-w-[760px]')}>
+              <thead>
                 <tr>
-                  <th className="py-3 px-4">Player</th>
-                  <th className="py-3 px-4">Score</th>
-                  <th className="py-3 px-4">Time</th>
-                  <th className="py-3 px-4">Tier Badge</th>
-                  <th className="py-3 px-4">Reward Code</th>
-                  <th className="py-3 px-4 text-center">Fulfillment</th>
+                  <th className={tableClass.th}>Player</th>
+                  <th className={tableClass.th}>Score</th>
+                  <th className={tableClass.th}>Time</th>
+                  <th className={tableClass.th}>Tier Badge</th>
+                  <th className={tableClass.th}>Reward Code</th>
+                  <th className={cn(tableClass.th, 'text-center')}>Fulfillment</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E2E2]">
+              <tbody>
                 {filteredWinners.map((w) => (
-                  <tr key={w.id} className="hover:bg-[#FAFAFA]">
-                    <td className="py-3 px-4 font-semibold text-black">{w.playerName}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-black">
-                      {w.score} / {w.totalQuestions} ({w.percentage}%)
+                  <tr key={w.id} className={tableClass.tr}>
+                    <td className={tableClass.td}>
+                      <PlayerName name={w.playerName} avatar={w.avatar} />
                     </td>
-                    <td className="py-3 px-4 font-mono text-[#6B6B6B]">{w.timeSpentSeconds}s</td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-[#EEEEEE] text-black">
-                        {w.prizeTier}
-                      </span>
+                    <td className={cn(tableClass.td, 'whitespace-nowrap tabular-nums')}>
+                      <span className="font-semibold">
+                        {w.score} / {w.totalQuestions}
+                      </span>{' '}
+                      <span className="text-[#64748B]">({w.percentage}%)</span>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-black">
-                      {w.rewardVoucherCode || 'None'}
+                    <td className={cn(tableClass.td, 'tabular-nums text-[#64748B]')}>{w.timeSpentSeconds}s</td>
+                    <td className={tableClass.td}>
+                      <Pill tone={TIER_TONE[w.prizeTier] ?? 'gray'}>{w.prizeTier}</Pill>
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
+                    <td className={tableClass.td}>
+                      {w.rewardVoucherCode ? (
+                        <code className="whitespace-nowrap rounded-lg bg-[#F6F9F7] px-2 py-1 font-mono text-xs font-semibold text-[#0F172A]">
+                          {w.rewardVoucherCode}
+                        </code>
+                      ) : (
+                        <span className="text-[#94A3B8]">None</span>
+                      )}
+                    </td>
+                    <td className={cn(tableClass.td, 'text-center')}>
+                      <Button
+                        size="xs"
+                        variant={w.prizeClaimed ? 'secondary' : 'outline'}
                         onClick={() => handleToggleClaim(w.id)}
-                        className={`px-3 py-1 text-[10px] font-bold border transition-colors ${
-                          w.prizeClaimed
-                            ? 'bg-[#EBF7EE] border-[#0E8345] text-[#0E8345]'
-                            : 'bg-white border-[#E2E2E2] text-black hover:border-black'
-                        }`}
                       >
+                        {!w.prizeClaimed && <span className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />}
                         {w.prizeClaimed ? '✓ Claimed' : 'Pending'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -353,7 +482,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </table>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

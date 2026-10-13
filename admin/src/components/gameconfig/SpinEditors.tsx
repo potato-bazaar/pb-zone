@@ -11,8 +11,8 @@ export const SpinSettingsForm: React.FC<{ settings: SpinSettings; onChange: (s: 
 }) => {
   const set = <K extends keyof SpinSettings>(key: K, value: SpinSettings[K]) => onChange({ ...settings, [key]: value });
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <TextField label="Wheel name" value={settings.wheelName} onChange={(v) => set('wheelName', v)} className="col-span-2" maxLength={40} />
+    <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2 md:grid-cols-4">
+      <TextField label="Wheel name" value={settings.wheelName} onChange={(v) => set('wheelName', v)} className="sm:col-span-2" maxLength={40} />
       <NumberField label="Spins per day" value={settings.spinsPerDay} min={1} max={20} onChange={(v) => set('spinsPerDay', v)} />
       <NumberField
         label="Cooldown"
@@ -45,7 +45,7 @@ export const SpinSettingsForm: React.FC<{ settings: SpinSettings; onChange: (s: 
         suffix="days"
         onChange={(v) => set('voucherValidityDays', v)}
       />
-      <ToggleField label="Login required" checked={settings.requireLogin} onChange={(v) => set('requireLogin', v)} className="pt-4" />
+      <ToggleField label="Login required" checked={settings.requireLogin} onChange={(v) => set('requireLogin', v)} className="sm:pt-5" />
     </div>
   );
 };
@@ -68,7 +68,7 @@ export const SpinSegmentEditor: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2">
         <TextField label="Label (max 14)" value={segment.label} onChange={(v) => set('label', v)} maxLength={14} />
         <Field label="Emoji">
           <input
@@ -79,14 +79,14 @@ export const SpinSegmentEditor: React.FC<{
           />
         </Field>
         <Field label="Color">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#E2E8E4] bg-white py-1 pl-1 pr-3 transition-colors focus-within:border-[#86D19A] focus-within:ring-4 focus-within:ring-[#16A34A]/10">
             <input
               type="color"
               value={/^#[0-9a-fA-F]{6}$/.test(segment.color) ? segment.color : '#F5B301'}
               onChange={(e) => set('color', e.target.value.toUpperCase())}
-              className="h-8 w-10 border border-[#E2E2E2] bg-white p-0.5 cursor-pointer"
+              className="h-7 w-10 shrink-0 cursor-pointer rounded-[8px] border-0 bg-transparent p-0 focus:outline-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-[8px] [&::-webkit-color-swatch]:border-0"
             />
-            <span className="font-mono text-[11px] text-[#545454]">{segment.color}</span>
+            <span className="truncate font-mono text-xs text-[#475569]">{segment.color}</span>
           </div>
         </Field>
         <SelectField
@@ -99,7 +99,7 @@ export const SpinSegmentEditor: React.FC<{
           label="Prize value (shown to player)"
           value={segment.prizeValue}
           onChange={(v) => set('prizeValue', v)}
-          className="col-span-2"
+          className="sm:col-span-2"
           maxLength={60}
         />
         <NumberField
@@ -110,7 +110,7 @@ export const SpinSegmentEditor: React.FC<{
           onChange={(v) => set('weight', v)}
           hint={`${odds}% chance per spin`}
         />
-        <ToggleField label="Jackpot segment" checked={segment.isJackpot} onChange={(v) => set('isJackpot', v)} className="pt-4" />
+        <ToggleField label="Jackpot segment" checked={segment.isJackpot} onChange={(v) => set('isJackpot', v)} className="sm:pt-5" />
       </div>
       <TextField
         label="Description"

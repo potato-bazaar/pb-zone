@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { Game } from '../../types/quiz';
 import { CONFIG_LABELS, GameConfig, getConfigItems } from '../../types/gameConfig';
 import { summarizeItem } from './configSummary';
 import { CrushLevelPreview, RushRunPreview, SpinWheelPreview } from './GameConfigPreviews';
 import { DifficultyPill, Pill } from './ui';
+import { Button, ModalShell, Pill as TonePill, tableClass } from '../ui/pb';
 
 interface GameConfigPreviewModalProps {
   config: GameConfig | null;
@@ -12,6 +13,8 @@ interface GameConfigPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const orderBadge = 'inline-flex h-6 items-center rounded-lg bg-[#E3F8E8] px-2 text-xs font-bold tabular-nums text-[#14532D]';
 
 /**
  * Player-facing preview of a configuration: playable wheel, level boards, run tracks.
@@ -27,16 +30,16 @@ export const GameConfigPreviewModal: React.FC<GameConfigPreviewModalProps> = ({ 
 
   if (!config) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-white border border-black p-8 max-w-md text-center space-y-3">
-          <span className="text-3xl">{game?.icon || '🎮'}</span>
-          <h3 className="text-base font-bold text-black">Nothing to preview yet</h3>
-          <p className="text-xs text-[#6B6B6B]">Generate a configuration for {game?.name || 'this game'} first.</p>
-          <button onClick={onClose} className="px-4 py-2 bg-black text-white text-xs font-bold">
+      <ModalShell onClose={onClose} size="sm">
+        <div className="flex flex-col items-center gap-2 px-2 py-6 text-center">
+          <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF2DD] text-3xl">{game?.icon || '🎮'}</span>
+          <h3 className="text-base font-bold text-[#0B1220]">Nothing to preview yet</h3>
+          <p className="max-w-xs text-sm text-[#64748B]">Generate a configuration for {game?.name || 'this game'} first.</p>
+          <Button onClick={onClose} className="mt-2">
             Close
-          </button>
+          </Button>
         </div>
-      </div>
+      </ModalShell>
     );
   }
 
@@ -54,54 +57,62 @@ export const GameConfigPreviewModal: React.FC<GameConfigPreviewModalProps> = ({ 
         return (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono font-bold text-xs bg-black text-white px-2 py-0.5">Level {level.order}</span>
-              <span className="text-sm font-bold text-black">{level.name}</span>
+              <span className={orderBadge}>Level {level.order}</span>
+              <span className="text-base font-bold text-[#0B1220]">{level.name}</span>
               <DifficultyPill value={level.difficulty} />
             </div>
-            <div className="flex justify-center">
-              <CrushLevelPreview level={level} settings={c.settings} />
+            <div className="overflow-x-auto rounded-xl bg-[#F6F9F7] p-4">
+              <div className="mx-auto w-fit">
+                <CrushLevelPreview level={level} settings={c.settings} />
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5 justify-center">
+            <div className="flex flex-wrap justify-center gap-1.5">
               {s.chips.map((chip) => (
                 <Pill key={chip}>{chip}</Pill>
               ))}
             </div>
-            <p className="text-xs text-[#6B6B6B] italic text-center">{level.designerNote}</p>
+            <p className="text-center text-sm italic text-[#64748B]">{level.designerNote}</p>
           </div>
         );
       }
       case 'spin':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            <div className="flex flex-col items-center">
-              <div className="text-xs font-bold text-black uppercase tracking-wider mb-3">{c.settings.wheelName}</div>
+          <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+            <div className="flex flex-col items-center rounded-xl bg-[#F6F9F7] px-3 py-4 sm:p-5">
+              <div className="mb-3 text-sm font-semibold text-[#0B1220]">{c.settings.wheelName}</div>
               <SpinWheelPreview segments={c.segments} settings={c.settings} size={300} />
-              <p className="text-[11px] text-[#6B6B6B] mt-3 text-center">
+              <p className="mt-3 text-center text-xs text-[#64748B]">
                 {c.settings.spinsPerDay} spin{c.settings.spinsPerDay === 1 ? '' : 's'} per day · {c.settings.spinDurationSeconds}s spin ·
                 jackpot cap {c.settings.jackpotCapPerDay}/day
               </p>
             </div>
-            <div className="border border-[#E2E2E2]">
-              <table className="w-full text-xs">
-                <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase text-[9px] font-bold tracking-wider">
+            <div className={tableClass.wrap}>
+              <table className={tableClass.table}>
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2">Segment</th>
-                    <th className="text-left px-3 py-2">Prize</th>
-                    <th className="text-right px-3 py-2">Odds</th>
+                    <th className={tableClass.th}>Segment</th>
+                    <th className={tableClass.th}>Prize</th>
+                    <th className={`${tableClass.th} text-right`}>Odds</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E2E2]">
+                <tbody>
                   {c.segments.map((s) => {
                     const total = c.segments.reduce((sum, x) => sum + Math.max(0, x.weight), 0) || 1;
                     return (
-                      <tr key={s.id}>
-                        <td className="px-3 py-2">
-                          <span className="inline-block h-2.5 w-2.5 mr-2 align-middle" style={{ backgroundColor: s.color }} />
+                      <tr key={s.id} className={tableClass.tr}>
+                        <td className={tableClass.td}>
+                          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ backgroundColor: s.color }} />
                           {s.emoji} {s.label}
-                          {s.isJackpot && <span className="ml-1.5 bg-black text-white px-1 py-0.5 text-[8px] uppercase">Jackpot</span>}
+                          {s.isJackpot && (
+                            <TonePill tone="amber" className="ml-1.5">
+                              Jackpot
+                            </TonePill>
+                          )}
                         </td>
-                        <td className="px-3 py-2 text-[#545454]">{s.prizeValue}</td>
-                        <td className="px-3 py-2 text-right font-mono">{((Math.max(0, s.weight) / total) * 100).toFixed(1)}%</td>
+                        <td className={`${tableClass.td} text-[#475569]`}>{s.prizeValue}</td>
+                        <td className={`${tableClass.td} text-right font-medium tabular-nums`}>
+                          {((Math.max(0, s.weight) / total) * 100).toFixed(1)}%
+                        </td>
                       </tr>
                     );
                   })}
@@ -116,13 +127,13 @@ export const GameConfigPreviewModal: React.FC<GameConfigPreviewModalProps> = ({ 
         return (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono font-bold text-xs bg-black text-white px-2 py-0.5">Run {run.order}</span>
-              <span className="text-sm font-bold text-black">{run.name}</span>
+              <span className={orderBadge}>Run {run.order}</span>
+              <span className="text-base font-bold text-[#0B1220]">{run.name}</span>
               <DifficultyPill value={run.difficulty} />
               <Pill>{run.theme}</Pill>
             </div>
             <RushRunPreview run={run} settings={c.settings} />
-            <p className="text-xs text-[#6B6B6B] italic">{run.designerNote}</p>
+            <p className="text-sm italic text-[#64748B]">{run.designerNote}</p>
           </div>
         );
       }
@@ -130,47 +141,45 @@ export const GameConfigPreviewModal: React.FC<GameConfigPreviewModalProps> = ({ 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-5xl bg-white border border-black shadow-2xl my-8">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E2E2]">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B]">
-              {labels.emoji} {game?.name || labels.pack} · Player Preview
-            </span>
-            <h2 className="text-lg font-bold text-black">{config.title}</h2>
+    <ModalShell
+      onClose={onClose}
+      size="xl"
+      icon={Eye}
+      title={config.title}
+      description={`${labels.emoji} ${game?.name || labels.pack} · Player Preview`}
+    >
+      {c.kind === 'spin' ? (
+        renderMain()
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:gap-5">
+          {/* Item picker: a swipeable row on phones, a scrolling column from md */}
+          <div className="-m-1 flex gap-2 overflow-x-auto p-1 md:max-h-[64vh] md:flex-col md:overflow-y-auto md:overflow-x-hidden">
+            {items.map((it, i) => {
+              const s = summarizeItem(c, it);
+              const on = i === idx;
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setSelected(i)}
+                  className={`w-40 shrink-0 rounded-xl border px-3 py-2.5 text-left transition-colors md:w-full ${
+                    on
+                      ? 'border-[#16A34A] bg-[#F0FAF3] ring-2 ring-[#16A34A]/15'
+                      : 'border-[#E6ECE8] bg-white hover:border-[#86D19A] hover:bg-[#F8FBF9]'
+                  }`}
+                >
+                  <div className={`text-[11px] font-medium ${on ? 'text-[#15803D]' : 'text-[#64748B]'}`}>
+                    {labels.item} {it.order}
+                  </div>
+                  <div className="truncate text-sm font-semibold text-[#0F172A]">{s.title}</div>
+                  <div className="text-xs capitalize text-[#64748B]">{s.badge}</div>
+                </button>
+              );
+            })}
           </div>
-          <button onClick={onClose} className="p-1.5 text-[#6B6B6B] hover:text-black transition-colors">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="min-w-0">{renderMain()}</div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4">
-          {c.kind !== 'spin' && (
-            <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-[#E2E2E2] max-h-[70vh] overflow-y-auto">
-              {items.map((it, i) => {
-                const s = summarizeItem(c, it);
-                const on = i === idx;
-                return (
-                  <button
-                    key={it.id}
-                    onClick={() => setSelected(i)}
-                    className={`w-full text-left px-4 py-3 border-b border-[#E2E2E2] text-xs transition-colors ${
-                      on ? 'bg-black text-white' : 'bg-white text-black hover:bg-[#F6F6F6]'
-                    }`}
-                  >
-                    <div className="font-mono text-[10px] opacity-70">
-                      {labels.item} {it.order}
-                    </div>
-                    <div className="font-bold truncate">{s.title}</div>
-                    <div className={`text-[10px] uppercase ${on ? 'text-white/70' : 'text-[#6B6B6B]'}`}>{s.badge}</div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div className={`${c.kind === 'spin' ? 'md:col-span-4' : 'md:col-span-3'} p-6 max-h-[70vh] overflow-y-auto`}>{renderMain()}</div>
-        </div>
-      </div>
-    </div>
+      )}
+    </ModalShell>
   );
 };

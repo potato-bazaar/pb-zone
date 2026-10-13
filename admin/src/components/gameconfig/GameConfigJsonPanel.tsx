@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, Copy, Download, FileJson } from 'lucide-react';
 import { GameConfig } from '../../types/gameConfig';
+import { Button } from '../ui/pb';
 
 export const GameConfigJsonPanel: React.FC<{ config: GameConfig; maxHeight?: number }> = ({ config, maxHeight = 520 }) => {
   const [copied, setCopied] = useState(false);
@@ -28,32 +29,28 @@ export const GameConfigJsonPanel: React.FC<{ config: GameConfig; maxHeight?: num
   };
 
   return (
-    <div className="border border-[#E2E2E2] bg-white">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[#E2E2E2] bg-[#F6F6F6]">
-        <div className="flex items-center gap-1.5 text-[11px] text-[#545454] font-mono truncate">
-          <FileJson className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{config.id}.json</span>
-          <span className="text-[#A0A0A0]">· {sizeKb} KB</span>
+    <div className="overflow-hidden rounded-xl border border-[#E6ECE8] bg-white">
+      <div className="flex items-center justify-between gap-2 border-b border-[#E6ECE8] bg-[#F6F9F7] px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-xs">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E3F8E8] text-[#16A34A]">
+            <FileJson className="h-4 w-4" />
+          </span>
+          <span className="truncate font-mono font-medium text-[#0F172A]">{config.id}.json</span>
+          <span className="shrink-0 text-[#94A3B8]">· {sizeKb} KB</span>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold border border-[#E2E2E2] bg-white hover:border-black text-black transition-colors"
-          >
-            {copied ? <Check className="h-3 w-3 text-[#0E8345]" /> : <Copy className="h-3 w-3" />}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button variant="outline" size="xs" onClick={handleCopy}>
+            {copied ? <Check className="h-3.5 w-3.5 text-[#16A34A]" /> : <Copy className="h-3.5 w-3.5" />}
             <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold bg-black text-white hover:bg-[#262626] transition-colors"
-          >
-            <Download className="h-3 w-3" />
+          </Button>
+          <Button size="xs" onClick={handleDownload}>
+            <Download className="h-3.5 w-3.5" />
             <span>.json</span>
-          </button>
+          </Button>
         </div>
       </div>
       <pre
-        className="p-3 text-[10.5px] font-mono leading-relaxed overflow-auto bg-[#FAFAFA] text-[#333333]"
+        className="overflow-auto bg-[#0F172A] p-4 font-mono text-[11px] leading-relaxed text-[#E2E8F0] [color-scheme:dark]"
         style={{ maxHeight }}
       >
         {json}

@@ -82,6 +82,9 @@ export default {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
+      boxShadow: {
+        card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px -4px rgba(15, 23, 42, 0.06)',
+      },
       transitionTimingFunction: {
         smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
       },
