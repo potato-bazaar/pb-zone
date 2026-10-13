@@ -20,6 +20,10 @@
   --nav-row: 4.25rem;
   /* Clears the tab bar. 4.25 + 1.25 + 1.75 = 7.25rem, matching the previous inset. */
   --shell-pad: calc(var(--nav-row) + var(--nav-pad) + 1.75rem);
+  /* Floating (inset) tab bar: bar height, gap under it, and the scroll padding that clears it. */
+  --float-nav-h: 4.25rem;
+  --float-nav-gap: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --float-nav-pad: calc(var(--float-nav-h) + var(--float-nav-gap) + 1.25rem);
 }
 
 /* Desktop preview keeps the taller status-bar gap. */
@@ -41,6 +45,8 @@
     --header-top: max(0.35rem, calc(env(safe-area-inset-top, 0px) + 0.2rem));
     --nav-pad: max(0.35rem, env(safe-area-inset-bottom, 0px));
     --nav-row: 3.25rem;
+    --float-nav-h: 3.5rem;
+    --float-nav-gap: max(0.35rem, env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1509,17 +1515,38 @@ body {
 
 /* ---------------- All Games ---------------- */
 .games-bg {
-  background-color: #F3F0FC;
+  background-color: #ECE8FD;
   background-image:
-    radial-gradient(60% 40% at 0% 0%, rgba(178, 232, 170, 0.55) 0%, rgba(178, 232, 170, 0) 70%),
-    radial-gradient(55% 40% at 100% 0%, rgba(190, 170, 255, 0.5) 0%, rgba(190, 170, 255, 0) 70%),
-    linear-gradient(180deg, #EEF0FF 0%, #F6F3FE 45%, #F3F0FC 100%);
+    radial-gradient(90% 24% at 50% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(50% 26% at 100% 2%, rgba(206, 190, 255, 0.6) 0%, rgba(206, 190, 255, 0) 70%),
+    radial-gradient(50% 26% at 0% 6%, rgba(222, 242, 214, 0.55) 0%, rgba(222, 242, 214, 0) 70%),
+    linear-gradient(180deg, #F3F0FF 0%, #ECE7FD 42%, #E9E4FC 100%);
 }
-.game-title-3d {
+/* "PB Zone" wordmark */
+.hub-brand {
+  color: #2b1677;
+  letter-spacing: -0.015em;
+  text-shadow: 0 2px 0 #fff, 0 6px 14px rgba(76, 52, 170, 0.2);
+}
+/* Chunky outlined game titles. --shade is set per game. */
+.hub-title {
+  --o: 0.07em;
   paint-order: stroke fill;
-  -webkit-text-stroke: 1.4px var(--shade, #2a1a5e);
-  text-shadow: 0 1px 0 var(--shade, #2a1a5e), 0 2px 0 var(--shade, #2a1a5e), 0 3px 0 var(--shade, #2a1a5e), 0 6px 10px rgba(0, 0, 0, 0.32);
+  -webkit-text-stroke: calc(var(--o) * 1.7) var(--shade, #2a1a5e);
+  text-shadow:
+    0 var(--o) 0 var(--shade, #2a1a5e),
+    0 calc(var(--o) * 2) 0 var(--shade, #2a1a5e),
+    0 calc(var(--o) * 2.6) 0.18em rgba(24, 10, 70, 0.35);
 }
+.hub-cta { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.hub-card { transition: transform 0.25s cubic-bezier(0.22, 1.2, 0.36, 1), box-shadow 0.25s ease; }
+.hub-art { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (hover: hover) {
+  .hub-card:hover { transform: translateY(-3px); }
+  .hub-card:hover .hub-art { transform: scale(1.04); }
+}
+.hub-card:active { transform: scale(0.985); }
+.hub-card:active .hub-cta { transform: translateY(2px); box-shadow: none !important; }
 .game-card { animation: game-card-in 0.5s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
 @keyframes game-card-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 .game-card-shine {
@@ -1528,6 +1555,11 @@ body {
   animation: game-card-shine 4.5s ease-in-out infinite;
 }
 @keyframes game-card-shine { 0%, 55% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .game-card, .game-card-shine { animation: none; }
+  .hub-card, .hub-art, .hub-cta { transition: none; }
+  .hub-card:hover, .hub-card:active, .hub-card:hover .hub-art, .hub-card:active .hub-cta { transform: none; }
+}
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
