@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => (
       </div>
     </div>
 
-    <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-1 2xl:px-[13px]">
+    <nav className="shrink-0 space-y-0.5 px-3 py-1 2xl:px-[13px]">
       {PRIMARY_NAV.map((item) => (
         <NavLink
           key={item.to}
@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => (
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex w-full items-center gap-4 rounded-xl px-[18px] py-[11px] text-base transition-colors duration-200 2xl:py-3 2xl:text-[17px]',
+              'flex w-full items-center gap-4 rounded-xl px-[18px] py-2 text-base transition-colors duration-200 2xl:py-2.5 2xl:text-[17px]',
               isActive ? 'bg-[#E0F7E5] font-bold text-[#14532D]' : 'font-medium text-[#334155] hover:bg-[#F2FAF4]',
             )
           }
@@ -72,20 +72,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => (
       ))}
     </nav>
 
-    <div aria-hidden className="relative h-[196px] shrink-0 overflow-hidden [@media(max-height:760px)]:hidden 2xl:h-[230px]">
-      <div className="absolute inset-0 bg-[radial-gradient(85%_75%_at_38%_88%,#FFF2B8_0%,#FFF8DA_42%,rgba(255,255,255,0)_74%)]" />
-      <img
-        src={sidebarMascot}
-        alt=""
-        draggable={false}
-        className="absolute -right-2 bottom-1 w-[132px] select-none drop-shadow-[0_6px_10px_rgba(120,80,0,0.15)] 2xl:w-[146px]"
-      />
-      <p className="absolute bottom-7 left-5 w-[118px] text-[15px] font-extrabold leading-[1.3] text-[#14532D] 2xl:left-6 2xl:text-base">
-        Good games create happier communities
-      </p>
+    <div aria-hidden className="sidebar-mascot relative min-h-0 flex-1 overflow-hidden">
+      <div className="sidebar-mascot-art absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(85%_75%_at_38%_88%,#FFF2B8_0%,#FFF8DA_42%,rgba(255,255,255,0)_74%)]" />
+        <img
+          src={sidebarMascot}
+          alt=""
+          draggable={false}
+          className="absolute -right-2 bottom-1 w-[132px] select-none drop-shadow-[0_6px_10px_rgba(120,80,0,0.15)] 2xl:w-[146px]"
+        />
+        <p className="absolute bottom-7 left-5 w-[118px] text-[15px] font-extrabold leading-[1.3] text-[#14532D] 2xl:left-6 2xl:text-base">
+          Good games create happier communities
+        </p>
+      </div>
     </div>
 
-    <div className="relative z-10 -mt-3 flex shrink-0 items-center gap-3 rounded-tl-[26px] rounded-tr-[10px] bg-white px-6 py-5 shadow-[0_-10px_24px_-14px_rgba(15,23,42,0.18)] 2xl:py-[30px]">
+    <div className="relative z-10 flex shrink-0 items-center gap-3 rounded-tl-[26px] rounded-tr-[10px] bg-white px-6 py-4 shadow-[0_-10px_24px_-14px_rgba(15,23,42,0.18)] 2xl:py-6">
       <CircleHelp className="h-8 w-8 shrink-0 text-[#CBD5E1]" fill="currentColor" stroke="#fff" strokeWidth={1.75} />
       <div className="min-w-0 leading-tight">
         <div className="text-[15px] font-bold text-[#0B1A13]">PB Zone</div>

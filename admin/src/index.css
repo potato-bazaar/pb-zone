@@ -66,6 +66,19 @@
   }
 }
 
+/* Sidebar art only when the links already fit. The nav itself never scrolls. */
+.sidebar-mascot {
+  container-type: size;
+}
+.sidebar-mascot-art {
+  display: none;
+}
+@container (min-height: 150px) {
+  .sidebar-mascot-art {
+    display: block;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
