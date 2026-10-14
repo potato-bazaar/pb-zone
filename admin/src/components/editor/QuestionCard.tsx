@@ -1,6 +1,47 @@
 import React, { useState } from 'react';
 import { QuizQuestion } from '../../types/quiz';
-import { Sparkles, Edit3, Trash2, ArrowUp, ArrowDown, Check, Clock, ImageOff } from 'lucide-react';
+import {
+  Sparkles,
+  Edit3,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  Clock,
+  ImageOff,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { Button, Pill, buttonClass, labelClass, panelClass, softClass, type Tone } from '../ui/pb';
+import { cn } from '../../lib/utils';
+
+const DIFFICULTY_TONE: Record<QuizQuestion['difficulty'], Tone> = {
+  easy: 'green',
+  medium: 'amber',
+  hard: 'red',
+};
+
+export function DifficultyPill({ value }: { value: QuizQuestion['difficulty'] }) {
+  return (
+    <Pill tone={DIFFICULTY_TONE[value] ?? 'gray'} className="capitalize">
+      {value}
+    </Pill>
+  );
+}
+
+export function CorrectChip() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#16A34A] px-2 py-0.5 text-[11px] font-semibold text-white">
+      <Check className="h-3 w-3" strokeWidth={3} />
+      Correct
+    </span>
+  );
+}
+
+const iconBtn =
+  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748B] transition-colors hover:bg-[#EEF3EF] hover:text-[#0F172A] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
+const iconBtnDanger =
+  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748B] transition-colors hover:bg-[#FDE8EC] hover:text-[#BE123C] disabled:cursor-not-allowed disabled:opacity-50';
 
 interface QuestionCardProps {
   question: QuizQuestion;
@@ -34,132 +75,129 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const needsPicture = isPictureRound && !question.pictureUrl;
 
   return (
-    <div className="rounded-lg border bg-card p-5 shadow-none transition-colors hover:border-foreground/20">
+    <article className={cn(panelClass, 'p-4 sm:p-5')}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#E2E2E2]">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-6 w-6 items-center justify-center bg-black text-white font-mono font-bold text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[#EEF2F6] pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-[#E3F8E8] px-1.5 text-xs font-bold tabular-nums text-[#14532D]">
             #{question.order}
           </span>
-          <span className="text-xs font-bold text-black uppercase tracking-wider">{question.topicTag || 'Potato Trivia'}</span>
-          <span className="text-[10px] font-semibold uppercase bg-[#EEEEEE] text-[#545454] px-2 py-0.5">{question.difficulty}</span>
+          <span className="break-words text-sm font-medium text-[#475569] first-letter:uppercase">
+            {question.topicTag || 'Potato Trivia'}
+          </span>
+          <DifficultyPill value={question.difficulty} />
           {needsPicture && (
-            <span className="text-[10px] font-bold uppercase bg-[#FFFBEB] border border-[#FDE68A] text-[#92400E] px-2 py-0.5">
+            <Pill tone="amber">
+              <ImageOff className="h-3 w-3" />
               Needs picture
-            </span>
+            </Pill>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {readOnly ? (
             <>
-              <span className="text-[9px] font-bold uppercase tracking-wider bg-[#EBF7EE] text-[#0E8345] px-2 py-0.5">
+              <Pill tone="green" dot>
                 Live API
-              </span>
+              </Pill>
               {allowDelete && (
                 <button
+                  type="button"
                   onClick={() => onDelete(question.id)}
                   disabled={deleting}
-                  className="p-1.5 text-[#6B6B6B] hover:text-[#C62828] disabled:opacity-50 transition-colors"
+                  className={iconBtnDanger}
                   title="Delete from live bank"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </>
           ) : (
             <>
-          <button
-            onClick={() => onMoveUp(index)}
-            disabled={index === 0}
-            className="p-1.5 text-[#6B6B6B] hover:text-black disabled:opacity-20 transition-colors"
-            title="Move Up"
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => onMoveDown(index)}
-            disabled={index === totalQuestions - 1}
-            className="p-1.5 text-[#6B6B6B] hover:text-black disabled:opacity-20 transition-colors"
-            title="Move Down"
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-          </button>
+              <button
+                type="button"
+                onClick={() => onMoveUp(index)}
+                disabled={index === 0}
+                className={iconBtn}
+                title="Move Up"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMoveDown(index)}
+                disabled={index === totalQuestions - 1}
+                className={iconBtn}
+                title="Move Down"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
 
-          <div className="h-4 w-px bg-[#E2E2E2] mx-1" />
+              <span className="mx-1 h-5 w-px bg-[#E6ECE8]" />
 
-          <button
-            onClick={() => onRegenerate(question)}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold border border-black hover:bg-black hover:text-white transition-all text-black"
-            title={`Regenerate Question #${question.order}`}
-          >
-            <Sparkles className="h-3 w-3" />
-            <span>Swap Q#{question.order}</span>
-          </button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onRegenerate(question)}
+                title={`Regenerate Question #${question.order}`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Swap Q#{question.order}</span>
+              </Button>
 
-          <button
-            onClick={() => onEdit(question)}
-            className="p-1.5 text-[#6B6B6B] hover:text-black hover:bg-[#F6F6F6] transition-colors"
-            title="Edit Question"
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-          </button>
+              <button type="button" onClick={() => onEdit(question)} className={iconBtn} title="Edit Question">
+                <Edit3 className="h-4 w-4" />
+              </button>
 
-          <button
-            onClick={() => onDelete(question.id)}
-            className="p-1.5 text-[#6B6B6B] hover:text-[#C62828] transition-colors"
-            title="Delete Question"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+              <button type="button" onClick={() => onDelete(question.id)} className={iconBtnDanger} title="Delete Question">
+                <Trash2 className="h-4 w-4" />
+              </button>
             </>
           )}
         </div>
       </div>
 
       {/* Prompt */}
-      <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B] block mb-1">
-          {question.targetWord ? 'Word Clue / Riddle' : 'Question Prompt'}
-        </span>
-        <h3 className="text-sm font-bold text-black leading-snug">{question.question}</h3>
+      <div className="mt-4">
+        <span className={labelClass}>{question.targetWord ? 'Word Clue / Riddle' : 'Question Prompt'}</span>
+        <h3 className="text-[15px] font-semibold leading-snug text-[#0B1220] sm:text-base">{question.question}</h3>
       </div>
 
       {/* Picture clue (Guess the Potato) */}
       {question.pictureUrl && (
-        <div className="mb-4 space-y-1.5">
-          <div className="relative h-48 sm:h-56 w-full max-w-lg rounded-2xl overflow-hidden border border-[#E2E2E2] bg-black shadow-sm">
+        <div className="mt-4 space-y-2">
+          <div className="relative h-48 w-full max-w-lg overflow-hidden rounded-xl bg-[#EEF5F0] ring-1 ring-[#E6ECE8] sm:h-56">
             <img
               src={question.pictureUrl}
               alt="Potato Clue"
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
-            <div className="absolute top-2.5 left-2.5 bg-black/90 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-sm flex items-center gap-1">
+            <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full bg-[#0B1A13]/75 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
               <span>🔍</span>
               <span>Guess the Potato: Picture Clue</span>
             </div>
           </div>
           {question.imagePrompt && (
-            <p className="text-[11px] text-[#6B6B6B] max-w-lg">
-              <span className="font-bold text-black">AI image brief:</span> {question.imagePrompt}
+            <p className="max-w-lg text-xs leading-relaxed text-[#64748B]">
+              <span className="font-semibold text-[#334155]">AI image brief:</span> {question.imagePrompt}
             </p>
           )}
         </div>
       )}
 
       {needsPicture && (
-        <div className="mb-4 max-w-lg p-4 border border-dashed border-[#C8C8C8] bg-[#FAFAFA] space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-black">
+        <div className="mt-4 max-w-lg space-y-2.5 rounded-xl border border-dashed border-[#F3D38B] bg-[#FFFBF0] p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#92400E]">
             <ImageOff className="h-4 w-4" />
             <span>No picture attached yet</span>
           </div>
-          <p className="text-[11px] text-[#545454] leading-relaxed">
-            <span className="font-bold text-black">AI image brief:</span> {question.imagePrompt}
+          <p className="text-xs leading-relaxed text-[#475569]">
+            <span className="font-semibold text-[#334155]">AI image brief:</span> {question.imagePrompt}
           </p>
-          <button onClick={() => onEdit(question)} className="text-[11px] font-semibold text-black underline hover:no-underline">
+          <button type="button" onClick={() => onEdit(question)} className={buttonClass('secondary', 'xs')}>
             Attach a picture URL in Edit
           </button>
         </div>
@@ -167,15 +205,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Word scramble tiles */}
       {question.targetWord && question.scrambledLetters && (
-        <div className="mb-4 p-4 bg-[#F6F6F6] border border-[#E2E2E2] space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className={cn(softClass, 'mt-4 p-4')}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B]">Scrambled Letter Tiles Given to Player:</span>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <span className="text-xs font-semibold text-[#334155]">Scrambled Letter Tiles Given to Player:</span>
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {question.scrambledLetters.map((letter, lIdx) => (
                   <div
                     key={lIdx}
-                    className="flex h-9 w-9 items-center justify-center bg-white border-2 border-black font-mono font-black text-sm text-black shadow-sm"
+                    className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#D5E3D9] bg-white font-mono text-sm font-bold text-[#0F172A] shadow-sm"
                   >
                     {letter}
                   </div>
@@ -183,13 +221,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </div>
             </div>
 
-            <div className="border-t sm:border-t-0 sm:border-l border-[#E2E2E2] sm:pl-4 pt-2 sm:pt-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#0E8345] flex items-center gap-1">
-                <Check className="h-3 w-3 stroke-[3]" /> Target Solution Word:
+            <div className="border-t border-[#E2EAE5] pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+              <span className="flex items-center gap-1 text-xs font-semibold text-[#15803D]">
+                <Check className="h-3.5 w-3.5" strokeWidth={3} /> Target Solution Word:
               </span>
-              <div className="flex flex-wrap gap-1 mt-1.5 font-mono font-black text-sm">
+              <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-sm font-bold">
                 {question.targetWord.split('').map((char, cIdx) => (
-                  <div key={cIdx} className="flex h-9 w-9 items-center justify-center bg-black text-white font-bold">
+                  <div key={cIdx} className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#16A34A] text-white shadow-sm">
                     {char}
                   </div>
                 ))}
@@ -201,32 +239,32 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Options */}
       {question.options && question.options.length > 0 && !question.targetWord && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4">
+        <div className="mt-4 grid grid-cols-1 gap-2.5 md:grid-cols-2">
           {question.options.map((option) => {
             const isCorrect = option.isCorrect;
             return (
               <div
                 key={option.id}
-                className={`flex items-start gap-2.5 p-3 text-xs transition-all border ${
-                  isCorrect ? 'border-black bg-[#FAFAFA] text-black ring-1 ring-black' : 'border-[#E2E2E2] bg-white text-[#545454]'
-                }`}
+                className={cn(
+                  'flex items-start gap-3 rounded-xl border p-3 text-sm transition-colors',
+                  isCorrect ? 'border-[#9FDBB0] bg-[#F0FBF3] text-[#0F172A]' : 'border-[#E6ECE8] bg-white text-[#475569]',
+                )}
               >
                 <div
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center font-mono font-bold text-[11px] ${
-                    isCorrect ? 'bg-black text-white' : 'bg-[#EEEEEE] text-[#545454]'
-                  }`}
+                  className={cn(
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold',
+                    isCorrect ? 'bg-[#16A34A] text-white' : 'bg-[#F1F5F9] text-[#475569]',
+                  )}
                 >
                   {option.id}
                 </div>
-                <div className="flex-1">
-                  <span className={isCorrect ? 'font-bold text-black' : 'font-medium'}>{option.text}</span>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <span className={isCorrect ? 'font-semibold text-[#0F172A]' : 'font-medium'}>{option.text}</span>
                 </div>
                 {isCorrect ? (
-                  <span className="shrink-0 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-black text-white px-1.5 py-0.5">
-                    <Check className="h-2.5 w-2.5 stroke-[3]" /> Correct
-                  </span>
+                  <CorrectChip />
                 ) : (
-                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-[#A0A0A0]">Wrong</span>
+                  <span className="shrink-0 pt-1 text-[11px] font-medium text-[#F43F5E]/75">Wrong</span>
                 )}
               </div>
             );
@@ -236,44 +274,43 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Explanation */}
       {showExplanation && (
-        <div className="space-y-2 pt-2 border-t border-[#E2E2E2] text-xs">
-          <div className="p-3 bg-[#F6F6F6] border border-[#E2E2E2] text-[#333333]">
-            <span className="font-bold text-black">Explanation: </span>
+        <div className={cn('mt-4 grid gap-2.5 text-[13px] leading-relaxed', question.funFact && 'md:grid-cols-2')}>
+          <div className={cn(softClass, 'p-3.5 text-[#334155]')}>
+            <span className="font-semibold text-[#0F172A]">Explanation: </span>
             {question.explanation}
           </div>
           {question.funFact && (
-            <div className="p-3 bg-[#FAFAFA] border border-[#E2E2E2] text-[#333333]">
-              <span className="font-bold text-black">Fun Fact: </span>
+            <div className="rounded-xl bg-[#FFF8EB] p-3.5 text-[#334155]">
+              <span className="font-semibold text-[#0F172A]">Fun Fact: </span>
               {question.funFact}
             </div>
           )}
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between text-[11px] text-[#6B6B6B]">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#EEF2F6] pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Pill tone="gray">
             <Clock className="h-3 w-3" />
             {question.timeLimitSeconds}s timer
-          </span>
-          <span className="font-mono font-medium text-black">+{question.points} pts</span>
+          </Pill>
+          <Pill tone="green" className="font-semibold tabular-nums">
+            +{question.points} pts
+          </Pill>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {allowDelete && (
-            <button
-              onClick={() => onDelete(question.id)}
-              disabled={deleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider border border-[#C62828] text-[#C62828] hover:bg-[#C62828] hover:text-white disabled:opacity-50 transition-colors"
-            >
-              <Trash2 className="h-3 w-3" />
+            <Button variant="danger" size="sm" onClick={() => onDelete(question.id)} disabled={deleting}>
+              <Trash2 className="h-3.5 w-3.5" />
               {deleting ? 'Deleting…' : 'Delete question'}
-            </button>
+            </Button>
           )}
-          <button onClick={() => setShowExplanation(!showExplanation)} className="text-[#6B6B6B] hover:text-black underline transition-colors">
+          <Button variant="ghost" size="sm" onClick={() => setShowExplanation(!showExplanation)}>
             {showExplanation ? 'Hide rationale' : 'View rationale'}
-          </button>
+            {showExplanation ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </Button>
         </div>
       </div>
-    </div>
+    </article>
   );
 };

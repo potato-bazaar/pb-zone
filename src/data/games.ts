@@ -13,6 +13,8 @@ export type GameTheme = {
   shade: string;
   /** Play button gradient, top to bottom. */
   button: [string, string];
+  /** Darker rim under the play button. Falls back to `shade`. */
+  buttonEdge?: string;
   /** Tint washed over the left side of the card so text stays readable. */
   wash: string;
 };
@@ -25,6 +27,10 @@ export type GameItem = {
   shortDescription: string;
   /** Wide hero art: subject on the right, soft blurred left half for text. */
   image: string;
+  /** All Games art: 16:9 for the featured game, 4:5 for grid cards. Falls back to `image`. */
+  cardImage?: string;
+  /** One-liner on the All Games card. Falls back to `shortDescription`. */
+  blurb?: string;
   cta: string;
   /** Pastel card background */
   bg: string;
@@ -59,6 +65,8 @@ export const ALL_GAMES: GameItem[] = [
     description: "",
     shortDescription: "Test your knowledge!",
     image: "/games/cards/quiz-time.webp",
+    cardImage: "/games/hub/quiz-time.webp",
+    blurb: "Test your knowledge and earn rewards!",
     cta: "Play",
     bg: "#EDE4FF",
     titleColor: "#5B3FA8",
@@ -66,7 +74,7 @@ export const ALL_GAMES: GameItem[] = [
     imagePosition: "76% 50%",
     category: "learn",
     tags: [],
-    theme: { title: ["#7A4DFF", "#7A4DFF"], shade: "#2A1266", button: ["#8B6CFF", "#5A3ED6"], wash: "rgba(190, 170, 255, 0.55)" },
+    theme: { title: ["#9A6BFF", "#9A6BFF"], shade: "#2A1266", button: ["#8B6CFF", "#5A3ED6"], buttonEdge: "#3A1F9E", wash: "rgba(255, 238, 178, 0.8)" },
     featured: true,
     playable: true,
   },
@@ -76,6 +84,8 @@ export const ALL_GAMES: GameItem[] = [
     description: "Sprint from farm to cold storage. Dodge, jump, slide and collect!",
     shortDescription: "From farm to a brighter tomorrow!",
     image: "/games/cards/potato-run.webp",
+    cardImage: "/games/hub/potato-run.webp",
+    blurb: "Run, collect and earn rewards!",
     cta: "Play",
     bg: "#DFF2FF",
     titleColor: "#7B2CBF",
@@ -87,7 +97,7 @@ export const ALL_GAMES: GameItem[] = [
       { label: "New", icon: "new" },
       { label: "Earn PB", icon: "coin" },
     ],
-    theme: { title: ["#FFD23F", "#C58BFF"], shade: "#3B1D6E", button: ["#FFE066", "#F0A800"], wash: "rgba(70, 140, 220, 0.40)" },
+    theme: { title: ["#FFD23F", "#A675FF"], shade: "#3B1D6E", button: ["#FFD84A", "#F59E0B"], buttonEdge: "#B86A00", wash: "rgba(228, 243, 255, 0.85)" },
     playable: true,
     pbGameId: "spud-run",
   },
@@ -97,6 +107,8 @@ export const ALL_GAMES: GameItem[] = [
     description: "Match 3 spuds, blast combos and beat 20 juicy levels!",
     shortDescription: "Match & pop the spuds!",
     image: "/games/cards/potato-crush.webp",
+    cardImage: "/games/hub/potato-crush.webp",
+    blurb: "Match, blast and score big!",
     cta: "Play",
     bg: "#FFE9F3",
     titleColor: "#7B2CBF",
@@ -108,7 +120,7 @@ export const ALL_GAMES: GameItem[] = [
       { label: "Popular", icon: "fire" },
       { label: "Earn PB", icon: "coin" },
     ],
-    theme: { title: ["#FFD23F", "#D9B8FF"], shade: "#4A1D7A", button: ["#A66BFF", "#6E3BD9"], wash: "rgba(112, 68, 196, 0.42)" },
+    theme: { title: ["#FFD23F", "#D9B8FF"], shade: "#4A1D7A", button: ["#FF6FB8", "#E2338A"], buttonEdge: "#9C1660", wash: "rgba(247, 232, 255, 0.85)" },
     playable: true,
   },
   {
@@ -117,6 +129,8 @@ export const ALL_GAMES: GameItem[] = [
     description: "Match the right potato or plant — spot varieties and healthy crops!",
     shortDescription: "Spot it. Match it. Grow smarter!",
     image: "/games/cards/tater-match.webp",
+    cardImage: "/games/hub/tater-match.webp",
+    blurb: "Find, match and learn about plants!",
     cta: "Play",
     bg: "#E8F6E4",
     titleColor: "#1F7A4D",
@@ -132,7 +146,8 @@ export const ALL_GAMES: GameItem[] = [
       title: ["#FFD23F", "#4CCB68"],
       shade: "#145C32",
       button: ["#4CCB68", "#1F8A47"],
-      wash: "rgba(52, 140, 74, 0.42)",
+      buttonEdge: "#14602F",
+      wash: "rgba(234, 250, 228, 0.85)",
     },
     playable: true,
   },
@@ -142,18 +157,20 @@ export const ALL_GAMES: GameItem[] = [
     description: "Slice flying spuds, dodge bombs and chase high scores.",
     shortDescription: "Slice your way to a better harvest!",
     image: "/games/cards/potato-ninja.webp",
+    cardImage: "/games/hub/potato-ninja.webp",
+    blurb: "Slice, focus and boost your skills!",
     cta: "Play",
     bg: "#FFE9D6",
     titleColor: "#FFC107",
     buttonBg: "#E0572B",
     imagePosition: "70% 50%",
-    category: "arcade",
+    category: "brain",
     tags: [
       { label: "Slicing", icon: "sword" },
       { label: "3 Modes", icon: "timer" },
       { label: "Earn PB", icon: "coin" },
     ],
-    theme: { title: ["#FFD23F", "#FF6B3D"], shade: "#6E1A0A", button: ["#FF8A4C", "#D9471B"], wash: "rgba(214, 96, 40, 0.38)" },
+    theme: { title: ["#FFD23F", "#FF6B3D"], shade: "#6E1A0A", button: ["#FF9A4D", "#E2531C"], buttonEdge: "#9A2E08", wash: "rgba(255, 238, 222, 0.85)" },
     playable: true,
   },
   // --- Coming later (uncomment when ready) ---

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CrushLevel, CrushSettings, RushRun, RushSettings, SpinSettings, WheelSegment } from '../../types/gameConfig';
 import { CRUSH_BLOCKERS, CRUSH_TILE_CATALOG, RUSH_OBSTACLES, RUSH_POWERUPS } from '../../data/gameConfigCatalog';
 import { hashSeed, mulberry32 } from '../../services/gameConfigSynth';
+import { buttonClass } from '../ui/pb';
 import { Pill } from './ui';
 
 function safeInt(n: number, min: number, max: number, fallback: number): number {
@@ -54,15 +55,15 @@ export const CrushLevelPreview: React.FC<{ level: CrushLevel; settings: CrushSet
   const tileMeta = (id: string) => catalog.find((t) => t.id === id);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div
-        className="inline-grid gap-[3px] p-2 bg-[#F6F6F6] border border-[#E2E2E2]"
+        className="inline-grid gap-[3px] rounded-xl border border-[#E6ECE8] bg-[#F3F6F4] p-2 shadow-sm"
         style={{ gridTemplateColumns: `repeat(${cols}, ${size}px)` }}
       >
         {cells.map((c, i) => (
           <div
             key={i}
-            className="flex items-center justify-center border"
+            className={`flex items-center justify-center border ${compact ? 'rounded-[4px]' : 'rounded-[7px]'}`}
             style={{
               width: size,
               height: size,
@@ -158,7 +159,7 @@ export const SpinWheelPreview: React.FC<{
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative" style={{ width: size, height: size }}>
+      <div className="relative rounded-full shadow-[0_12px_32px_-14px_rgba(15,23,42,0.45)]" style={{ width: size, height: size }}>
         <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-10 text-2xl drop-shadow" aria-hidden>
           🔻
         </div>
@@ -217,19 +218,21 @@ export const SpinWheelPreview: React.FC<{
           type="button"
           onClick={spin}
           disabled={spinning || !n}
-          className="px-5 py-2 bg-black text-white text-xs font-bold hover:bg-[#262626] disabled:opacity-40 transition-all"
+          className={buttonClass('primary', 'md')}
         >
           {spinning ? 'Spinning...' : 'Spin the Potato'}
         </button>
       )}
 
       {result && (
-        <div className="text-center text-xs border border-black px-4 py-2 bg-[#FAFAFA]">
-          <div className="font-bold text-black">
-            {result.emoji} {result.label}
-            {result.isJackpot && <span className="ml-2 bg-black text-white px-1.5 py-0.5 text-[9px] uppercase">Jackpot</span>}
+        <div className="rounded-xl border border-[#BFE5C9] bg-[#F0FAF2] px-4 py-2.5 text-center text-sm">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-bold text-[#0F172A]">
+            <span>
+              {result.emoji} {result.label}
+            </span>
+            {result.isJackpot && <Pill tone="amber">Jackpot</Pill>}
           </div>
-          <div className="text-[#545454]">{result.prizeValue}</div>
+          <div className="mt-0.5 text-[#475569]">{result.prizeValue}</div>
         </div>
       )}
     </div>
@@ -254,8 +257,8 @@ export const RushRunPreview: React.FC<{ run: RushRun; settings: RushSettings; co
   const pct = (m: number) => `${Math.min(100, Math.max(0, (m / distance) * 100))}%`;
 
   return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto border border-[#E2E2E2] bg-[#F6F6F6]">
+    <div className="space-y-2.5">
+      <div className="overflow-x-auto rounded-xl border border-[#E6ECE8] bg-[#F3F6F4] shadow-sm">
         <div className="relative" style={{ minWidth, height: lanes * laneH + 46 }}>
           {/* power-up strip */}
           <div className="absolute left-0 right-0 top-0 h-7 border-b border-dashed border-[#D0D0D0]">
@@ -278,7 +281,7 @@ export const RushRunPreview: React.FC<{ run: RushRun; settings: RushSettings; co
           {Array.from({ length: lanes }).map((_, l) => (
             <div
               key={l}
-              className="absolute left-0 right-0 border-b border-[#E2E2E2]"
+              className="absolute left-0 right-0 border-b border-[#E6ECE8]"
               style={{ top: 28 + l * laneH, height: laneH, background: l % 2 ? '#F0F0F0' : '#F8F8F8' }}
             />
           ))}
@@ -311,7 +314,7 @@ export const RushRunPreview: React.FC<{ run: RushRun; settings: RushSettings; co
           {ticks.map((m) => (
             <span
               key={m}
-              className="absolute text-[9px] font-mono text-[#6B6B6B] -translate-x-1/2"
+              className="absolute text-[9px] font-mono text-[#64748B] -translate-x-1/2"
               style={{ left: pct(m), bottom: 2 }}
             >
               {m}m

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, ShieldCheck, Sparkles, WifiOff } from 'lucide-react';
+import { CircleAlert, Settings, ShieldCheck, Sparkles, WifiOff } from 'lucide-react';
 import { Game } from '../../types/quiz';
 import {
   CONFIG_LABELS,
@@ -12,7 +12,8 @@ import {
 } from '../../types/gameConfig';
 import { CRUSH_THEMES, RUSH_THEMES, SPIN_THEMES } from '../../data/gameConfigCatalog';
 import { aiGameConfigService } from '../../services/aiGameConfigService';
-import { Card, Field, NumberField, Pill, PrimaryButton, SelectField, TextField, ToggleField, inputCls, labelCls } from './ui';
+import { Button, IconTile, panelClass } from '../ui/pb';
+import { Card, Field, NumberField, Pill, SelectField, TextField, ToggleField, inputCls, labelCls } from './ui';
 
 interface GameConfigSetupViewProps {
   game: Game;
@@ -35,6 +36,21 @@ const PLACEHOLDERS: Record<ConfigKind, string> = {
   spin: 'e.g. Include a 20% discount, keep the jackpot a Loaded Fries meal, no more than two empty segments...',
   rush: 'e.g. The last run should be a masher gauntlet, put a double-coins power-up near the finish...',
 };
+
+const chipClass = (on: boolean) =>
+  `inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs transition-colors ${
+    on
+      ? 'border-[#16A34A] bg-[#E3F8E8] font-semibold text-[#14532D] ring-2 ring-[#16A34A]/15'
+      : 'border-[#E2E8E4] bg-white font-medium text-[#475569] hover:border-[#86D19A] hover:text-[#0F172A]'
+  }`;
+
+/* Light track with a green fill (set inline from the value) and a white-ringed green thumb. */
+const rangeCls = [
+  'h-2 w-full cursor-pointer appearance-none rounded-full focus:outline-none',
+  '[&::-webkit-slider-thumb]:box-border [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-[#16A34A] [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(15,23,42,0.25)]',
+  '[&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-[#16A34A] [&::-moz-range-thumb]:shadow-[0_1px_4px_rgba(15,23,42,0.25)]',
+  '[&:focus-visible::-webkit-slider-thumb]:ring-4 [&:focus-visible::-webkit-slider-thumb]:ring-[#16A34A]/20',
+].join(' ');
 
 export const GameConfigSetupView: React.FC<GameConfigSetupViewProps> = ({
   game,
@@ -103,85 +119,86 @@ export const GameConfigSetupView: React.FC<GameConfigSetupViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
-      <div className="border-b border-[#E2E2E2] pb-5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-2xl font-bold tracking-tight text-black">AI Generate {labels.pack}</h1>
-          <Pill tone="purple">
-            {labels.emoji} {game.name}
-          </Pill>
-        </div>
-        <p className="text-xs text-[#6B6B6B] mt-1 max-w-2xl leading-relaxed">
-          The AI designs the {labels.items.toLowerCase()}. Game settings such as lives, rewards and timers are yours to set by hand in
-          the editor. Generation reuses the settings of the active {labels.pack.toLowerCase()} while that toggle stays on.
-        </p>
-      </div>
-
-      {/* Engine status */}
-      <div
-        className={`p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-          hasKey ? 'bg-[#EBF7EE] border-[#0E8345]' : 'bg-[#FFFBEB] border-[#FDE68A]'
-        }`}
-      >
-        <div className="flex items-start gap-2.5">
-          {hasKey ? (
-            <ShieldCheck className="h-4 w-4 text-[#0E8345] shrink-0 mt-0.5" />
-          ) : (
-            <WifiOff className="h-4 w-4 text-[#92400E] shrink-0 mt-0.5" />
-          )}
-          <div className="text-xs">
-            <div className={`font-bold ${hasKey ? 'text-[#0E8345]' : 'text-[#92400E]'}`}>
-              {hasKey ? `Groq connected · ${model}` : 'Offline designer active'}
+    <div className="flex flex-col gap-4 pb-6">
+      <section className={`${panelClass} p-4 sm:p-5`}>
+        <div className="flex items-start gap-3">
+          <IconTile icon={Sparkles} tone="purple" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">AI Generate {labels.pack}</h2>
+              <Pill tone="purple">
+                {labels.emoji} {game.name}
+              </Pill>
             </div>
-            <div className={hasKey ? 'text-[#0E8345]/80' : 'text-[#92400E]/80'}>
-              {hasKey
-                ? `Each ${labels.pack.toLowerCase()} is one Groq request. Failed requests fall back to the offline designer automatically.`
-                : `Without a Groq key the ${labels.items.toLowerCase()} are produced by the deterministic offline designer. Add a key in Settings for AI-designed content.`}
-            </div>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-[#5F6F83]">
+              The AI designs the {labels.items.toLowerCase()}. Game settings such as lives, rewards and timers are yours to set by hand in
+              the editor. Generation reuses the settings of the active {labels.pack.toLowerCase()} while that toggle stays on.
+            </p>
           </div>
         </div>
-        <button
-          onClick={onOpenSettings}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-black bg-white hover:bg-black hover:text-white transition-all self-start sm:self-auto"
+
+        {/* Engine status */}
+        <div
+          className={`mt-4 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4 ${
+            hasKey ? 'border-[#CDEBD5] bg-[#F1FAF3]' : 'border-[#FBE3A8] bg-[#FFF9EB]'
+          }`}
         >
-          <Settings className="h-3.5 w-3.5" />
-          <span>AI Settings</span>
-        </button>
-      </div>
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ${
+                hasKey ? 'text-[#16A34A]' : 'text-[#D97706]'
+              }`}
+            >
+              {hasKey ? <ShieldCheck className="h-[18px] w-[18px]" /> : <WifiOff className="h-[18px] w-[18px]" />}
+            </span>
+            <div className="min-w-0">
+              <div className={`text-sm font-semibold ${hasKey ? 'text-[#14532D]' : 'text-[#92400E]'}`}>
+                {hasKey ? `Groq connected · ${model}` : 'Offline designer active'}
+              </div>
+              <div className={`mt-0.5 text-xs leading-relaxed ${hasKey ? 'text-[#14532D]/75' : 'text-[#92400E]/80'}`}>
+                {hasKey
+                  ? `Each ${labels.pack.toLowerCase()} is one Groq request. Failed requests fall back to the offline designer automatically.`
+                  : `Without a Groq key the ${labels.items.toLowerCase()} are produced by the deterministic offline designer. Add a key in Settings for AI-designed content.`}
+              </div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={onOpenSettings} className="self-start sm:self-auto">
+            <Settings className="h-3.5 w-3.5" />
+            <span>AI Settings</span>
+          </Button>
+        </div>
+      </section>
 
       {isGenerating ? (
-        <div className="bg-white border border-[#E2E2E2] p-12 text-center space-y-4">
-          <div className="inline-block h-8 w-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-          <h3 className="text-base font-bold text-black">{status}</h3>
+        <section className={`${panelClass} flex flex-col items-center gap-4 px-6 py-12 text-center sm:py-16`}>
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E3F8E8]">
+            <span className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#16A34A] border-t-transparent" />
+          </span>
+          <h3 className="text-base font-bold text-[#0B1220] sm:text-lg">{status}</h3>
           {progress && (
-            <div className="max-w-md mx-auto space-y-1">
-              <div className="h-2 bg-[#EEEEEE] overflow-hidden">
-                <div className="h-full bg-black transition-all" style={{ width: `${(progress.current / progress.total) * 100}%` }} />
+            <div className="w-full max-w-md space-y-1.5">
+              <div className="h-2 overflow-hidden rounded-full bg-[#EEF2F6]">
+                <div
+                  className="h-full rounded-full bg-[#16A34A] transition-all"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
               </div>
-              <div className="text-[11px] font-mono text-[#6B6B6B]">
+              <div className="text-xs font-medium tabular-nums text-[#64748B]">
                 {progress.current} / {progress.total}
               </div>
             </div>
           )}
-          <p className="text-xs text-[#6B6B6B]">
+          <p className="text-sm text-[#64748B]">
             {hasKey ? 'Waiting for Groq. Large packs can take up to a minute.' : 'Designing offline. This is instant.'}
           </p>
-        </div>
+        </section>
       ) : (
-        <>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:items-start">
           <Card title="Design Brief" subtitle={`Tell the designer what this ${labels.pack.toLowerCase()} should feel like.`}>
             <Field label="Theme">
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="mb-3 flex flex-wrap gap-2">
                 {themes.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTheme(t)}
-                    className={`text-[11px] px-2.5 py-1 border transition-all ${
-                      theme === t ? 'bg-black text-white border-black font-semibold' : 'bg-white text-[#545454] border-[#E2E2E2] hover:border-black'
-                    }`}
-                  >
+                  <button key={t} type="button" onClick={() => setTheme(t)} className={chipClass(theme === t)}>
                     {t}
                   </button>
                 ))}
@@ -196,7 +213,7 @@ export const GameConfigSetupView: React.FC<GameConfigSetupViewProps> = ({
               />
             </Field>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>
                   Number of {labels.items} ({range.min} to {range.max})
@@ -209,19 +226,22 @@ export const GameConfigSetupView: React.FC<GameConfigSetupViewProps> = ({
                     step={1}
                     value={count}
                     onChange={(e) => setCount(parseInt(e.target.value))}
-                    className="w-full accent-black cursor-pointer h-2 bg-[#EEEEEE] rounded-lg"
+                    className={rangeCls}
+                    style={{
+                      background: `linear-gradient(to right, #16A34A ${((count - range.min) / (range.max - range.min)) * 100}%, #E6ECE8 0)`,
+                    }}
                   />
-                  <span className="font-mono text-lg font-bold text-black min-w-[2.5rem] text-right">{count}</span>
+                  <span className="min-w-[3rem] rounded-lg bg-[#E3F8E8] px-2 py-1 text-center text-base font-bold tabular-nums text-[#14532D]">
+                    {count}
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {range.presets.map((n) => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setCount(n)}
-                      className={`px-2.5 py-1 text-[11px] font-mono border transition-colors ${
-                        count === n ? 'bg-black text-white border-black font-bold' : 'bg-white text-[#545454] border-[#E2E2E2] hover:border-black'
-                      }`}
+                      className={`${chipClass(count === n)} min-w-[2.75rem] tabular-nums`}
                     >
                       {n}
                     </button>
@@ -261,60 +281,70 @@ export const GameConfigSetupView: React.FC<GameConfigSetupViewProps> = ({
               value={customPrompt}
               onChange={setCustomPrompt}
               multiline
-              rows={2}
+              rows={3}
               placeholder={PLACEHOLDERS[kind]}
               maxLength={600}
             />
           </Card>
 
-          <Card title="Output" subtitle="How many packs to produce and where they go.">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <NumberField
-                label="Variants to generate"
-                value={variants}
-                min={1}
-                max={10}
-                onChange={setVariants}
-                hint="Each variant is a separate request with the same brief, so players in rotation get different packs."
-              />
-              <ToggleField
-                label="Auto-add to player rotation"
-                checked={autoRotate}
-                onChange={setAutoRotate}
-                className="sm:pt-4"
-                hint="Rotation packs are served to players at random."
-              />
-              <ToggleField
-                label={activeConfig ? 'Reuse settings of active pack' : 'Use default settings'}
-                checked={reuseSettings}
-                onChange={setReuseSettings}
-                className="sm:pt-4"
-                disabled={!activeConfig}
-                hint={activeConfig ? `Copies lives, rewards and timers from "${activeConfig.title}".` : 'No active pack yet, defaults will be used.'}
-              />
-            </div>
+          <div className="flex flex-col gap-4">
+            <Card title="Output" subtitle="How many packs to produce and where they go.">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-1">
+                <NumberField
+                  label="Variants to generate"
+                  value={variants}
+                  min={1}
+                  max={10}
+                  onChange={setVariants}
+                  hint="Each variant is a separate request with the same brief, so players in rotation get different packs."
+                />
+                <ToggleField
+                  label="Auto-add to player rotation"
+                  checked={autoRotate}
+                  onChange={setAutoRotate}
+                  className="sm:pt-[22px] xl:pt-0"
+                  hint="Rotation packs are served to players at random."
+                />
+                <ToggleField
+                  label={activeConfig ? 'Reuse settings of active pack' : 'Use default settings'}
+                  checked={reuseSettings}
+                  onChange={setReuseSettings}
+                  className="sm:pt-[22px] xl:pt-0"
+                  disabled={!activeConfig}
+                  hint={activeConfig ? `Copies lives, rewards and timers from "${activeConfig.title}".` : 'No active pack yet, defaults will be used.'}
+                />
+              </div>
 
-            <div className="pt-4 border-t border-[#E2E2E2] flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-xs text-[#6B6B6B]">
-                Generates{' '}
-                <strong className="text-black">
-                  {variants} {variants === 1 ? labels.pack.toLowerCase() : labels.packs.toLowerCase()}
-                </strong>{' '}
-                with{' '}
-                <strong className="text-black">
-                  {count} {labels.items.toLowerCase()}
-                </strong>{' '}
-                each.
-              </p>
-              <PrimaryButton onClick={handleGenerate} className="px-6 py-3">
-                <Sparkles className="h-4 w-4" />
-                <span>Generate {labels.pack}</span>
-              </PrimaryButton>
-            </div>
-          </Card>
+              <div className="flex flex-col gap-3 border-t border-[#EEF2F6] pt-4 sm:flex-row sm:items-center sm:justify-between xl:flex-col xl:items-stretch">
+                <p className="text-sm text-[#5F6F83]">
+                  Generates{' '}
+                  <strong className="font-semibold text-[#0F172A]">
+                    {variants} {variants === 1 ? labels.pack.toLowerCase() : labels.packs.toLowerCase()}
+                  </strong>{' '}
+                  with{' '}
+                  <strong className="font-semibold text-[#0F172A]">
+                    {count} {labels.items.toLowerCase()}
+                  </strong>{' '}
+                  each.
+                </p>
+                <Button size="lg" onClick={handleGenerate}>
+                  <Sparkles className="h-4 w-4" />
+                  <span>Generate {labels.pack}</span>
+                </Button>
+              </div>
+            </Card>
 
-          {error && <div className="p-3 border border-[#C62828] bg-[#FCEBEB] text-xs text-[#C62828]">{error}</div>}
-        </>
+            {error && (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-xl border border-[#FBD5DD] bg-[#FDE8EC] px-4 py-3 text-sm text-[#BE123C]"
+              >
+                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="min-w-0 break-words">{error}</span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

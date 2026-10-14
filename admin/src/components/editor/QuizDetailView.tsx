@@ -11,17 +11,31 @@ import {
   localizeQuizQuestion,
   type AdminQuizLanguage,
 } from '../../services/quizBankApi';
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   RefreshCw,
   AlertTriangle,
   Coins,
   ChevronLeft,
   ChevronRight,
+  CalendarClock,
+  Check,
+  CircleCheck,
+  Copy,
+  Database,
+  Gamepad2,
+  Inbox,
+  Layers,
+  ListChecks,
+  LoaderCircle,
+  Pencil,
+  Scissors,
+  Shuffle,
+  Target,
+  Timer,
 } from 'lucide-react';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Button, EmptyState, IconTile, Pill, inputClass, panelClass, tabClass, tabListClass, type Tone } from '../ui/pb';
 import { cn } from '../../lib/utils';
 
 const PAGE_SIZE = 20;
@@ -41,41 +55,65 @@ function pageItems(current: number, total: number): Array<number | 'ellipsis'> {
 function StatTile({
   title,
   value,
+  icon,
+  tone,
   onClick,
 }: {
   title: string;
   value: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+  tone: Tone;
   onClick?: () => void;
 }) {
   const body = (
     <>
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums leading-none whitespace-nowrap">{value}</p>
+      <IconTile icon={icon} tone={tone} className="hidden sm:flex lg:hidden xl:flex" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-[#1F2937]">{title}</p>
+        <p className="mt-0.5 whitespace-nowrap text-xl font-extrabold leading-tight tabular-nums text-[#0B1220] sm:text-[22px]">
+          {value}
+        </p>
+      </div>
     </>
   );
+  const shell = cn(panelClass, 'flex items-center gap-3.5 p-4 text-left');
   if (onClick) {
     return (
       <button
         type="button"
         onClick={onClick}
         title={title}
-        className="rounded-lg border bg-card p-3 text-left shadow-none hover:bg-accent"
+        className={cn(
+          shell,
+          'group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#16A34A]/20',
+        )}
       >
         {body}
+        <Pencil className="h-4 w-4 shrink-0 self-start text-[#94A3B8] transition-colors group-hover:text-[#16A34A]" />
       </button>
     );
   }
-  return (
-    <Card className="shadow-none">
-      <div className="p-3">{body}</div>
-    </Card>
-  );
+  return <div className={shell}>{body}</div>;
 }
 
-const btnPrimary =
-  'inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60';
-const btnOutline =
-  'inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent disabled:opacity-60';
+function Notice({ tone, title, children }: { tone: 'red' | 'green'; title?: string; children: React.ReactNode }) {
+  const red = tone === 'red';
+  const Icon = red ? AlertTriangle : CircleCheck;
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm',
+        red ? 'border-[#FBD5DD] bg-[#FFF5F7] text-[#9F1239]' : 'border-[#CDEFD6] bg-[#F0FBF3] text-[#14532D]',
+      )}
+    >
+      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', red ? 'text-[#E11D48]' : 'text-[#16A34A]')} />
+      <div className="min-w-0 break-words">
+        {title && <p className="font-semibold">{title}</p>}
+        <div className={title ? 'mt-0.5' : 'font-medium'}>{children}</div>
+      </div>
+    </div>
+  );
+}
 
 interface QuizDetailViewProps {
   quiz: Quiz;
@@ -293,57 +331,136 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 pb-10">
-      <Card className="shadow-none">
-        <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="mb-1 flex items-center gap-2">
-              <p className="text-xs font-medium text-muted-foreground">
+    <div className="flex flex-col gap-4 pb-10">
+      <section className={cn(panelClass, 'p-4 sm:p-5')}>
+        <div className="flex items-start gap-3.5">
+          <IconTile icon={liveFromApi ? Database : Layers} tone="green" className="hidden sm:flex" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[13px] font-semibold text-[#16A34A]">
                 {liveFromApi ? 'Live question bank' : 'Deck management'}
               </p>
-              <Badge
-                className={
-                  liveFromApi || quiz.status === 'published'
-                    ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                    : 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-                }
+              <Pill
+                tone={liveFromApi || quiz.status === 'published' ? 'green' : 'gray'}
+                dot
+                className={liveFromApi ? undefined : 'capitalize'}
               >
-                <span
-                  className={cn(
-                    'mr-1.5 inline-block h-1.5 w-1.5 rounded-full',
-                    liveFromApi || quiz.status === 'published' ? 'bg-green-600' : 'bg-gray-400',
-                  )}
-                />
                 {liveFromApi ? 'API bank' : quiz.status}
-              </Badge>
+              </Pill>
             </div>
-            <h1 className="text-lg font-semibold leading-tight">
+            <h2 className="mt-1 text-lg font-bold leading-tight text-[#0B1220] sm:text-xl">
               {liveFromApi ? 'PB Zone Quiz — Live Questions' : quiz.title}
-            </h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            </h2>
+            <p className="mt-1.5 max-w-4xl break-words text-sm leading-relaxed text-[#5F6F83]">
               {liveFromApi
                 ? `Roz 10:00 AM IST pe naya ${live.target} AI questions automatically replace hote hain — bank ${live.target} pe hi rehta hai, roz manually trim nahi karna. Har player ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
                 : quiz.description}
             </p>
           </div>
         </div>
-      </Card>
 
-      <div className={cn('grid grid-cols-2 gap-2', liveFromApi ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
+        <div className="mt-4 grid grid-cols-1 gap-2 border-t border-[#EEF2F6] pt-4 sm:flex sm:flex-wrap sm:items-center">
+          {!liveFromApi && (
+            <Button variant={quiz.status === 'published' ? 'outline' : 'primary'} onClick={handleToggleStatus}>
+              {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
+            </Button>
+          )}
+
+          {liveFromApi && (
+            <>
+              <Button
+                onClick={() => void live.refresh()}
+                disabled={live.loading || live.refreshingDaily || live.pruning}
+              >
+                <RefreshCw className={cn('h-4 w-4', live.loading ? 'animate-spin' : '')} />
+                Refresh from API
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const cap = live.target;
+                  const ok = window.confirm(
+                    `Run daily refresh now? This generates a fresh set of up to ${cap} AI questions and retires older ones so the live bank stays at ${cap}. It may take several minutes.`,
+                  );
+                  if (!ok) return;
+                  void live.runDailyRefresh();
+                }}
+                disabled={live.loading || live.refreshingDaily || live.pruning}
+              >
+                {live.refreshingDaily ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CalendarClock className="h-4 w-4" />
+                )}
+                {live.refreshingDaily ? 'Generating…' : 'Run daily refresh'}
+              </Button>
+              {live.active > live.target && (
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    const extra = live.active - live.target;
+                    const ok = window.confirm(
+                      `Keep only the latest ${live.target} questions? This will retire ${extra} older stacked questions from new quizzes. Past player sessions stay intact.`,
+                    );
+                    if (!ok) return;
+                    void live.pruneToLatest();
+                  }}
+                  disabled={live.loading || live.refreshingDaily || live.pruning}
+                >
+                  {live.pruning ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+                  {live.pruning ? 'Trimming…' : `Keep latest ${live.target}`}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setScoringError(null);
+                  setScoringOpen(true);
+                }}
+              >
+                <Coins className="h-4 w-4" />
+                Set scoring points
+              </Button>
+            </>
+          )}
+
+          <Button variant="outline" onClick={handleCopyJSON}>
+            {copied ? <Check className="h-4 w-4 text-[#16A34A]" /> : <Copy className="h-4 w-4" />}
+            {copied ? 'Copied!' : 'Export JSON'}
+          </Button>
+
+          {!liveFromApi && (
+            <Button variant="secondary" onClick={handleAddNewQuestion} className="sm:ml-auto">
+              <Plus className="h-4 w-4" />
+              Add Question
+            </Button>
+          )}
+        </div>
+      </section>
+
+      <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', liveFromApi ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
         <StatTile
+          icon={liveFromApi ? Database : ListChecks}
+          tone="green"
           title={liveFromApi ? 'Active / Cap' : 'Questions'}
           value={liveFromApi ? `${live.active} / ${live.target}` : `${quiz.questions.length} / 20`}
         />
         <StatTile
+          icon={liveFromApi ? Shuffle : Target}
+          tone="blue"
           title={liveFromApi ? 'Per quiz' : 'Pass mark'}
           value={liveFromApi ? `${perQuiz} Qs` : `${quiz.passScore} pts`}
         />
         <StatTile
+          icon={liveFromApi ? Timer : Gamepad2}
+          tone="orange"
           title={liveFromApi ? 'Timer' : 'Plays'}
           value={liveFromApi ? `${live.settings?.timerSeconds ?? 15}s` : String(quiz.playsCount)}
         />
         {liveFromApi && (
           <StatTile
+            icon={Coins}
+            tone="purple"
             title="Scoring"
             value={`+${scoringValues.pointsPerCorrect}/+${scoringValues.completeQuizBonus}`}
             onClick={() => {
@@ -354,217 +471,120 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {!liveFromApi && (
-            <button type="button" onClick={handleToggleStatus} className={quiz.status === 'published' ? btnOutline : btnPrimary}>
-              {quiz.status === 'published' ? 'Unpublish Quiz' : 'Publish Quiz to Live'}
-            </button>
-          )}
+      <section className={cn(panelClass, 'flex flex-col gap-3 p-4 sm:p-5')}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-md md:flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={liveFromApi ? 'Search the full quiz API bank…' : 'Search question text or options...'}
+              className={cn(inputClass, 'pl-9')}
+            />
+          </div>
 
-          {liveFromApi && (
-            <>
-              <button
-                type="button"
-                onClick={() => void live.refresh()}
-                disabled={live.loading || live.refreshingDaily || live.pruning}
-                className={btnPrimary}
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', live.loading ? 'animate-spin' : '')} />
-                Refresh from API
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const cap = live.target;
-                  const ok = window.confirm(
-                    `Run daily refresh now? This generates a fresh set of up to ${cap} AI questions and retires older ones so the live bank stays at ${cap}. It may take several minutes.`,
+          <div className="flex flex-wrap items-center gap-2">
+            {liveFromApi ? (
+              <div className={tabListClass} role="radiogroup" aria-label="Question language">
+                {(
+                  [
+                    { code: 'en', label: 'EN' },
+                    { code: 'hi', label: 'HI' },
+                    { code: 'gu', label: 'GU' },
+                  ] as const
+                ).map((opt) => {
+                  const selected = viewLanguage === opt.code;
+                  return (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setViewLanguage(opt.code)}
+                      className={tabClass(selected)}
+                      title={
+                        opt.code === 'en'
+                          ? 'English'
+                          : opt.code === 'hi'
+                            ? 'Hindi'
+                            : 'Gujarati'
+                      }
+                    >
+                      {opt.label}
+                    </button>
                   );
-                  if (!ok) return;
-                  void live.runDailyRefresh();
-                }}
-                disabled={live.loading || live.refreshingDaily || live.pruning}
-                className={btnOutline}
-              >
-                {live.refreshingDaily ? 'Generating…' : 'Run daily refresh'}
-              </button>
-              {live.active > live.target && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const extra = live.active - live.target;
-                    const ok = window.confirm(
-                      `Keep only the latest ${live.target} questions? This will retire ${extra} older stacked questions from new quizzes. Past player sessions stay intact.`,
-                    );
-                    if (!ok) return;
-                    void live.pruneToLatest();
-                  }}
-                  disabled={live.loading || live.refreshingDaily || live.pruning}
-                  className="inline-flex h-8 items-center rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {live.pruning ? 'Trimming…' : `Keep latest ${live.target}`}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setScoringError(null);
-                  setScoringOpen(true);
-                }}
-                className={btnOutline}
-              >
-                <Coins className="h-3.5 w-3.5" />
-                Set scoring points
-              </button>
-            </>
-          )}
-
-          <button type="button" onClick={handleCopyJSON} className={btnOutline}>
-            {copied ? 'Copied!' : 'Export JSON'}
-          </button>
-        </div>
-
-        {!liveFromApi && (
-          <button type="button" onClick={handleAddNewQuestion} className={btnOutline}>
-            <Plus className="h-3.5 w-3.5" />
-            Add Question
-          </button>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={liveFromApi ? 'Search the full quiz API bank…' : 'Search question text or options...'}
-            className="h-8 w-full rounded-md border border-input bg-background px-3 pl-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {liveFromApi ? (
-            <div className="mr-1 flex items-center gap-1.5" role="radiogroup" aria-label="Question language">
-              {(
-                [
-                  { code: 'en', label: 'EN' },
-                  { code: 'hi', label: 'HI' },
-                  { code: 'gu', label: 'GU' },
-                ] as const
-              ).map((opt) => {
-                const selected = viewLanguage === opt.code;
+                })}
+              </div>
+            ) : null}
+            <div className={tabListClass}>
+              {['all', 'easy', 'medium', 'hard'].map((diff) => {
+                const selected = selectedDifficulty === diff;
                 return (
                   <button
-                    key={opt.code}
+                    key={diff}
                     type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setViewLanguage(opt.code)}
-                    className={cn(
-                      'inline-flex h-8 items-center rounded-md px-2.5 text-sm font-semibold',
-                      selected
-                        ? 'bg-primary text-primary-foreground'
-                        : 'border border-input bg-background text-foreground hover:bg-accent',
-                    )}
-                    title={
-                      opt.code === 'en'
-                        ? 'English'
-                        : opt.code === 'hi'
-                          ? 'Hindi'
-                          : 'Gujarati'
-                    }
+                    onClick={() => setSelectedDifficulty(diff)}
+                    className={cn(tabClass(selected), 'capitalize')}
                   >
-                    {opt.label}
+                    {diff}
                   </button>
                 );
               })}
             </div>
-          ) : null}
-          {['all', 'easy', 'medium', 'hard'].map((diff) => {
-            const selected = selectedDifficulty === diff;
-            return (
-              <button
-                key={diff}
-                type="button"
-                onClick={() => setSelectedDifficulty(diff)}
-                className={cn(
-                  'inline-flex h-8 items-center rounded-md px-2.5 text-sm capitalize',
-                  selected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-input bg-background text-foreground hover:bg-accent',
-                )}
-              >
-                {diff}
-              </button>
-            );
-          })}
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-1 px-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          Showing {showingFrom}–{showingTo} of {filteredQuestions.length}
-          {liveFromApi
-            ? remoteMatches
-              ? ` matching the live bank${searchingBank ? '…' : ''}`
-              : ` loaded · bank ${live.active || live.total}`
-            : ' questions'}
-          {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ''}
-          {liveFromApi
-            ? ` · view ${viewLanguage === 'en' ? 'English' : viewLanguage === 'hi' ? 'Hindi' : 'Gujarati'}`
-            : ''}
-        </span>
-        <span>
-          {liveFromApi
-            ? 'Generated bank questions with the correct answer marked. Option order is shuffled only in the Quiz Time game.'
-            : 'Click "Swap Q#" on any question to regenerate it with AI'}
-        </span>
-      </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t border-[#EEF2F6] pt-3 text-xs text-[#64748B]">
+          <span className="font-medium tabular-nums text-[#334155]">
+            Showing {showingFrom}–{showingTo} of {filteredQuestions.length}
+            {liveFromApi
+              ? remoteMatches
+                ? ` matching the live bank${searchingBank ? '…' : ''}`
+                : ` loaded · bank ${live.active || live.total}`
+              : ' questions'}
+            {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ''}
+            {liveFromApi
+              ? ` · view ${viewLanguage === 'en' ? 'English' : viewLanguage === 'hi' ? 'Hindi' : 'Gujarati'}`
+              : ''}
+          </span>
+          <span>
+            {liveFromApi
+              ? 'Generated bank questions with the correct answer marked. Option order is shuffled only in the Quiz Time game.'
+              : 'Click "Swap Q#" on any question to regenerate it with AI'}
+          </span>
+        </div>
+      </section>
 
       {liveFromApi && live.active > live.target && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Question bank is stacking</p>
-            <p className="mt-0.5">
-              {live.active} active questions are live, but only the latest {live.target} should stay.
-              Click Keep latest {live.target} to retire the older set, or run daily refresh to replace the bank.
-            </p>
-          </div>
-        </div>
+        <Notice tone="red" title="Question bank is stacking">
+          {live.active} active questions are live, but only the latest {live.target} should stay.
+          Click Keep latest {live.target} to retire the older set, or run daily refresh to replace the bank.
+        </Notice>
       )}
 
-      {liveFromApi && live.status && !live.error && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-800">
-          {live.status}
-        </div>
-      )}
+      {liveFromApi && live.status && !live.error && <Notice tone="green">{live.status}</Notice>}
 
       {liveFromApi && live.error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Could not load live quiz questions</p>
-            <p className="mt-0.5">{live.error}</p>
-          </div>
-        </div>
+        <Notice tone="red" title="Could not load live quiz questions">
+          {live.error}
+        </Notice>
       )}
 
       {liveFromApi && (live.loading || live.pruning || live.refreshingDaily) && (
-        <Card className="shadow-none">
-          <p className="p-6 text-center text-sm text-muted-foreground">
+        <div className={cn(panelClass, 'flex items-center justify-center gap-2.5 px-6 py-10 text-center text-sm text-[#64748B]')}>
+          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-[#16A34A]" />
+          <p>
             {live.pruning
               ? `Retiring older questions so the live bank stays at ${live.target}…`
               : live.refreshingDaily
                 ? 'Generating the daily question set…'
                 : 'Loading questions from the PB Zone quiz API…'}
           </p>
-        </Card>
+        </div>
       )}
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-4">
         {pagedQuestions.map((q, idx) => {
           const listIndex = liveFromApi
             ? pageStart + idx
@@ -587,61 +607,62 @@ export const QuizDetailView: React.FC<QuizDetailViewProps> = ({
           );
         })}
         {liveFromApi && !live.loading && !live.error && filteredQuestions.length === 0 && (
-          <Card className="shadow-none">
-            <p className="p-6 text-center text-sm text-muted-foreground">
-              Question bank is empty, or list API is not deployed yet. Seed / daily-refresh the quiz API, then refresh.
-            </p>
-          </Card>
+          <div className={panelClass}>
+            <EmptyState
+              icon={Inbox}
+              title="Question bank is empty, or list API is not deployed yet."
+              description="Seed / daily-refresh the quiz API, then refresh."
+            />
+          </div>
         )}
       </div>
 
       {filteredQuestions.length > 0 && (
-        <Card className="shadow-none">
-          <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">{PAGE_SIZE} questions per page</p>
-            <div className="flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage <= 1}
-                className={btnOutline}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                Prev
-              </button>
-              {pageItems(currentPage, totalPages).map((item, idx) =>
-                item === 'ellipsis' ? (
-                  <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground">
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => goToPage(item)}
-                    className={cn(
-                      'h-8 min-w-8 rounded-md px-2 text-sm',
-                      item === currentPage
-                        ? 'bg-primary font-medium text-primary-foreground'
-                        : 'border border-input bg-background hover:bg-accent',
-                    )}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage >= totalPages}
-                className={btnOutline}
-              >
-                Next
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
+        <div className={cn(panelClass, 'flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5')}>
+          <p className="text-center text-sm text-[#64748B] sm:text-left">{PAGE_SIZE} questions per page</p>
+          <div className="flex flex-wrap items-center justify-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only">Prev</span>
+            </Button>
+            {pageItems(currentPage, totalPages).map((item, idx) =>
+              item === 'ellipsis' ? (
+                <span key={`ellipsis-${idx}`} className="px-1 text-sm text-[#94A3B8]">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => goToPage(item)}
+                  aria-current={item === currentPage ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold tabular-nums transition-colors',
+                    item === currentPage
+                      ? 'bg-[#16A34A] text-white shadow-sm'
+                      : 'text-[#475569] hover:bg-[#EEF3EF] hover:text-[#0F172A]',
+                  )}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              <span className="sr-only sm:not-sr-only">Next</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Single Question Swap Modal */}

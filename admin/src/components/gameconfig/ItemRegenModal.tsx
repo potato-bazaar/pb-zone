@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Check, RefreshCw, X } from 'lucide-react';
+import { ArrowRightLeft, Check, CircleAlert, Plus, RefreshCw } from 'lucide-react';
+import { Button, ModalShell, inputClass, labelClass } from '../ui/pb';
 
 interface ItemRegenModalProps<T> {
   isOpen: boolean;
@@ -12,6 +13,13 @@ interface ItemRegenModalProps<T> {
   onApply: (candidate: T) => void;
   onClose: () => void;
 }
+
+const chipClass = (on: boolean) =>
+  `inline-flex min-h-8 items-center gap-1 rounded-full border px-3 py-1 text-left text-xs transition-colors ${
+    on
+      ? 'border-[#16A34A] bg-[#E3F8E8] font-semibold text-[#14532D] ring-2 ring-[#16A34A]/15'
+      : 'border-[#E2E8E4] bg-white font-medium text-[#475569] hover:border-[#86D19A] hover:text-[#0F172A]'
+  }`;
 
 /**
  * Generic "regenerate one item" dialog used for levels, wheel segments and runs.
@@ -50,85 +58,74 @@ export function ItemRegenModal<T>({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-white border border-black p-6 shadow-2xl space-y-5 my-8">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E2E2E2]">
-          <div>
-            <h2 className="text-base font-bold text-black">{title}</h2>
-            {subtitle && <p className="text-xs text-[#6B6B6B]">{subtitle}</p>}
-          </div>
-          <button onClick={onClose} className="p-1.5 text-[#6B6B6B] hover:text-black transition-colors">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="p-3 bg-[#F6F6F6] border border-[#E2E2E2] space-y-1">
-          <div className="text-[10px] uppercase font-bold text-[#6B6B6B]">Currently in this slot</div>
-          {currentSummary}
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-xs font-bold uppercase text-[#333333]">AI guidance (optional)</label>
-          <div className="flex flex-wrap gap-1.5">
-            {quickPrompts.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setInstruction(tag)}
-                className={`text-[11px] px-2.5 py-1 border transition-all ${
-                  instruction === tag
-                    ? 'bg-black text-white border-black font-semibold'
-                    : 'bg-white text-[#545454] border-[#E2E2E2] hover:border-black hover:text-black'
-                }`}
-              >
-                + {tag}
-              </button>
-            ))}
-          </div>
-          <input
-            type="text"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            placeholder="e.g. Make it about sweet potatoes, or tighten the difficulty..."
-            className="w-full bg-white border border-[#E2E2E2] p-2.5 text-xs text-black focus:border-black focus:outline-none"
-          />
-        </div>
-
-        {error && <div className="p-3 border border-[#C62828] bg-[#FCEBEB] text-xs text-[#C62828]">{error}</div>}
-
-        {candidate !== null && (
-          <div className="border border-black p-4 space-y-3 bg-[#FAFAFA]">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-black">
-              <Check className="h-4 w-4 stroke-[3]" /> Replacement candidate ready
-            </div>
-            {renderCandidate(candidate)}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-3 border-t border-[#E2E2E2]">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[#6B6B6B] hover:text-black transition-colors">
+    <ModalShell
+      onClose={onClose}
+      size="lg"
+      icon={RefreshCw}
+      tone="purple"
+      title={title}
+      description={subtitle}
+      bodyClassName="space-y-5"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} className="mr-auto">
             Cancel
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="flex items-center gap-2 border border-black px-4 py-2 text-xs font-semibold text-black hover:bg-[#F6F6F6] transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Designing...' : candidate !== null ? 'Re-roll another' : 'Generate replacement'}</span>
-            </button>
-            {candidate !== null && (
-              <button
-                onClick={() => onApply(candidate)}
-                className="flex items-center gap-2 bg-black text-white px-5 py-2 text-xs font-bold hover:bg-[#262626] transition-all"
-              >
-                <ArrowRightLeft className="h-4 w-4" />
-                <span>Confirm & swap in</span>
-              </button>
-            )}
-          </div>
-        </div>
+          </Button>
+          <Button variant="outline" onClick={handleGenerate} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? 'Designing...' : candidate !== null ? 'Re-roll another' : 'Generate replacement'}</span>
+          </Button>
+          {candidate !== null && (
+            <Button onClick={() => onApply(candidate)}>
+              <ArrowRightLeft className="h-4 w-4" />
+              <span>Confirm & swap in</span>
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="space-y-1.5 rounded-xl bg-[#F6F9F7] p-3.5">
+        <div className="text-xs font-semibold text-[#64748B]">Currently in this slot</div>
+        {currentSummary}
       </div>
-    </div>
+
+      <div>
+        <label className={labelClass}>AI guidance (optional)</label>
+        <div className="flex flex-wrap gap-2">
+          {quickPrompts.map((tag) => (
+            <button key={tag} type="button" onClick={() => setInstruction(tag)} className={chipClass(instruction === tag)}>
+              <Plus className="h-3 w-3 shrink-0" />
+              <span>{tag}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={instruction}
+          onChange={(e) => setInstruction(e.target.value)}
+          placeholder="e.g. Make it about sweet potatoes, or tighten the difficulty..."
+          className={`${inputClass} mt-3`}
+        />
+      </div>
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-[#FBD5DD] bg-[#FDE8EC] px-4 py-3 text-sm text-[#BE123C]">
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="min-w-0 break-words">{error}</span>
+        </div>
+      )}
+
+      {candidate !== null && (
+        <div className="space-y-3 rounded-xl border border-[#16A34A]/40 bg-[#F4FBF6] p-4 ring-4 ring-[#16A34A]/5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#14532D]">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16A34A] text-white">
+              <Check className="h-3 w-3" strokeWidth={3} />
+            </span>
+            Replacement candidate ready
+          </div>
+          {renderCandidate(candidate)}
+        </div>
+      )}
+    </ModalShell>
   );
 }

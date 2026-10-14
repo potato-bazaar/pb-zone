@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Check, Library, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { CONFIG_LABELS, ConfigKind, GameConfig, getItemCount } from '../../types/gameConfig';
 import { describeContent } from './configSummary';
-import { Pill } from './ui';
+import { IconButton, Pill } from './ui';
+import { Button, EmptyState, IconTile, Pill as StatusPill, Tabs, inputClass, panelClass, tableClass } from '../ui/pb';
 
 interface GameConfigLibraryViewProps {
   configs: GameConfig[];
@@ -42,150 +43,175 @@ export const GameConfigLibraryView: React.FC<GameConfigLibraryViewProps> = ({
   });
   const rotationCount = configs.filter((c) => c.inRotation).length;
 
+  const renderTitle = (c: GameConfig, isCurrent: boolean) => (
+    <div className="min-w-0 space-y-0.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-semibold text-[#0F172A]">{c.title}</span>
+        {isCurrent && (
+          <StatusPill tone="green" dot>
+            Current Active
+          </StatusPill>
+        )}
+        {c.status !== 'published' && <Pill className="capitalize">{c.status}</Pill>}
+      </div>
+      <p className="text-xs text-[#64748B]">
+        {describeContent(c.content)}
+        {c.poolGroup ? ` · ${c.poolGroup}` : ''}
+      </p>
+    </div>
+  );
+
+  const renderEngine = (c: GameConfig) => (
+    <Pill tone={c.generatedBy === 'groq' ? 'purple' : 'default'}>{c.generatedBy === 'groq' ? 'Groq AI' : 'Offline'}</Pill>
+  );
+
+  const renderRotation = (c: GameConfig) => (
+    <Button variant={c.inRotation ? 'secondary' : 'outline'} size="sm" onClick={() => onToggleRotation(c.id)}>
+      {c.inRotation ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+      <span>{c.inRotation ? 'In Rotation' : 'Add to Rotation'}</span>
+    </Button>
+  );
+
+  const renderActions = (c: GameConfig, isCurrent: boolean) => (
+    <div className="flex items-center justify-end gap-1.5">
+      {!isCurrent && (
+        <Button variant="outline" size="sm" onClick={() => onSelectActive(c.id)}>
+          Set Active
+        </Button>
+      )}
+      <Button size="sm" onClick={() => onNavigateToManage(c.id)}>
+        Edit
+      </Button>
+      <IconButton danger onClick={() => onDelete(c.id)} title={`Delete ${labels.pack.toLowerCase()}`}>
+        <Trash2 className="h-4 w-4" />
+      </IconButton>
+    </div>
+  );
+
   return (
-    <div className="space-y-6 pb-16">
-      <div className="border-b border-[#E2E2E2] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-black">{labels.pack} Library</h1>
-          <p className="text-xs text-[#6B6B6B] mt-0.5">
-            Every generated {labels.pack.toLowerCase()} for this game and the player rotation pool ({configs.length} total).
-          </p>
-        </div>
-        <button
-          onClick={onNavigateToSetup}
-          className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-xs font-bold hover:bg-[#262626] transition-all self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Generate More</span>
-        </button>
-      </div>
-
-      <div className="p-4 bg-white border border-[#E2E2E2] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-xs uppercase tracking-wider text-black">Player Rotation Pool</span>
-            <span className="bg-[#0E8345] text-white font-mono text-[10px] font-bold px-2 py-0.5">
-              {rotationCount} in rotation
-            </span>
+    <div className="flex flex-col gap-4 pb-6">
+      <section className={`${panelClass} p-4 sm:p-5`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <IconTile icon={Library} />
+            <div className="min-w-0">
+              <h2 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">{labels.pack} Library</h2>
+              <p className="mt-0.5 text-sm text-[#5F6F83]">
+                Every generated {labels.pack.toLowerCase()} for this game and the player rotation pool ({configs.length} total).
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-[#6B6B6B]">
-            Players are served a random {labels.pack.toLowerCase()} from the rotation pool so they do not all see the same content.
-          </p>
+          <Button onClick={onNavigateToSetup} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            <span>Generate More</span>
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#6B6B6B]">Filter:</span>
-          <div className="flex border border-[#E2E2E2]">
-            {(['all', 'rotation', 'draft'] as const).map((mode, i) => (
-              <button
-                key={mode}
-                onClick={() => setFilterMode(mode)}
-                className={`px-3 py-1.5 text-xs font-semibold ${i > 0 ? 'border-l border-[#E2E2E2]' : ''} ${
-                  filterMode === mode ? 'bg-black text-white' : 'bg-white text-black hover:bg-[#F6F6F6]'
-                }`}
-              >
-                {mode === 'all' ? `All (${configs.length})` : mode === 'rotation' ? `In Rotation (${rotationCount})` : 'Drafts'}
-              </button>
-            ))}
+
+        <div className="mt-4 flex items-start gap-3 rounded-xl bg-[#F6F9F7] p-3 sm:p-4">
+          <IconTile icon={Shuffle} size="sm" />
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-[#0F172A]">Player rotation pool</span>
+              <StatusPill tone="green" dot>
+                {rotationCount} in rotation
+              </StatusPill>
+            </div>
+            <p className="text-[13px] leading-snug text-[#64748B]">
+              Players are served a random {labels.pack.toLowerCase()} from the rotation pool so they do not all see the same content.
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B6B6B]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search title, theme, batch group..."
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E2E2E2] text-xs text-black placeholder-[#6B6B6B] focus:border-black focus:outline-none"
-        />
-      </div>
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search title, theme, batch group..."
+              className={`${inputClass} pl-9`}
+            />
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-xs font-medium text-[#64748B]">Filter:</span>
+            <Tabs
+              items={(['all', 'rotation', 'draft'] as const).map((mode) => ({
+                id: mode,
+                label: mode === 'all' ? `All (${configs.length})` : mode === 'rotation' ? `In Rotation (${rotationCount})` : 'Drafts',
+              }))}
+              value={filterMode}
+              onChange={setFilterMode}
+            />
+          </div>
+        </div>
 
-      <div className="bg-white border border-[#E2E2E2] overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-[#F6F6F6] text-[#6B6B6B] uppercase font-bold text-[10px] tracking-wider border-b border-[#E2E2E2]">
-            <tr>
-              <th className="py-3 px-4">{labels.pack}</th>
-              <th className="py-3 px-4">{labels.items}</th>
-              <th className="py-3 px-4">Engine</th>
-              <th className="py-3 px-4">Plays</th>
-              <th className="py-3 px-4">Rotation</th>
-              <th className="py-3 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#E2E2E2]">
-            {filtered.map((c) => {
-              const isCurrent = c.id === activeConfigId;
-              return (
-                <tr key={c.id} className={`hover:bg-[#FAFAFA] transition-colors ${isCurrent ? 'bg-[#F9F9F9]' : ''}`}>
-                  <td className="py-3.5 px-4">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-black text-xs">{c.title}</span>
-                        {isCurrent && <span className="bg-black text-white text-[9px] font-bold px-1.5 py-0.5 uppercase">Current Active</span>}
-                        {c.status !== 'published' && <Pill>{c.status}</Pill>}
-                      </div>
-                      <p className="text-[11px] text-[#6B6B6B]">
-                        {describeContent(c.content)}
-                        {c.poolGroup ? ` · ${c.poolGroup}` : ''}
-                      </p>
+        {filtered.length === 0 ? (
+          <EmptyState icon={Search} tone="gray" title={`No ${labels.packs.toLowerCase()} found.`} className="py-10" />
+        ) : (
+          <>
+            {/* Table from xl, cards below */}
+            <div className={`${tableClass.wrap} mt-4 hidden xl:block`}>
+              <table className={tableClass.table}>
+                <thead>
+                  <tr>
+                    <th className={tableClass.th}>{labels.pack}</th>
+                    <th className={tableClass.th}>{labels.items}</th>
+                    <th className={tableClass.th}>Engine</th>
+                    <th className={tableClass.th}>Plays</th>
+                    <th className={tableClass.th}>Rotation</th>
+                    <th className={`${tableClass.th} text-right`}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c) => {
+                    const isCurrent = c.id === activeConfigId;
+                    return (
+                      <tr key={c.id} className={`${tableClass.tr} ${isCurrent ? 'bg-[#F3FBF5]' : ''}`}>
+                        <td className={tableClass.td}>{renderTitle(c, isCurrent)}</td>
+                        <td className={`${tableClass.td} font-semibold tabular-nums`}>{getItemCount(c)}</td>
+                        <td className={tableClass.td}>{renderEngine(c)}</td>
+                        <td className={`${tableClass.td} tabular-nums text-[#475569]`}>{c.playsCount}</td>
+                        <td className={tableClass.td}>{renderRotation(c)}</td>
+                        <td className={tableClass.td}>{renderActions(c, isCurrent)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
+              {filtered.map((c) => {
+                const isCurrent = c.id === activeConfigId;
+                return (
+                  <li
+                    key={c.id}
+                    className={`flex flex-col gap-3 rounded-xl border p-3.5 ${
+                      isCurrent ? 'border-[#16A34A] bg-[#F3FBF5] ring-2 ring-[#16A34A]/15' : 'border-[#E6ECE8] bg-white'
+                    }`}
+                  >
+                    {renderTitle(c, isCurrent)}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[#64748B]">
+                      <span>
+                        <span className="font-semibold tabular-nums text-[#0F172A]">{getItemCount(c)}</span> {labels.items.toLowerCase()}
+                      </span>
+                      <span>
+                        <span className="font-semibold tabular-nums text-[#0F172A]">{c.playsCount}</span> plays
+                      </span>
+                      {renderEngine(c)}
                     </div>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-black">{getItemCount(c)}</td>
-                  <td className="py-3.5 px-4">
-                    <Pill tone={c.generatedBy === 'groq' ? 'purple' : 'default'}>{c.generatedBy === 'groq' ? 'Groq AI' : 'Offline'}</Pill>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-[#545454]">{c.playsCount}</td>
-                  <td className="py-3.5 px-4">
-                    <button
-                      onClick={() => onToggleRotation(c.id)}
-                      className={`px-2.5 py-1 text-[10px] font-bold border uppercase transition-colors ${
-                        c.inRotation
-                          ? 'bg-[#EBF7EE] border-[#0E8345] text-[#0E8345]'
-                          : 'bg-white border-[#E2E2E2] text-[#6B6B6B] hover:border-black'
-                      }`}
-                    >
-                      {c.inRotation ? '✓ In Rotation' : '+ Add to Rotation'}
-                    </button>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {!isCurrent && (
-                        <button
-                          onClick={() => onSelectActive(c.id)}
-                          className="px-2.5 py-1 text-xs font-semibold bg-white border border-[#E2E2E2] hover:border-black text-black transition-colors"
-                        >
-                          Set Active
-                        </button>
-                      )}
-                      <button
-                        onClick={() => onNavigateToManage(c.id)}
-                        className="px-2.5 py-1 text-xs font-semibold bg-black text-white hover:bg-[#262626] transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onDelete(c.id)}
-                        className="p-1 text-[#6B6B6B] hover:text-[#C62828] transition-colors"
-                        title={`Delete ${labels.pack.toLowerCase()}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-[#EEF2F6] pt-3">
+                      {renderRotation(c)}
+                      {renderActions(c, isCurrent)}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-[#6B6B6B]">
-                  No {labels.packs.toLowerCase()} found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </section>
     </div>
   );
 };

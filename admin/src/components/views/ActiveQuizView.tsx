@@ -1,14 +1,22 @@
 import React from 'react';
 import { Quiz, QuizQuestion } from '../../types/quiz';
 import { useLiveQuestionBank } from '../../hooks/useLiveQuestionBank';
-import { 
-  Radio, 
-  Sparkles, 
+import {
+  Radio,
+  Sparkles,
   ArrowRight,
   RefreshCw,
   AlertTriangle,
-  Trash2
+  Trash2,
+  Database,
+  Eye,
+  LayoutList,
+  Target,
+  Trophy,
 } from 'lucide-react';
+import { PlaySolid } from '../dashboard/dashboardIcons';
+import { Button, IconTile, Pill, panelClass, type Tone } from '../ui/pb';
+import { cn } from '../../lib/utils';
 
 interface ActiveQuizViewProps {
   quiz: Quiz;
@@ -16,6 +24,35 @@ interface ActiveQuizViewProps {
   onRegenerateQuestion: (q: QuizQuestion) => void;
   onTogglePublish: () => void;
   liveFromApi?: boolean;
+}
+
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+
+const DIFFICULTY_TONE: Record<string, Tone> = { easy: 'green', medium: 'amber', hard: 'red' };
+
+function MetricTile({
+  label,
+  value,
+  note,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note: React.ReactNode;
+  icon: IconType;
+  tone: Tone;
+}) {
+  return (
+    <div className={cn(panelClass, 'flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-3.5')}>
+      <IconTile icon={icon} tone={tone} />
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-[#1F2937] sm:text-sm">{label}</p>
+        <p className="break-words text-xl font-extrabold leading-tight tabular-nums text-[#0B1220] sm:text-[22px]">{value}</p>
+        <p className="mt-0.5 text-xs leading-snug text-[#64748B]">{note}</p>
+      </div>
+    </div>
+  );
 }
 
 export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
@@ -43,160 +80,142 @@ export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
       : 'New session';
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
-      <div className="border-b border-[#E2E2E2] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-[#0E8345] animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#0E8345]">
-              {liveFromApi ? 'Live Quiz API Bank' : 'Live Active Quiz'}
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-black">
-            {liveFromApi ? 'PB Zone Quiz — Live Questions' : quiz.title}
-          </h1>
-            <p className="text-xs text-[#6B6B6B] mt-0.5 max-w-2xl">
-            {liveFromApi
-              ? `Roz 10:00 AM IST pe naya ${live.target} AI set automatically replace hota hai. Har user ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
-              : quiz.description}
+    <div className="flex flex-col gap-4 pb-10">
+      <section className={cn(panelClass, 'flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between')}>
+        <div className="flex min-w-0 items-start gap-3.5">
+          <IconTile icon={Radio} tone="green" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h2 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">
+                {liveFromApi ? 'PB Zone Quiz — Live Questions' : quiz.title}
+              </h2>
+              <Pill tone="green">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16A34A] opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#16A34A]" />
+                </span>
+                {liveFromApi ? 'Live Quiz API Bank' : 'Live Active Quiz'}
+              </Pill>
+            </div>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-[#5F6F83]">
+              {liveFromApi
+                ? `Roz 10:00 AM IST pe naya ${live.target} AI set automatically replace hota hai. Har user ko ${perQuiz} alag shuffled questions milte hain${live.upstream ? ` · ${live.upstream}` : ''}.`
+                : quiz.description}
             </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {liveFromApi && (
-            <button
-              onClick={() => void live.refresh()}
-              disabled={live.loading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black text-black text-xs font-bold hover:bg-[#F6F6F6] disabled:opacity-60"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${live.loading ? 'animate-spin' : ''}`} />
+            <Button variant="outline" onClick={() => void live.refresh()} disabled={live.loading}>
+              <RefreshCw className={cn('h-4 w-4', live.loading && 'animate-spin')} />
               Refresh
-            </button>
+            </Button>
           )}
 
           {!liveFromApi && (
-          <button
-            onClick={onTogglePublish}
-            className={`px-4 py-2.5 text-xs font-semibold border transition-all ${
-              isPublished
-                ? 'bg-white border-[#E2E2E2] text-black hover:border-black'
-                : 'bg-[#0E8345] border-[#0E8345] text-white hover:bg-[#0b6b37]'
-            }`}
-          >
-            {isPublished ? 'Unpublish' : 'Make Active'}
-          </button>
+            <Button variant={isPublished ? 'outline' : 'primary'} onClick={onTogglePublish}>
+              {isPublished ? 'Unpublish' : 'Make Active'}
+            </Button>
           )}
         </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <MetricTile
+          icon={LayoutList}
+          tone="green"
+          label="Format"
+          value={liveFromApi ? `${perQuiz} / session` : '20 Questions'}
+          note={liveFromApi ? `${live.settings?.timerSeconds ?? 15}s per question` : `${quiz.timeLimitSeconds}s per question`}
+        />
+        <MetricTile
+          icon={liveFromApi ? Database : Target}
+          tone="blue"
+          label={liveFromApi ? 'Bank Size' : 'Pass Mark'}
+          value={liveFromApi ? live.total : `${quiz.passScore} / 20`}
+          note={liveFromApi ? `${live.active} active in rotation` : 'Required to qualify as Winner'}
+        />
+        <MetricTile
+          icon={PlaySolid}
+          tone="purple"
+          label="Total Plays"
+          value={liveFromApi && live.loading ? '—' : totalPlays.toLocaleString()}
+          note={liveFromApi ? 'Unique players who played' : 'Player sessions initiated'}
+        />
+        <MetricTile
+          icon={Trophy}
+          tone="orange"
+          label="Winners Count"
+          value={liveFromApi && live.loading ? '—' : winnersCount.toLocaleString()}
+          note={winnersSubtitle}
+        />
       </div>
 
-      {/* Live KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Format</div>
-          <div className="text-xl font-bold text-black font-mono mt-1">
-            {liveFromApi ? `${perQuiz} / session` : '20 Questions'}
-          </div>
-          <div className="text-[11px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi ? `${live.settings?.timerSeconds ?? 15}s per question` : `${quiz.timeLimitSeconds}s per question`}
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">
-            {liveFromApi ? 'Bank Size' : 'Pass Mark'}
-          </div>
-          <div className="text-xl font-bold text-black font-mono mt-1">
-            {liveFromApi ? live.total : `${quiz.passScore} / 20`}
-          </div>
-          <div className="text-[11px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi ? `${live.active} active in rotation` : 'Required to qualify as Winner'}
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Total Plays</div>
-          <div className="text-xl font-bold text-black font-mono mt-1">
-            {liveFromApi && live.loading ? '—' : totalPlays.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-[#6B6B6B] mt-0.5">
-            {liveFromApi ? 'Unique players who played' : 'Player sessions initiated'}
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E2E2E2] p-4">
-          <div className="text-[10px] font-bold uppercase text-[#6B6B6B]">Winners Count</div>
-          <div className="text-xl font-bold text-black font-mono mt-1">
-            {liveFromApi && live.loading ? '—' : winnersCount.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-[#6B6B6B] mt-0.5">{winnersSubtitle}</div>
-        </div>
-      </div>
-
-      {/* Questions Preview Banner with Quick Swap */}
-      <div className="bg-white border border-[#E2E2E2] p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#E2E2E2] pb-4">
-          <div>
-            <h3 className="text-sm font-bold text-black uppercase tracking-wider">
-              {liveFromApi ? 'Live API Question Preview' : '20-Question Deck Quick Inspection'}
-            </h3>
-            <p className="text-xs text-[#6B6B6B]">
-              {liveFromApi
-                ? 'Newest AI questions first. Delete removes a question from future player sessions (soft delete).'
-                : 'Review questions currently running on the web UI. Click "Swap" on any question (e.g. Question #3) to re-roll.'}
-            </p>
+      <section className={cn(panelClass, 'flex flex-col gap-3 p-4 sm:p-5')}>
+        <div className="mb-1 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <IconTile icon={Eye} tone="purple" />
+            <div className="min-w-0">
+              <h2 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">
+                {liveFromApi ? 'Live API Question Preview' : '20-Question Deck Quick Inspection'}
+              </h2>
+              <p className="mt-0.5 text-sm text-[#5F6F83]">
+                {liveFromApi
+                  ? 'Newest AI questions first. Delete removes a question from future player sessions (soft delete).'
+                  : 'Review questions currently running on the web UI. Click "Swap" on any question (e.g. Question #3) to re-roll.'}
+              </p>
+            </div>
           </div>
 
-          <button
-            onClick={onNavigateToManage}
-            className="flex items-center gap-1.5 text-xs font-bold text-black hover:underline"
-          >
+          <Button variant="secondary" size="sm" onClick={onNavigateToManage} className="self-start md:self-center">
             <span>Open Full Deck Manager</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
 
         {liveFromApi && live.error && (
-          <div className="flex items-start gap-2 p-3 border border-[#C62828] bg-[#FFF5F5] text-xs text-[#C62828]">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>{live.error}</span>
+          <div className="flex items-start gap-2.5 rounded-xl bg-[#FDE8EC] px-4 py-3 text-sm text-[#BE123C]">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="min-w-0 break-words">{live.error}</span>
           </div>
         )}
 
         {liveFromApi && !live.loading && previewQuestions.length === 0 && (
-          <div className="text-xs text-[#6B6B6B] border border-dashed border-[#E2E2E2] p-4">
+          <div className="rounded-xl border border-dashed border-[#D5E2D9] bg-[#F6F9F7] px-4 py-6 text-center text-sm text-[#64748B]">
             Live question list API is empty or not deployed yet. Stats still load from the quiz API.
           </div>
         )}
 
-        {/* Highlighted Questions */}
-        <div className="space-y-3">
-          {previewQuestions.slice(0, 6).map((q) => {
-            const correctOpt = q.options.find((o) => o.isCorrect);
-            return (
-              <div
-                key={q.id}
-                className="p-4 border border-[#E2E2E2] hover:border-black transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white"
-              >
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-xs bg-black text-white px-2 py-0.5">
-                      #{q.order}
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-[#6B6B6B]">
-                      {q.difficulty} • {q.topicTag}
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-black">{q.question}</p>
-                  <p className="text-[11px] text-[#545454]">
-                    <strong>Correct Answer:</strong>{' '}
-                    {correctOpt ? `${correctOpt.id}: ${correctOpt.text}` : 'Not revealed yet — still in play'}
-                  </p>
+        {previewQuestions.slice(0, 6).map((q) => {
+          const correctOpt = q.options.find((o) => o.isCorrect);
+          return (
+            <div
+              key={q.id}
+              className="flex flex-col gap-3 rounded-xl border border-[#E6ECE8] bg-white p-4 transition-colors hover:border-[#B7E4C2] hover:bg-[#FBFDFB] sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex h-6 min-w-[2rem] items-center justify-center rounded-lg bg-[#E3F8E8] px-2 text-xs font-bold tabular-nums text-[#14532D]">
+                    #{q.order}
+                  </span>
+                  <Pill tone={DIFFICULTY_TONE[q.difficulty] ?? 'gray'} className="capitalize">
+                    {q.difficulty}
+                  </Pill>
+                  <span className="text-xs font-medium text-[#64748B]">{q.topicTag}</span>
                 </div>
+                <p className="text-sm font-semibold leading-snug text-[#0F172A]">{q.question}</p>
+                <p className="text-xs leading-relaxed text-[#5F6F83]">
+                  <strong className="font-semibold text-[#334155]">Correct Answer:</strong>{' '}
+                  {correctOpt ? `${correctOpt.id}: ${correctOpt.text}` : 'Not revealed yet — still in play'}
+                </p>
+              </div>
 
-                {liveFromApi && (
+              {liveFromApi && (
                 <div className="flex items-center gap-2 self-end sm:self-center">
-                  <button
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => {
                       const ok = window.confirm(
                         'Delete this question from the live bank? It will not appear in new quizzes.',
@@ -205,43 +224,39 @@ export const ActiveQuizView: React.FC<ActiveQuizViewProps> = ({
                       void live.removeQuestion(q.id);
                     }}
                     disabled={live.deletingId === q.id}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-[#C62828] text-[#C62828] hover:bg-[#C62828] hover:text-white disabled:opacity-50 transition-all"
                     title={`Delete question #${q.order}`}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                     <span>{live.deletingId === q.id ? 'Deleting…' : 'Delete'}</span>
-                  </button>
+                  </Button>
                 </div>
-                )}
+              )}
 
-                {!liveFromApi && (
+              {!liveFromApi && (
                 <div className="flex items-center gap-2 self-end sm:self-center">
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => onRegenerateQuestion(q)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-black hover:bg-black hover:text-white transition-all"
                     title={`Swap question #${q.order}`}
                   >
-                    <Sparkles className="h-3 w-3" />
+                    <Sparkles className="h-3.5 w-3.5" />
                     <span>Swap Q#{q.order}</span>
-                  </button>
+                  </Button>
                 </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          );
+        })}
 
         {previewQuestions.length > 6 && (
-          <div className="pt-2 text-center">
-            <button
-              onClick={onNavigateToManage}
-              className="px-4 py-2 text-xs font-semibold bg-[#F6F6F6] hover:bg-[#EEEEEE] text-black border border-[#E2E2E2]"
-            >
+          <div className="flex justify-center pt-1">
+            <Button variant="outline" onClick={onNavigateToManage}>
               View all {previewQuestions.length} questions in Manage Quiz →
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

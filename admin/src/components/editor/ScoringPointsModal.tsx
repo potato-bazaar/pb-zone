@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { X, Save, Coins } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { AlertTriangle, Save, Coins } from 'lucide-react';
 import type { SaveQuizScoringPayload } from '../../services/quizBankApi';
+import { Button, ModalShell, hintClass, inputClass, labelClass, softClass } from '../ui/pb';
+import { cn } from '../../lib/utils';
 
 export type ScoringPointsForm = SaveQuizScoringPayload;
 
@@ -59,6 +61,9 @@ const OPTIONAL_FIELDS: Array<{
   },
 ];
 
+const numberInputClass = cn(inputClass, 'pr-12 font-mono font-semibold tabular-nums');
+const suffixClass = 'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#64748B]';
+
 export const ScoringPointsModal: React.FC<ScoringPointsModalProps> = ({
   isOpen,
   initial,
@@ -68,6 +73,7 @@ export const ScoringPointsModal: React.FC<ScoringPointsModalProps> = ({
   onSave,
 }) => {
   const [form, setForm] = useState<ScoringPointsForm>(initial);
+  const formId = useId();
 
   useEffect(() => {
     if (isOpen) setForm(initial);
@@ -85,41 +91,37 @@ export const ScoringPointsModal: React.FC<ScoringPointsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto border border-[#E2E2E2] bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#E2E2E2] pb-3">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <Coins className="h-4 w-4 text-black" />
-              <h2 className="text-base font-bold text-black">Set scoring points</h2>
-            </div>
-            <p className="text-xs text-[#6B6B6B]">
-              PB coins scoring only — not leaderboard LP. Saved values show on How to Play and apply in gameplay.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-[#6B6B6B] hover:text-black"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onSave(form);
-          }}
-        >
+    <ModalShell
+      open={isOpen}
+      onClose={onClose}
+      icon={Coins}
+      tone="amber"
+      title="Set scoring points"
+      description="PB coins scoring only — not leaderboard LP. Saved values show on How to Play and apply in gameplay."
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={saving}>
+            <Save className="h-4 w-4" />
+            {saving ? 'Saving…' : 'Save points'}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id={formId}
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSave(form);
+        }}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {REQUIRED_FIELDS.map((field) => (
             <label key={field.key} className="block">
-              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-black">
-                {field.label}
-              </span>
-              <span className="mb-1.5 block text-[11px] text-[#6B6B6B]">{field.hint}</span>
+              <span className={labelClass}>{field.label}</span>
               <div className="relative">
                 <input
                   type="number"
@@ -128,26 +130,22 @@ export const ScoringPointsModal: React.FC<ScoringPointsModalProps> = ({
                   step={1}
                   value={form[field.key]}
                   onChange={(event) => handleNumber(field.key, event.target.value, 0, 1000)}
-                  className="w-full border border-[#E2E2E2] bg-white px-3 py-2.5 pr-12 text-sm font-mono font-bold text-black focus:border-black focus:outline-none"
+                  className={numberInputClass}
                   required
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#6B6B6B]">
-                  {field.suffix}
-                </span>
+                <span className={suffixClass}>{field.suffix}</span>
               </div>
+              <span className={cn(hintClass, 'block')}>{field.hint}</span>
             </label>
           ))}
+        </div>
 
-          <div className="border-t border-[#E2E2E2] pt-3">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B]">
-              Optional format
-            </p>
+        <div className={cn(softClass, 'p-4')}>
+          <p className="mb-3 text-sm font-semibold text-[#0B1220]">Optional format</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {OPTIONAL_FIELDS.map((field) => (
-              <label key={field.key} className="mb-3 block last:mb-0">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-black">
-                  {field.label}
-                </span>
-                <span className="mb-1.5 block text-[11px] text-[#6B6B6B]">{field.hint}</span>
+              <label key={field.key} className="block">
+                <span className={labelClass}>{field.label}</span>
                 <div className="relative">
                   <input
                     type="number"
@@ -158,38 +156,23 @@ export const ScoringPointsModal: React.FC<ScoringPointsModalProps> = ({
                     onChange={(event) =>
                       handleNumber(field.key, event.target.value, field.min, field.max)
                     }
-                    className="w-full border border-[#E2E2E2] bg-white px-3 py-2.5 pr-12 text-sm font-mono font-bold text-black focus:border-black focus:outline-none"
+                    className={numberInputClass}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-[#6B6B6B]">
-                    {field.suffix}
-                  </span>
+                  <span className={suffixClass}>{field.suffix}</span>
                 </div>
+                <span className={cn(hintClass, 'block')}>{field.hint}</span>
               </label>
             ))}
           </div>
+        </div>
 
-          {error ? <p className="text-xs font-semibold text-[#C62828]">{error}</p> : null}
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold border border-[#E2E2E2] text-black hover:border-black"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-1.5 bg-black px-4 py-2 text-xs font-bold text-white hover:bg-[#262626] disabled:opacity-60"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {saving ? 'Saving…' : 'Save points'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {error ? (
+          <p className="flex items-start gap-2 rounded-xl bg-[#FDE8EC] px-3 py-2.5 text-xs font-semibold text-[#BE123C]">
+            <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{error}</span>
+          </p>
+        ) : null}
+      </form>
+    </ModalShell>
   );
 };

@@ -9,7 +9,18 @@ import {
   CrushSettings,
 } from '../../types/gameConfig';
 import { CRUSH_BLOCKERS, CRUSH_BOOSTERS, CRUSH_OBJECTIVES, CRUSH_TILE_CATALOG } from '../../data/gameConfigCatalog';
-import { Field, NumberField, SelectField, TextField, compactInputCls } from './ui';
+import { buttonClass } from '../ui/pb';
+import { Field, IconButton, NumberField, SelectField, TextField, compactInputCls } from './ui';
+
+const chipCls = (on: boolean) =>
+  `inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors ${
+    on
+      ? 'border-[#86D19A] bg-[#E3F7E7] font-semibold text-[#14532D]'
+      : 'border-[#E2E8E4] bg-white font-medium text-[#475569] hover:border-[#CBD5D0] hover:bg-[#F6F9F7]'
+  }`;
+
+const rowCls = 'flex flex-wrap items-center gap-2 rounded-xl bg-[#F6F9F7] p-2';
+const emptyCls = 'rounded-xl border border-dashed border-[#E2E8E4] px-3 py-2.5 text-xs text-[#64748B]';
 
 /* ---------------- Settings (hand-edited) ---------------- */
 
@@ -34,20 +45,13 @@ export const CrushSettingsForm: React.FC<{ settings: CrushSettings; onChange: (s
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Field label="Tile set in play (minimum 3)" hint="Levels can only use tiles from this set.">
         <div className="flex flex-wrap gap-2">
           {CRUSH_TILE_CATALOG.map((t) => {
             const on = settings.tileSet.some((x) => x.id === t.id);
             return (
-              <button
-                type="button"
-                key={t.id}
-                onClick={() => toggleTile(t.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 border text-xs transition-colors ${
-                  on ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white text-[#545454] hover:border-black'
-                }`}
-              >
+              <button type="button" key={t.id} onClick={() => toggleTile(t.id)} aria-pressed={on} className={chipCls(on)}>
                 <span>{t.emoji}</span>
                 <span>{t.label}</span>
               </button>
@@ -56,7 +60,7 @@ export const CrushSettingsForm: React.FC<{ settings: CrushSettings; onChange: (s
         </div>
       </Field>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2 md:grid-cols-4">
         <NumberField label="Lives per day" value={settings.livesPerDay} min={1} max={20} onChange={(v) => set('livesPerDay', v)} />
         <NumberField
           label="Life refill"
@@ -165,9 +169,9 @@ export const CrushLevelEditor: React.FC<{
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <TextField label="Level name" value={level.name} onChange={(v) => set('name', v)} className="col-span-2" maxLength={60} />
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2 md:grid-cols-4">
+        <TextField label="Level name" value={level.name} onChange={(v) => set('name', v)} className="sm:col-span-2" maxLength={60} />
         <SelectField
           label="Difficulty"
           value={level.difficulty}
@@ -185,7 +189,7 @@ export const CrushLevelEditor: React.FC<{
           label="Reward on clear (blank = none)"
           value={level.rewardOnClear || ''}
           onChange={(v) => set('rewardOnClear', v.trim() ? v : undefined)}
-          className="col-span-2"
+          className="sm:col-span-2"
           maxLength={80}
         />
       </div>
@@ -195,14 +199,7 @@ export const CrushLevelEditor: React.FC<{
           {tileSet.map((t) => {
             const on = level.tileIds.includes(t.id);
             return (
-              <button
-                type="button"
-                key={t.id}
-                onClick={() => toggleTile(t.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 border text-xs transition-colors ${
-                  on ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white text-[#545454] hover:border-black'
-                }`}
-              >
+              <button type="button" key={t.id} onClick={() => toggleTile(t.id)} aria-pressed={on} className={chipCls(on)}>
                 <span>{t.emoji}</span>
                 <span>{t.label}</span>
               </button>
@@ -211,16 +208,16 @@ export const CrushLevelEditor: React.FC<{
         </div>
       </Field>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2">
         {/* Objectives */}
         <Field label={`Objectives (${level.objectives.length}/3)`}>
           <div className="space-y-2">
             {level.objectives.map((o, idx) => (
-              <div key={idx} className="flex flex-wrap items-center gap-2">
+              <div key={idx} className={rowCls}>
                 <select
                   value={o.type}
                   onChange={(e) => updateObjective(idx, { type: e.target.value as CrushObjectiveType })}
-                  className={`${compactInputCls} flex-1 min-w-[8rem]`}
+                  className={`${compactInputCls} min-w-[8rem] flex-1`}
                 >
                   {CRUSH_OBJECTIVES.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -232,7 +229,7 @@ export const CrushLevelEditor: React.FC<{
                   <select
                     value={o.tileId || level.tileIds[0]}
                     onChange={(e) => updateObjective(idx, { tileId: e.target.value })}
-                    className={`${compactInputCls} flex-1 min-w-[8rem]`}
+                    className={`${compactInputCls} min-w-[8rem] flex-1`}
                   >
                     {level.tileIds.map((id) => {
                       const t = tileSet.find((x) => x.id === id);
@@ -251,24 +248,23 @@ export const CrushLevelEditor: React.FC<{
                   onChange={(e) => updateObjective(idx, { target: Math.max(1, parseInt(e.target.value) || 1) })}
                   className={`${compactInputCls} w-20 font-mono`}
                 />
-                <button
-                  type="button"
+                <IconButton
                   onClick={() => removeObjective(idx)}
                   disabled={level.objectives.length <= 1}
-                  className="p-1.5 text-[#6B6B6B] hover:text-[#C62828] disabled:opacity-20"
                   title="Remove objective"
+                  danger
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                  <Trash2 className="h-4 w-4" />
+                </IconButton>
               </div>
             ))}
             <button
               type="button"
               onClick={addObjective}
               disabled={level.objectives.length >= 3}
-              className="flex items-center gap-1 text-[11px] font-semibold text-black hover:underline disabled:opacity-30"
+              className={buttonClass('secondary', 'xs')}
             >
-              <Plus className="h-3 w-3" /> Add objective
+              <Plus className="h-3.5 w-3.5" /> Add objective
             </button>
           </div>
         </Field>
@@ -277,11 +273,11 @@ export const CrushLevelEditor: React.FC<{
         <Field label={`Blockers (${level.blockers.length}/4)`}>
           <div className="space-y-2">
             {level.blockers.map((b, idx) => (
-              <div key={idx} className="flex flex-wrap items-center gap-2">
+              <div key={idx} className={rowCls}>
                 <select
                   value={b.type}
                   onChange={(e) => updateBlocker(idx, { type: e.target.value as CrushBlockerType })}
-                  className={`${compactInputCls} flex-1 min-w-[8rem]`}
+                  className={`${compactInputCls} min-w-[8rem] flex-1`}
                 >
                   {CRUSH_BLOCKERS.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -297,43 +293,31 @@ export const CrushLevelEditor: React.FC<{
                   onChange={(e) => updateBlocker(idx, { count: Math.min(64, Math.max(1, parseInt(e.target.value) || 1)) })}
                   className={`${compactInputCls} w-20 font-mono`}
                 />
-                <button
-                  type="button"
-                  onClick={() => removeBlocker(idx)}
-                  className="p-1.5 text-[#6B6B6B] hover:text-[#C62828]"
-                  title="Remove blocker"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <IconButton onClick={() => removeBlocker(idx)} title="Remove blocker" danger>
+                  <Trash2 className="h-4 w-4" />
+                </IconButton>
               </div>
             ))}
-            {level.blockers.length === 0 && <p className="text-[11px] text-[#6B6B6B]">No blockers on this level.</p>}
+            {level.blockers.length === 0 && <p className={emptyCls}>No blockers on this level.</p>}
             <button
               type="button"
               onClick={addBlocker}
               disabled={level.blockers.length >= 4}
-              className="flex items-center gap-1 text-[11px] font-semibold text-black hover:underline disabled:opacity-30"
+              className={buttonClass('secondary', 'xs')}
             >
-              <Plus className="h-3 w-3" /> Add blocker
+              <Plus className="h-3.5 w-3.5" /> Add blocker
             </button>
           </div>
         </Field>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Field label="Boosters allowed">
           <div className="flex flex-wrap gap-2">
             {CRUSH_BOOSTERS.map((b) => {
               const on = level.boostersAllowed.includes(b.id);
               return (
-                <button
-                  type="button"
-                  key={b.id}
-                  onClick={() => toggleBooster(b.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 border text-xs transition-colors ${
-                    on ? 'border-black bg-black text-white' : 'border-[#E2E2E2] bg-white text-[#545454] hover:border-black'
-                  }`}
-                >
+                <button type="button" key={b.id} onClick={() => toggleBooster(b.id)} aria-pressed={on} className={chipCls(on)}>
                   <span>{b.emoji}</span>
                   <span>{b.label}</span>
                 </button>

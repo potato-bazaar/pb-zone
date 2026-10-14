@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Search, Users } from 'lucide-react';
 import { useQuizTelemetry } from '../../hooks/useQuizTelemetry';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { formatNumber } from '../../lib/utils';
+import { Button, IconTile, PageHeader, inputClass, panelClass, tableClass } from '../ui/pb';
+import { cn, formatNumber } from '../../lib/utils';
 import {
   addPlayerPoints,
   fetchStoredBoardPlayers,
@@ -29,6 +29,31 @@ const GAME_LABELS: Record<StoredGameKey, string> = {
 
 function coinTotal(player: StoredBoardPlayer) {
   return STORED_GAME_KEYS.reduce((sum, key) => sum + (player.coins[key] ?? 0), 0);
+}
+
+const MEDAL: Record<number, string> = {
+  1: 'bg-[#FFF3D6] text-[#B45309] ring-1 ring-inset ring-[#FCE3A6]',
+  2: 'bg-[#EEF2F6] text-[#475569] ring-1 ring-inset ring-[#DCE3EA]',
+  3: 'bg-[#FDEBDD] text-[#C2410C] ring-1 ring-inset ring-[#F9D2B5]',
+};
+
+const td = cn(tableClass.td, 'whitespace-nowrap');
+/* The player column stays pinned while the wide table scrolls sideways. */
+const stickyCell = 'sticky left-0 z-[1] shadow-[inset_-1px_0_0_#EEF2F6]';
+const amountInputClass =
+  'h-8 w-20 rounded-lg border border-[#E2E8E4] bg-white px-2.5 text-sm tabular-nums text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#86D19A] focus:outline-none focus:ring-4 focus:ring-[#16A34A]/10';
+
+function Dash() {
+  return <span className="text-[#94A3B8]">—</span>;
+}
+
+function ErrorNote({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-start gap-2 rounded-xl border border-[#FBD5DD] bg-[#FDE8EC] px-3.5 py-2.5 text-sm text-[#BE123C]">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
 }
 
 export const PlayersView: React.FC<PlayersViewProps> = ({ searchQuery }) => {
@@ -178,76 +203,112 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ searchQuery }) => {
   const loading = boardLoading && rows.length === 0 && live.loading;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold">Players</h1>
-        <p className="text-sm text-muted-foreground">
-          Stored leadership points from the board. Game columns are that game&apos;s points.
-        </p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Players</CardTitle>
-          <CardDescription>
-            Ranked by stored PB points. Coins stay on the wallet and are not used for rank.
-            {boardError ? ` Board unavailable: ${boardError}` : ''}
-            {actionError ? ` ${actionError}` : ''}
-          </CardDescription>
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <PageHeader
+        title="Players"
+        description="Stored leadership points from the board. Game columns are that game's points."
+      />
+
+      <section className={cn(panelClass, 'p-4 sm:p-5')}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <IconTile icon={Users} tone="green" />
+            <div className="min-w-0">
+              <h2 className="text-base font-bold leading-tight text-[#0B1220] sm:text-lg">Players</h2>
+              <p className="mt-0.5 text-sm text-[#5F6F83]">
+                Ranked by stored PB points. Coins stay on the wallet and are not used for rank.
+              </p>
+            </div>
+          </div>
           {!searchQuery && (
-            <input
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="Search players..."
-              className="mt-2 h-10 max-w-sm rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            <div className="relative w-full shrink-0 md:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                placeholder="Search players..."
+                className={cn(inputClass, 'pl-9')}
+              />
+            </div>
           )}
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rank</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead>PB points</TableHead>
-                <TableHead>Wallet</TableHead>
-                <TableHead>Coins</TableHead>
+        </div>
+
+        {(boardError || actionError) && (
+          <div className="mt-4 flex flex-col gap-2">
+            {boardError && <ErrorNote>Board unavailable: {boardError}</ErrorNote>}
+            {actionError && <ErrorNote>{actionError}</ErrorNote>}
+          </div>
+        )}
+
+        <div className={cn(tableClass.wrap, 'mt-4')}>
+          <table className={tableClass.table}>
+            <thead>
+              <tr>
+                <th className={tableClass.th}>Rank</th>
+                <th className={cn(tableClass.th, stickyCell)}>Player</th>
+                <th className={tableClass.th}>PB points</th>
+                <th className={tableClass.th}>Wallet</th>
+                <th className={tableClass.th}>Coins</th>
                 {STORED_GAME_KEYS.map((key) => (
-                  <TableHead key={key}>{GAME_LABELS[key]}</TableHead>
+                  <th key={key} className={tableClass.th}>
+                    {GAME_LABELS[key]}
+                  </th>
                 ))}
-                <TableHead>Correct</TableHead>
-                <TableHead>Played</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                <th className={tableClass.th}>Correct</th>
+                <th className={tableClass.th}>Played</th>
+                <th className={tableClass.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={16} className="h-24 text-center text-muted-foreground">
+                <tr>
+                  <td colSpan={16} className="h-24 px-4 text-center text-sm text-[#64748B]">
                     Loading players…
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={16} className="h-24 text-center text-muted-foreground">
+                <tr>
+                  <td colSpan={16} className="h-24 px-4 text-center text-sm text-[#64748B]">
                     {query ? `No players found matching "${query}"` : 'No players found'}
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.rank}</TableCell>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell className="font-medium tabular-nums">{formatNumber(row.points)}</TableCell>
-                    <TableCell className="tabular-nums">{row.wallet > 0 ? formatNumber(row.wallet) : '—'}</TableCell>
-                    <TableCell className="tabular-nums">{row.coins > 0 ? formatNumber(row.coins) : '—'}</TableCell>
+                  <tr key={row.id} className={cn(tableClass.tr, 'group')}>
+                    <td className={td}>
+                      <span
+                        className={cn(
+                          'inline-flex h-7 min-w-[28px] items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums',
+                          MEDAL[row.rank] ?? 'text-[#64748B]',
+                        )}
+                      >
+                        {row.rank}
+                      </span>
+                    </td>
+                    <td className={cn(td, stickyCell, 'bg-white transition-colors group-hover:bg-[#F8FBF9]')}>
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          aria-hidden
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E3F8E8] text-xs font-bold uppercase text-[#14532D]"
+                        >
+                          {row.name.trim().charAt(0) || '?'}
+                        </span>
+                        <span title={row.name} className="max-w-[120px] truncate font-semibold text-[#0F172A] sm:max-w-[200px]">
+                          {row.name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={cn(td, 'font-bold tabular-nums text-[#14532D]')}>{formatNumber(row.points)}</td>
+                    <td className={cn(td, 'tabular-nums')}>{row.wallet > 0 ? formatNumber(row.wallet) : <Dash />}</td>
+                    <td className={cn(td, 'tabular-nums')}>{row.coins > 0 ? formatNumber(row.coins) : <Dash />}</td>
                     {STORED_GAME_KEYS.map((key) => (
-                      <TableCell key={key} className="tabular-nums text-muted-foreground">
-                        {row.games[key] ? formatNumber(row.games[key] ?? 0) : '—'}
-                      </TableCell>
+                      <td key={key} className={cn(td, 'tabular-nums text-[#64748B]')}>
+                        {row.games[key] ? formatNumber(row.games[key] ?? 0) : <Dash />}
+                      </td>
                     ))}
-                    <TableCell>{row.correct}</TableCell>
-                    <TableCell>{row.played}</TableCell>
-                    <TableCell>
+                    <td className={cn(td, 'tabular-nums')}>{row.correct === '—' ? <Dash /> : row.correct}</td>
+                    <td className={cn(td, 'text-[#64748B]')}>{row.played === '—' ? <Dash /> : row.played}</td>
+                    <td className={td}>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="number"
@@ -257,33 +318,33 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ searchQuery }) => {
                             setDraftAmount((current) => ({ ...current, [row.id]: event.target.value }))
                           }
                           placeholder="Add"
-                          className="h-8 w-16 rounded-md border border-input bg-background px-2 text-sm"
+                          aria-label={`Points to add for ${row.name}`}
+                          className={amountInputClass}
                         />
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
                           disabled={busyId === row.id}
                           onClick={() => void onAddPoints(row.id, row.name)}
-                          className="inline-flex h-8 items-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                         >
                           Add
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
                           disabled={busyId === row.id}
                           onClick={() => void onRemove(row.id, row.name)}
-                          className="inline-flex h-8 items-center rounded-md bg-red-600 px-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };

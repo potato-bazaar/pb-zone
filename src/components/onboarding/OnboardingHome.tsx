@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 const SKY = "#E4E7FF";
 const WELCOME_SEEN_KEY = "pb-zone:welcome-seen";
+/** Pre-launch: the welcome screen only teases the games. Set to true on launch day. */
+const GAMES_LIVE = false;
 
 function hasSeenWelcome() {
   try {
@@ -49,7 +51,7 @@ export function OnboardingHome() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (hasSeenWelcome()) {
+    if (GAMES_LIVE && hasSeenWelcome()) {
       router.replace("/home");
       return;
     }
@@ -113,42 +115,55 @@ export function OnboardingHome() {
           </p>
 
           <div className="mt-4 flex w-full items-center gap-3">
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={() => {
-                if (window.history.length > 1) router.back();
-              }}
-              className="touch-target flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[#241A42] bg-white text-[#241A42]"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-                aria-hidden
+            {/* Hidden before launch: going back could land on a game page. */}
+            {GAMES_LIVE && (
+              <button
+                type="button"
+                aria-label="Back"
+                onClick={() => {
+                  if (window.history.length > 1) router.back();
+                }}
+                className="touch-target flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[#241A42] bg-white text-[#241A42]"
               >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                  aria-hidden
+                >
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={enterGame}
-              className="touch-target relative flex h-14 min-w-0 flex-1 items-center justify-center rounded-full bg-[linear-gradient(180deg,#8B5CFF_0%,#6A35F0_100%)] px-6 font-display text-[1.15rem] font-bold text-white shadow-[0_8px_18px_rgba(106,53,240,0.35)] active:scale-[0.98]"
-            >
-              <span className="-translate-x-3">Let&apos;s Play</span>
-              <span
-                className="absolute right-6 text-lg font-black tracking-[0.18em]"
-                aria-hidden
+            {GAMES_LIVE ? (
+              <button
+                type="button"
+                onClick={enterGame}
+                className="touch-target relative flex h-14 min-w-0 flex-1 items-center justify-center rounded-full bg-[linear-gradient(180deg,#8B5CFF_0%,#6A35F0_100%)] px-6 font-display text-[1.15rem] font-bold text-white shadow-[0_8px_18px_rgba(106,53,240,0.35)] active:scale-[0.98]"
               >
-                {">>>"}
-              </span>
-            </button>
+                <span className="-translate-x-3">Let&apos;s Play</span>
+                <span
+                  className="absolute right-6 text-lg font-black tracking-[0.18em]"
+                  aria-hidden
+                >
+                  {">>>"}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="relative flex h-14 min-w-0 flex-1 cursor-default items-center justify-center rounded-full bg-[linear-gradient(180deg,#8B5CFF_0%,#6A35F0_100%)] px-6 font-display text-[1.15rem] font-bold text-white shadow-[0_8px_18px_rgba(106,53,240,0.35)]"
+              >
+                Coming Soon
+              </button>
+            )}
           </div>
         </section>
       </div>

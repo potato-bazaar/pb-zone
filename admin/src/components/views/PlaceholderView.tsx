@@ -1,27 +1,25 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Inbox } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { EmptyState, PageHeader, Panel } from '../ui/pb';
 
 interface PlaceholderViewProps {
   title: string;
   description: string;
+  icon?: LucideIcon;
 }
 
-export const PlaceholderView: React.FC<PlaceholderViewProps> = ({ title, description }) => {
+export const PlaceholderView: React.FC<PlaceholderViewProps> = ({ title, description, icon = Inbox }) => {
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-center text-sm text-muted-foreground">No {title.toLowerCase()} found</p>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-5">
+      <PageHeader title={title} description={description} />
+      <Panel>
+        <EmptyState
+          icon={icon}
+          title={`No ${title.toLowerCase()} found`}
+          description="Entries will show up here as soon as there is data for this section."
+        />
+      </Panel>
     </div>
   );
 };
