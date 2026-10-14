@@ -104,9 +104,11 @@ export function OnboardingHome() {
         </div>
 
         <section className="relative z-30 -mt-6 flex w-full shrink-0 flex-col rounded-t-[34px] bg-white px-5 pt-4 shadow-[0_-10px_28px_rgba(55,90,140,0.12)] pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
-          <div className="flex items-center justify-center gap-1">
-            <Sparkles />
-            <h1 className="font-display text-[1.7rem] font-bold leading-none tracking-tight text-[#1B1433]">
+          <div className="relative flex justify-center">
+            <h1 className="relative text-center font-display text-[1.7rem] font-bold leading-none tracking-tight text-[#1B1433]">
+              <span className="absolute bottom-0 right-full mr-1">
+                <Sparkles />
+              </span>
               Play. Learn. Earn.
             </h1>
           </div>
