@@ -45,8 +45,10 @@ function stripAuthParamsFromUrl() {
   }
 
   if (changed) {
+    // Keep the entry's state: Next's `__NA` marker (without it, coming back here reloads the page)
+    // and the games' in-page phase keys (quizPhase / taterPhase / pbInPage).
     window.history.replaceState(
-      {},
+      { ...window.history.state },
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );

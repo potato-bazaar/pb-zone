@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Spin & Win locally
+
+pbzone-api doesn't serve `/v1/spin` yet (see [the contract](docs/spin-api-contract.md)), so run the dev mock:
+
+1. Put `SPIN_API_BASE_URL=http://127.0.0.1:4010` in `.env.local`. Only `/api/spin` moves; the quiz, the wallet and everything else keep using `QUIZ_API_BASE_URL`. `next dev` picks up `.env.local` edits by itself (it logs `Reload env: .env.local`).
+2. Run `node scripts/mock-spin-api.mjs` (`--help` lists `--port`, `--latency`, `--fail-rate`, `--jackpot-cap` and `--spins-per-day`).
+3. Open [http://localhost:3000/games/spin-win](http://localhost:3000/games/spin-win).
+
+The mock keeps everything in memory and doesn't verify tokens. It also has its own wallet (1,000 coins per player), so balances that the app reads from the real API can differ from it. `POST /__mock/advance` jumps to the next IST day, `POST /__mock/force?segment=gift` picks the next prize, and `POST /__mock/reset` starts over.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

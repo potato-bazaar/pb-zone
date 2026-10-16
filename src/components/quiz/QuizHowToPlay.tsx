@@ -16,6 +16,7 @@ const ART = "/games/quiz";
 
 type HowToPlayProps = {
   onStart: (language: QuizLanguage) => void;
+  /** Leaves the quiz for the PB Zone hub. */
   onBack: () => void;
   starting?: boolean;
   error?: string | null;
@@ -173,14 +174,9 @@ export function QuizHowToPlay({
 
   return (
     <div className="qh-bg relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden">
-      <div
-        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4"
-        style={{
-          paddingTop: "max(0.65rem, env(safe-area-inset-top, 0px))",
-          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
-        }}
-      >
-        <header className="relative shrink-0">
+      {/* Pinned above the scrolling steps, so the way back to PB Zone never scrolls away on short phones. */}
+      <div className="relative z-20 shrink-0 px-4" style={{ paddingTop: "var(--header-top)" }}>
+        <header className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`${ART}/howto-header.webp`}
@@ -194,7 +190,7 @@ export function QuizHowToPlay({
             <button
               type="button"
               onClick={onBack}
-              aria-label="Back"
+              aria-label="Back to PB Zone"
               className="hit-slop flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#DFD8FA] bg-[linear-gradient(180deg,#FFFFFF,#F4F4FD)] text-[#180A5E] shadow-[0_4px_10px_-4px_rgba(91,63,217,0.25)] transition active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#7C5CFF] focus-visible:ring-offset-2"
             >
               <ChevronLeftIcon className="h-5 w-5" />
@@ -214,7 +210,12 @@ export function QuizHowToPlay({
             className="mx-auto -mt-1 block h-[5px] w-11 rounded-full bg-[linear-gradient(90deg,#E4DFFD,#CAC0FB,#E4DFFD)]"
           />
         </header>
+      </div>
 
+      <div
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}
+      >
         <ol role="list" className="mt-2 flex flex-col gap-1.5">
           {steps.map((step, i) => {
             const open = openStep === step.key;

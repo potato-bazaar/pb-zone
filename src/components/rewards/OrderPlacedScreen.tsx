@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
+import { BackToHub } from "@/components/layout/BackToHub";
 import type { RewardOrder } from "@/lib/rewardClaim";
 
 const STEPS = [
@@ -32,14 +32,19 @@ export function OrderPlacedScreen({ order }: { order: RewardOrder }) {
       <div
         className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
         style={{
-          paddingBottom: "var(--shell-pad)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
         }}
       >
-        <div
-          className="px-5 pb-6"
+        <header
+          className="sticky top-0 z-30 bg-white px-4 pb-1"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <div className="relative mx-auto flex flex-col items-center pt-4">
+          {/* Confirm replaced itself with this screen; "up" pops over the claim's address step to /rewards. */}
+          <BackToHub href="/rewards" tone="neutral" />
+        </header>
+
+        <div className="px-5 pb-6">
+          <div className="relative mx-auto flex flex-col items-center">
             <span
               className="absolute left-[28%] top-5 h-2 w-2 rounded-full bg-[#FBBF24]"
               aria-hidden
@@ -170,23 +175,22 @@ export function OrderPlacedScreen({ order }: { order: RewardOrder }) {
           </button>
         </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }
 
 export function OrderPlacedFallback() {
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-screen-sm flex-col items-center justify-center gap-3 bg-white px-6">
+    <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col items-center justify-center gap-3 bg-white px-6">
+      <BackToHub href="/rewards" tone="neutral" className="absolute left-4 top-[var(--header-top)]" />
       <p className="text-center text-sm font-semibold text-[#8B93A7]">
         Order not found.
       </p>
       <Link
         href="/orders"
-        className="rounded-full bg-[#6A5AE0] px-5 py-2.5 text-sm font-bold text-white"
+        className="rounded-full bg-[#6A5AE0] px-5 py-3 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6A5AE0]"
       >
-        Go to Your Order
+        Go to Your Orders
       </Link>
     </div>
   );

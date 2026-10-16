@@ -1,25 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import {
   OrderPlacedFallback,
   OrderPlacedScreen,
 } from "@/components/rewards/OrderPlacedScreen";
-import {
-  getRewardOrderById,
-  type RewardOrder,
-} from "@/lib/rewardClaim";
+import { getRewardOrderById } from "@/lib/rewardClaim";
+
+const subscribeNever = () => () => {};
 
 export function OrderPlacedClient({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<RewardOrder | null | undefined>(undefined);
-
-  useEffect(() => {
-    setOrder(getRewardOrderById(orderId));
-  }, [orderId]);
+  // Orders live in sessionStorage: read once we're on the client (undefined while server-rendering / hydrating).
+  const onClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const order = useMemo(
+    () => (onClient ? getRewardOrderById(orderId) : undefined),
+    [onClient, orderId],
+  );
 
   if (order === undefined) {
     return (
-      <div className="mx-auto flex h-dvh w-full max-w-screen-sm items-center justify-center bg-[#F5F6FA]">
+      <div className="mx-auto flex h-dvh w-full max-w-screen-sm items-center justify-center bg-white">
         <p className="text-sm font-semibold text-[#8B93A7]">Loading…</p>
       </div>
     );

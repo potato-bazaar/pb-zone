@@ -1,11 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { BackToHub } from "@/components/layout/BackToHub";
+import { useBackTo } from "@/hooks/useBackTo";
 import {
   EMPTY_ADDRESS,
   INDIAN_STATES,
+  loadClaimedRewardIds,
   loadRewardAddress,
   saveRewardAddress,
   type RewardAddress,
@@ -40,22 +42,52 @@ function formatPhoneForSave(local: string) {
   return digits ? `+91 ${digits}` : "";
 }
 
+const subscribeNever = () => () => {};
+
 export function AddAddressScreen({ tierId }: { tierId: string }) {
+  // The saved address and claimed rewards live in sessionStorage: read them once we're on the client.
+  const onClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const saved = useMemo(() => (onClient ? loadRewardAddress() : null), [onClient]);
+  const claimed = useMemo(
+    () => onClient && loadClaimedRewardIds().includes(tierId),
+    [onClient, tierId],
+  );
+  const toRewards = useBackTo("/rewards");
+  const steppedOver = useRef(false);
+
+  // A claimed reward has nothing left to fill in; we land here from the phone's back button on Order Placed
+  // (Confirm replaced itself, this step didn't). Step on to My Rewards, popping back to it when it's behind us.
+  // Reads storage afresh so it also holds if this page is ever kept alive and shown again; the ref stops
+  // Strict Mode's double effect from popping twice.
+  useEffect(() => {
+    if (steppedOver.current || !loadClaimedRewardIds().includes(tierId)) return;
+    steppedOver.current = true;
+    toRewards();
+  }, [tierId, toRewards]);
+
+  if (claimed) {
+    return <div className="mx-auto h-dvh w-full max-w-screen-sm bg-white" />;
+  }
+
+  // Keyed so the form remounts once on the client and starts from the saved address.
+  return <AddressForm key={onClient ? "client" : "server"} tierId={tierId} saved={saved} />;
+}
+
+function AddressForm({
+  tierId,
+  saved,
+}: {
+  tierId: string;
+  saved: RewardAddress | null;
+}) {
   const router = useRouter();
-  const [form, setForm] = useState<RewardAddress>(EMPTY_ADDRESS);
+  const [form, setForm] = useState<RewardAddress>(() =>
+    saved ? { ...saved, phone: stripPhonePrefix(saved.phone) } : EMPTY_ADDRESS,
+  );
   const [confirmed, setConfirmed] = useState(false);
   const [touched, setTouched] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const stateRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const saved = loadRewardAddress();
-    if (!saved) return;
-    setForm({
-      ...saved,
-      phone: stripPhonePrefix(saved.phone),
-    });
-  }, []);
 
   useEffect(() => {
     if (!stateOpen) return;
@@ -113,25 +145,8 @@ export function AddAddressScreen({ tierId }: { tierId: string }) {
           className="sticky top-0 z-30 bg-white px-4 pb-3"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <div className="relative flex items-center justify-center">
-            <Link
-              href="/rewards"
-              aria-label="Back"
-              className="hit-slop absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#2940B3]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </Link>
+          <div className="relative flex min-h-11 items-center justify-center">
+            <BackToHub href="/rewards" tone="neutral" className="absolute left-0" />
             <h1 className="font-display text-lg font-bold text-[#2940B3]">
               Add Address
             </h1>

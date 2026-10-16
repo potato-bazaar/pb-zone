@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import emptyOrdersImg from "../../../public/images/orders/empty-orders-box.png";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
+import { BackToHub } from "@/components/layout/BackToHub";
+import { useBackTo } from "@/hooks/useBackTo";
 import {
   loadRewardOrders,
   type RewardOrder,
@@ -29,37 +30,39 @@ function formatOrderDate(iso: string) {
   });
 }
 
-export function YourOrdersScreen() {
-  const [orders, setOrders] = useState<RewardOrder[]>([]);
-  const [ready, setReady] = useState(false);
+const subscribeNever = () => () => {};
 
-  useEffect(() => {
-    setOrders(loadRewardOrders());
-    setReady(true);
-  }, []);
+export function YourOrdersScreen() {
+  // Orders live in sessionStorage: read them once we're on the client (null while server-rendering / hydrating).
+  const onClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const orders = useMemo(() => (onClient ? loadRewardOrders() : null), [onClient]);
+  const toHub = useBackTo("/home");
 
   return (
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-[#F7F5FC]">
       <div
         className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
         style={{
-          paddingBottom: "var(--shell-pad)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
         }}
       >
         <header
           className="sticky top-0 z-30 bg-[#F7F5FC] px-4 pb-3"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <h1 className="font-display text-center text-lg font-bold text-[#2940B3]">
-            Your Orders
-          </h1>
-          <p className="mt-1 text-center text-[13px] font-medium text-[#8B93A7]">
+          <div className="relative flex min-h-11 items-center justify-center">
+            <BackToHub href="/rewards" tone="neutral" className="absolute left-0" />
+            <h1 className="font-display text-center text-lg font-bold text-[#2940B3]">
+              Your Orders
+            </h1>
+          </div>
+          <p className="text-center text-[13px] font-medium text-[#8B93A7]">
             Track all your reward orders in one place.
           </p>
         </header>
 
         <div className="px-4 pt-1">
-          {!ready ? (
+          {orders === null ? (
             <p className="py-16 text-center text-sm font-semibold text-[#8B93A7]">
               Loading…
             </p>
@@ -85,8 +88,14 @@ export function YourOrdersScreen() {
               </p>
 
               <Link
-                href="/games"
-                className="mt-8 inline-flex w-auto max-w-none items-center justify-center whitespace-nowrap rounded-full bg-[#6A5AE0] px-6 py-3.5 text-center text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(106,90,224,0.35)] transition active:scale-[0.99]"
+                href="/home"
+                onNavigate={(e) => {
+                  // Up to the hub, popping back to it when it's behind us (Rewards → Orders), so the phone's
+                  // back button then leaves PB Zone instead of replaying Orders and Rewards.
+                  e.preventDefault();
+                  toHub();
+                }}
+                className="mt-8 inline-flex w-auto max-w-none items-center justify-center whitespace-nowrap rounded-full bg-[#6A5AE0] px-6 py-3.5 text-center text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(106,90,224,0.35)] transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6A5AE0]"
               >
                 Play Games to Claim Rewards
               </Link>
@@ -161,8 +170,6 @@ export function YourOrdersScreen() {
           )}
         </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

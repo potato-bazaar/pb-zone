@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useBackTo } from "@/hooks/useBackTo";
 import { recordGameLeaderboard } from "@/lib/leaderboardApi";
+import { stepBack } from "@/lib/navStack";
 import { withBackendPhotos } from "@/lib/taterMatchApi";
 import {
   DAILY_QUESTIONS,
@@ -50,7 +51,8 @@ function roundTitle(mode: RoundMode, daily: boolean) {
 }
 
 export function TaterMatchApp() {
-  const router = useRouter();
+  // The game home is the root screen: its back leaves for the PB Zone hub (popping history when the hub is behind us).
+  const backToHub = useBackTo("/home");
   const session = useUserSession();
   const { coins, pbPoints, addCoins } = usePbCoins();
   const { awardPoints, state: pbState } = usePbPoints();
@@ -65,9 +67,19 @@ export function TaterMatchApp() {
   const [result, setResult] = useState<RoundResult | null>(null);
   const [startingRound, setStartingRound] = useState(false);
   const ignorePopRef = useRef(false);
+  // False once the player has left (on-screen or phone back) so a round still loading can't start
+  // afterwards. Set inside the effect so React's StrictMode remount leaves it true.
+  const mountedRef = useRef(false);
 
   const displayPoints = Math.max(pbPoints, pbState.seasonPoints);
   const dailyAvailable = progress.dailyDoneDate !== todayKey();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     // localStorage is unavailable during the first render; read it once after mount.
@@ -76,7 +88,10 @@ export function TaterMatchApp() {
   }, []);
 
   useEffect(() => {
+    const routePath = window.location.pathname;
     function onPopState() {
+      // Leaving the game (back to the hub) is the router's job; only our own in-page entries are phases.
+      if (window.location.pathname !== routePath) return;
       if (ignorePopRef.current) {
         ignorePopRef.current = false;
         return;
@@ -90,24 +105,31 @@ export function TaterMatchApp() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [phase]);
 
+  /**
+   * Inner screens share one in-page history entry, so the phone's back returns to the game home.
+   * Spreading the current state keeps Next's router data; `pbInPage` lets useBackTo count the entry.
+   */
   function pushPhase(next: Phase) {
     if (typeof window !== "undefined") {
-      if (window.history.state?.taterPhase) {
-        window.history.replaceState({ taterPhase: next }, "");
+      const state = window.history.state ?? {};
+      if (state.taterPhase) {
+        window.history.replaceState({ ...state, taterPhase: next }, "");
       } else {
-        window.history.pushState({ taterPhase: next }, "");
+        window.history.pushState({ ...state, taterPhase: next, pbInPage: (Number(state.pbInPage) || 0) + 1 }, "");
       }
     }
     setPhase(next);
   }
 
   function goHome() {
+    if (typeof window !== "undefined" && window.history.state?.taterPhase) {
+      // stepBack claims the back: a hub back tapped before this pop lands is ignored instead of counting its
+      // steps from the stale entry (and leaving PB Zone). False while another back is still landing: let it finish.
+      if (!stepBack()) return;
+      ignorePopRef.current = true;
+    }
     setPhase("home");
     setResult(null);
-    if (typeof window !== "undefined" && window.history.state?.taterPhase) {
-      ignorePopRef.current = true;
-      window.history.back();
-    }
   }
 
   async function startRound(nextMode: RoundMode, asDaily = false) {
@@ -115,7 +137,9 @@ export function TaterMatchApp() {
     const count = asDaily ? DAILY_QUESTIONS : TATER_SCORING.questionsPerRound;
     setStartingRound(true);
     const builtIn = nextMode === "mixed" ? buildMixedRound(count) : buildRound(nextMode, count);
+    // The photo fetch can take up to 6s; the loader blocks taps but not the phone's back button.
     const round = await withBackendPhotos(builtIn);
+    if (!mountedRef.current) return;
     setStartingRound(false);
     setMode(nextMode);
     setDaily(asDaily);
@@ -145,7 +169,7 @@ export function TaterMatchApp() {
         ...(daily ? [{ label: "Daily challenge", points: TATER_SCORING.pointsDaily }] : []),
       ],
       perfect: payload.correct === payload.total,
-      label: `Tater Match · ${roundTitle(mode, daily)}`,
+      label: `Match & Learn · ${roundTitle(mode, daily)}`,
     });
 
     recordGameLeaderboard(session, {
@@ -225,7 +249,7 @@ export function TaterMatchApp() {
       points={displayPoints}
       progress={progress}
       dailyAvailable={dailyAvailable}
-      onBack={() => router.push("/games")}
+      onBack={backToHub}
       onPlay={(m, asDaily) => void startRound(m, Boolean(asDaily))}
       onHowTo={() => pushPhase("howto")}
       onProgress={() => pushPhase("progress")}

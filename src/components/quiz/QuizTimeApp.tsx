@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QuizHowToPlay } from "@/components/quiz/QuizHowToPlay";
 import { QuizPlayScreen } from "@/components/quiz/QuizPlayScreen";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useBackTo } from "@/hooks/useBackTo";
 import { useQuizScoring } from "@/hooks/useQuizScoring";
 import {
   QuizApiError,
@@ -13,6 +13,7 @@ import {
   type QuizLanguage,
   type QuizSessionStartData,
 } from "@/lib/quizApi";
+import { stepBack } from "@/lib/navStack";
 import { startLiveMirror } from "@/lib/quizLiveMirror";
 import { identityFromJwt, isPlaceholderDisplayName } from "@/lib/playerIdentity";
 import { fetchUserProfile } from "@/lib/pbZoneAuth";
@@ -20,7 +21,9 @@ import { fetchUserProfile } from "@/lib/pbZoneAuth";
 type Phase = "howto" | "play";
 
 export function QuizTimeApp() {
-  const router = useRouter();
+  // How-to is the root screen and the result's "Back to PB Zone" leaves too: both go to the PB Zone hub,
+  // popping history (past the quiz's own in-page entry) when the hub is behind us.
+  const backToHub = useBackTo("/home");
   const session = useUserSession();
   const { setWallet } = usePbCoins();
   const [phase, setPhase] = useState<Phase>("howto");
@@ -33,6 +36,9 @@ export function QuizTimeApp() {
   );
   const scoring = useQuizScoring(phase !== "play");
   const ignorePopRef = useRef(false);
+  // False once the player has left, so a start still in flight can't open a session, start the live
+  // mirror or push history onto another screen. Set inside the effect so StrictMode's remount leaves it true.
+  const mountedRef = useRef(false);
 
   const auth = useMemo(
     () => ({
@@ -45,21 +51,33 @@ export function QuizTimeApp() {
   const [playAuth, setPlayAuth] = useState(auth);
 
   function exitToStart(fromPopState = false) {
-    setPhase("howto");
-    setQuizSession(null);
-    setStartError(null);
     if (
       !fromPopState &&
       typeof window !== "undefined" &&
       window.history.state?.quizPhase === "play"
     ) {
+      // stepBack claims the back: a hub back tapped before this pop lands is ignored instead of counting its
+      // steps from the stale entry (and leaving PB Zone). False while another back is still landing: let it finish.
+      if (!stepBack()) return;
       ignorePopRef.current = true;
-      window.history.back();
     }
+    setPhase("howto");
+    setQuizSession(null);
+    setStartError(null);
   }
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const routePath = window.location.pathname;
     function onPopState() {
+      // Leaving the quiz (back to the hub) is the router's job: don't flash How-to or refetch scoring on the way out.
+      if (window.location.pathname !== routePath) return;
       if (ignorePopRef.current) {
         ignorePopRef.current = false;
         return;
@@ -81,6 +99,7 @@ export function QuizTimeApp() {
         identityFromJwt(session.token).userName || session.userName;
       if (session.token) {
         const profile = await fetchUserProfile(session.token);
+        if (!mountedRef.current) return;
         if (profile?.userName && !isPlaceholderDisplayName(profile.userName)) {
           userName = profile.userName;
         }
@@ -94,6 +113,7 @@ export function QuizTimeApp() {
       setPlayAuth(authWithName);
 
       const data = await startQuizSession(authWithName, { language: selectedLang });
+      if (!mountedRef.current) return;
       startLiveMirror({
         userId: authWithName.userId || "dev-user-1",
         sessionId: data.sessionId,
@@ -106,9 +126,15 @@ export function QuizTimeApp() {
       });
       setQuizSession(data);
       setRunId((n) => n + 1);
-      window.history.pushState({ quizPhase: "play" }, "");
+      // Play and result share one in-page entry: Play Again reuses it, so the phone's back still needs
+      // only one tap to reach How-to. Spreading keeps Next's router data; `pbInPage` lets useBackTo count it.
+      const state = window.history.state ?? {};
+      if (state.quizPhase !== "play") {
+        window.history.pushState({ ...state, quizPhase: "play", pbInPage: (Number(state.pbInPage) || 0) + 1 }, "");
+      }
       setPhase("play");
     } catch (error) {
+      if (!mountedRef.current) return;
       const message =
         error instanceof QuizApiError
           ? error.message
@@ -123,7 +149,7 @@ export function QuizTimeApp() {
   if (phase === "howto") {
     return (
       <QuizHowToPlay
-        onBack={() => router.push("/games")}
+        onBack={backToHub}
         onStart={(lang) => void beginQuiz(lang)}
         starting={starting}
         error={startError}
@@ -135,7 +161,7 @@ export function QuizTimeApp() {
   if (!quizSession) {
     return (
       <QuizHowToPlay
-        onBack={() => router.push("/games")}
+        onBack={backToHub}
         onStart={(lang) => void beginQuiz(lang)}
         starting={starting}
         error={startError ?? "Session missing. Tap Start Quiz again."}
@@ -150,7 +176,7 @@ export function QuizTimeApp() {
       auth={playAuth}
       initialSession={quizSession}
       onExit={() => exitToStart()}
-      onHome={() => router.push("/home")}
+      onHome={backToHub}
       onPlayAgain={() => void beginQuiz(language)}
     />
   );

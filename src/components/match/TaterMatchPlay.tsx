@@ -7,6 +7,7 @@ import {
   FastChip,
   FastChipHint,
   LearnSheet,
+  MatchLearnSign,
   OptionCard,
   TM_TONES,
   TaterCta,
@@ -203,14 +204,18 @@ export function TaterMatchPlay({ questions, coins, points, onExit, onComplete }:
     setIndex((i) => i + 1);
   }
 
-  // One countdown per question. Hitting 0 misses the match the same way a wrong tap does.
+  // One countdown per question. Hitting 0 misses the match the same way a wrong tap does; the miss is
+  // answered from the last tick itself, so nothing sets state synchronously in the effect body.
   useEffect(() => {
     if (revealed) return;
-    if (timeLeft <= 0) {
-      answer("");
-      return;
-    }
-    const t = window.setTimeout(() => setTimeLeft((s) => s - 1), 1000);
+    const t = window.setTimeout(() => {
+      if (timeLeft <= 1) {
+        setTimeLeft(0);
+        answer("");
+      } else {
+        setTimeLeft((s) => s - 1);
+      }
+    }, 1000);
     return () => window.clearTimeout(t);
     // `answer` is the handler from this render; the tick is driven by timeLeft, revealed, and index.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,24 +257,18 @@ export function TaterMatchPlay({ questions, coins, points, onExit, onComplete }:
 
       <header className="relative z-20 shrink-0 px-3" style={{ paddingTop: "max(0.5rem, calc(var(--header-top) - 0.25rem))" }}>
         <div className="tm-play-head relative flex items-start justify-between">
+          {/* Focus is an outline: .tm-back-cream's own box-shadow (unlayered CSS) beats a ring utility. Ink green keeps ≥ 3:1 on the leafy photo. */}
           <button
             type="button"
             onClick={onExit}
             aria-label="Leave round"
-            className="tm-back-cream hit-slop mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#173B26] active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#1F8A47] focus-visible:ring-offset-2"
+            className="tm-back-cream hit-slop mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#173B26] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F3D22]"
           >
             <ChevronLeftIcon className="h-5 w-5" />
           </button>
-          <h1 className="tm-logo pointer-events-none absolute left-1/2 top-0 -translate-x-1/2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${ART}/logo.webp`}
-              alt="Tater Match"
-              width={540}
-              height={335}
-              draggable={false}
-              className="h-full w-auto max-w-none select-none"
-            />
+          <h1 className="tm-logo pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 items-center">
+            <span className="sr-only">Match &amp; Learn</span>
+            <MatchLearnSign />
           </h1>
           <div className="flex flex-col items-end gap-1.5 pt-1">
             <WalletPills coins={coins} points={points} variant="dark" />

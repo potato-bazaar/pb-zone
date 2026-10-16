@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { ChampionBanner } from "@/components/home/ChampionBanner";
 import { GameCarousel, type FeaturedGame } from "@/components/home/GameCarousel";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
@@ -271,9 +270,9 @@ export function HomeScreen() {
 
       <div
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "var(--shell-pad)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
       >
-          {/* On a short, wide screen (phone landscape) the score card and champion banner sit side by side so the call to action stays above the tab bar. Portrait stays stacked. */}
+          {/* On a short, wide screen (phone landscape) the score card and champion banner sit side by side so the call to action stays above the fold. Portrait stays stacked. */}
           <div className="[@media(max-height:520px)_and_(min-width:520px)]:grid [@media(max-height:520px)_and_(min-width:520px)]:grid-cols-2 [@media(max-height:520px)_and_(min-width:520px)]:items-start [@media(max-height:520px)_and_(min-width:520px)]:gap-2">
           {/* PB score card: Season PB + rank (compete) and lifetime milestone (achieve). Coins live in the wallet pill above. */}
           <section className="home-card home-rise mb-3 rounded-[1.35rem] px-3.5 py-3 [@media(max-height:520px)]:mb-0 [@media(max-height:520px)]:py-2" style={{ animationDelay: "0.15s" }}>
@@ -377,7 +376,7 @@ export function HomeScreen() {
           <section className="home-rise mb-4" style={{ animationDelay: "0.45s" }}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-[20px] font-extrabold text-[#241A5E]">Explore Games</h2>
-              <Link href="/games" className="home-pill inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold text-[#6A5AE0] max-md:min-h-11">
+              <Link href="/home" className="home-pill inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold text-[#6A5AE0] max-md:min-h-11">
                 See All
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="m9 18 6-6-6-6" />
@@ -394,8 +393,6 @@ export function HomeScreen() {
             <QuickLink href="/orders" title="Your Orders" body="Track your purchases" emoji="🛍️" />
           </section>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

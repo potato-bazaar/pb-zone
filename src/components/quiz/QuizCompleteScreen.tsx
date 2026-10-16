@@ -500,7 +500,7 @@ export function QuizCompleteScreen({
           className="qd-home mx-auto mt-3.5 flex h-[50px] w-[94%] cursor-pointer items-center justify-center gap-2 rounded-full font-display text-[17px] font-bold text-[#6644F7] forced-colors:border-2"
         >
           <HomeIcon className="h-5 w-5 text-[#7754F6]" />
-          Back to Home
+          Back to PB Zone
         </button>
       </div>
     </div>

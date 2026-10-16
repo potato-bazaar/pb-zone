@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { BoardYouRow } from "@/components/leaderboard/LeaderboardRankRow";
 import { PbHeader, PbStarIcon, PlayerAvatar } from "@/components/pb/PbUi";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
@@ -82,7 +81,6 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
   const [stored, setStored] = useState<StoredPlayerPoints[]>([]);
   const [meUserId, setMeUserId] = useState<string | null>(userId ? String(userId) : null);
   const [meLeaderboardPoints, setMeLeaderboardPoints] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const isSeason = tab === "season";
   const forGame = game !== null;
@@ -91,11 +89,12 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
     () => ({ token, userId, userName }),
     [token, userId, userName],
   );
+  /** The session the board was last fetched for; any other means a fetch is in flight. */
+  const [loadedFor, setLoadedFor] = useState<typeof auth | null>(null);
+  const loading = loadedFor !== auth;
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
 
     Promise.all([
       fetchLeaderboardPoints(auth, { limit: 200 }),
@@ -104,6 +103,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
       .then(([players, me]) => {
         if (cancelled) return;
         setStored(Array.isArray(players) ? players : []);
+        setLoadError(null);
         if (me?.userId) setMeUserId(String(me.userId));
         else if (userId) setMeUserId(String(userId));
         setMeLeaderboardPoints(Math.max(0, Number(me?.leaderboardPoints) || 0));
@@ -114,7 +114,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
         setLoadError(err instanceof Error ? err.message : "Could not load leaderboard.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedFor(auth);
       });
 
     return () => {
@@ -202,7 +202,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
 
       {/* Fixed controls — transparent so same surface as content underneath */}
       <div className="relative z-40 shrink-0">
-        <PbHeader title="PB Leaderboard" tone="dark" />
+        <PbHeader title="PB Leaderboard" backHref="/rewards" tone="dark" />
         <div className="mx-4 mt-1 mb-2 flex rounded-full bg-white/12 p-1 ring-1 ring-white/20">
           {LEADERBOARD_TABS.map((t) => {
             const active = tab === t.id;
@@ -226,7 +226,7 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
       {/* Content scrolls under the fixed header on the same bg */}
       <div
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "var(--shell-pad)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
       >
         {isSeason ? (
           <div className="flex gap-1.5 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Game leaderboards">
@@ -331,8 +331,6 @@ export function PbLeaderboardScreen({ initialGame }: { initialGame?: string }) {
           ) : null}
         </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

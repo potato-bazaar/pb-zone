@@ -17,9 +17,12 @@ export const LEADERBOARD_TABS: { id: LeaderboardTab; label: string }[] = [
   { id: "lifetime", label: "Lifetime" },
 ];
 
-/** Games that have their own leaderboard. Order = chip order on the PB screen. */
-/** Launch set only — match ALL_GAMES order. */
-export const LEADERBOARD_GAMES: PbGameId[] = ["quiz-time", "spud-run", "potato-crush", "potato-ninja"];
+/**
+ * Games that have their own leaderboard: the games the hub shows. Order = chip order on the PB screen.
+ * Also gates `/pb?game=` and Profile's "Top Games". Potato Run / Crush / Ninja are hidden, so they get
+ * no board; their PB still counts in the "All games" season total.
+ */
+export const LEADERBOARD_GAMES: PbGameId[] = ["quiz-time", "tater-match"];
 // Coming later: "potato-sort", "word-scramble", "guess-disease", "fix-puzzle"
 
 export function isLeaderboardGame(value: string | null | undefined): value is PbGameId {

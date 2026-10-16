@@ -69,7 +69,7 @@ export function TaterHeader({
   art,
 }: {
   onBack: () => void;
-  /** "Back to games" / "Leave round" / "Back" */
+  /** Accessible name of the back button, e.g. "Back" (How-to and Progress step back to the game home). */
   backLabel: string;
   /** Centre slot (TaterTitle or a plain title). */
   children?: ReactNode;
@@ -96,11 +96,12 @@ export function TaterHeader({
         />
       ) : null}
       <div className="relative grid h-10 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2">
+        {/* Focus is an outline: .tm-back's own box-shadow (unlayered CSS) beats a ring utility. */}
         <button
           type="button"
           onClick={onBack}
           aria-label={backLabel}
-          className="tm-back hit-slop flex h-10 w-10 items-center justify-center rounded-full text-[#0F3D22] active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#1F8A47] focus-visible:ring-offset-2"
+          className="tm-back hit-slop flex h-10 w-10 items-center justify-center rounded-full text-[#0F3D22] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F3D22]"
         >
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
@@ -669,6 +670,108 @@ export function OutlinedText({
         </span>
       ))}
       <span className={`qd-text-fill relative ${fill}`}>{children}</span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  2.6b "Match & Learn" wordmark (tm-ml-* styles: globals.css)        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A ring of hard text-shadows: a round outline `r` em thick that merges across letters and lines
+ * (-webkit-text-stroke grows miter spikes at sharp joins instead). Drawn twice, the second time
+ * `drop` em lower, so the outline also wraps the bevel under the letters.
+ */
+function ringShadow(r: number, drop: number, color: string): string {
+  const shadows: string[] = [];
+  for (const dy of [0, drop]) {
+    for (const [radius, steps] of [
+      [r, 16],
+      [r / 2, 8],
+    ] as const) {
+      for (let i = 0; i < steps; i += 1) {
+        const a = (2 * Math.PI * i) / steps;
+        shadows.push(`${(radius * Math.cos(a)).toFixed(3)}em ${(radius * Math.sin(a) + dy).toFixed(3)}em 0 ${color}`);
+      }
+    }
+  }
+  return shadows.join(", ");
+}
+
+/** `fatten`: dilate radius in CSS px (more than ~0.5 starts closing the counters); `gloss`: rim opacity. */
+const WORDMARK = {
+  // Home hero: the sun and leaf bubble letters of the old hero art on a thick merged outline.
+  hero: { top: "tm-ml-sun", bottom: "tm-ml-leaf", ink: ringShadow(0.15, 0.075, "#1D1E08"), fatten: 0.45, gloss: 0.85 },
+  // Play sign: cream and gold letters painted on the wooden plaque, slimmer outline.
+  sign: { top: "tm-ml-cream", bottom: "tm-ml-gold", ink: ringShadow(0.12, 0.07, "#3A1A05"), fatten: 0.3, gloss: 0.7 },
+} as const;
+
+/**
+ * The game's name as live lettering: "Match" over "& Learn" in the chunky glossy style of the old
+ * logo art. Decorative (aria-hidden): the heading around it carries the accessible name.
+ * `hero` takes its font size from `className`; `sign` is sized by MatchLearnSign.
+ */
+export function MatchLearnWordmark({ tone, className }: { tone: keyof typeof WORDMARK; className?: string }) {
+  const filterId = `tm-ml-gloss-${useId().replace(/[^\w-]/g, "")}`;
+  const look = WORDMARK[tone];
+  const amp = <span className="tm-ml-amp">&amp;</span>;
+  return (
+    <span
+      aria-hidden
+      className={cn("tm-ml", `tm-ml--${tone}`, className)}
+      style={{ "--tm-ml-gloss": `url(#${filterId})` } as CSSProperties}
+    >
+      {/* Thickens the letters a touch (Fredoka stops at 700) and lights their top-left edges. */}
+      <svg width="0" height="0" className="absolute" focusable="false">
+        <filter id={filterId} x="-8%" y="-12%" width="116%" height="136%" colorInterpolationFilters="sRGB">
+          <feMorphology in="SourceGraphic" operator="dilate" radius={look.fatten} result="fat" />
+          <feOffset in="fat" dx="1" dy="1.5" result="shifted" />
+          <feComposite in="fat" in2="shifted" operator="out" result="edge" />
+          <feGaussianBlur in="edge" stdDeviation="0.5" result="softEdge" />
+          <feFlood floodColor="#FFFFFF" floodOpacity={look.gloss} />
+          <feComposite in2="softEdge" operator="in" result="shine" />
+          <feComposite in="shine" in2="fat" operator="in" result="rim" />
+          <feMerge>
+            <feMergeNode in="fat" />
+            <feMergeNode in="rim" />
+          </feMerge>
+        </filter>
+      </svg>
+      {tone === "hero" ? (
+        <>
+          {/* Sprigs tucked behind the outline, as on the old art. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${ART}/leaf-sprig.webp`} alt="" draggable={false} width={150} height={137} className="tm-ml-sprig tm-ml-sprig--tr" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${ART}/leaf-sprig.webp`} alt="" draggable={false} width={150} height={137} className="tm-ml-sprig tm-ml-sprig--l" />
+        </>
+      ) : null}
+      <span className="tm-ml-ink" style={{ textShadow: look.ink }}>
+        <span className="tm-ml-line">Match</span>
+        <span className="tm-ml-line">{amp} Learn</span>
+      </span>
+      <span className="tm-ml-faces">
+        <span className="tm-ml-line">
+          <span className={cn("tm-ml-face", look.top)}>Match</span>
+        </span>
+        <span className="tm-ml-line">
+          <span className={cn("tm-ml-face", look.bottom)}>{amp} Learn</span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/** Play header sign: the wordmark on a small wooden plaque with gold rivets and leaf sprigs, sized by `--tm-logo-h`. */
+export function MatchLearnSign() {
+  return (
+    <span aria-hidden className="tm-ml-board">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${ART}/leaf-sprig.webp`} alt="" draggable={false} width={150} height={137} className="tm-ml-board-leaf tm-ml-board-leaf--l" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${ART}/leaf-sprig.webp`} alt="" draggable={false} width={150} height={137} className="tm-ml-board-leaf tm-ml-board-leaf--r" />
+      <MatchLearnWordmark tone="sign" />
     </span>
   );
 }

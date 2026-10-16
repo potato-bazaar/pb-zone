@@ -45,13 +45,14 @@ export type PbGameId =
   | "potato-sort"
   | "daily-challenge";
 
+/** Names players see (leaderboard chips, profile, PB breakdown). Ids stay as they are. */
 export const PB_GAME_LABELS: Record<PbGameId, string> = {
   "quiz-time": "Quiz Time",
   "potato-crush": "Potato Crush",
   "spud-run": "Potato Run",
   "word-scramble": "Word Scramble",
   "guess-disease": "Guess Potato Disease",
-  "tater-match": "Tater Match",
+  "tater-match": "Match & Learn",
   "fix-puzzle": "Fix the Puzzle",
   "connect-potatoes": "Connect Potatoes",
   "potato-stack": "Potato Stack",

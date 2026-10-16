@@ -3,6 +3,7 @@
 import { haptic, sounds } from "@/components/crush/render/sound";
 import {
   ART,
+  MatchLearnWordmark,
   TM_TONES,
   TaterCta,
   TaterFooter,
@@ -98,11 +99,12 @@ export function TaterMatchHome({
         className="relative z-20 flex shrink-0 items-center justify-between px-4"
         style={{ paddingTop: "max(0.5rem, calc(var(--header-top) - 0.25rem))" }}
       >
+        {/* Focus is an outline: .tm-back-cream's own box-shadow (unlayered CSS) beats a ring utility. Ink green keeps ≥ 3:1 on the leafy photo. */}
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to games"
-          className="tm-back-cream hit-slop flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#173B26] active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#1F8A47] focus-visible:ring-offset-2"
+          aria-label="Back to PB Zone"
+          className="tm-back-cream hit-slop flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#173B26] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F3D22]"
         >
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
@@ -145,16 +147,10 @@ export function TaterMatchHome({
             <p className="tm-hero-eyebrow text-[10px] font-extrabold uppercase leading-[12px] tracking-[0.22em]">
               Game Zone · Learn
             </p>
-            <h1 className="tm-hero-title mt-0.5 h-[78px] shrink-0 md:h-[100px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`${ART}/hero-title.webp`}
-                alt="Tater Match"
-                draggable={false}
-                width={600}
-                height={360}
-                className="h-full w-auto max-w-none select-none"
-              />
+            {/* Same 78/100px box as the old baked title art; ml-[0.15em] lines the outline up with the eyebrow and plank. */}
+            <h1 className="tm-hero-title mt-0.5 flex h-[78px] shrink-0 items-center md:h-[100px]">
+              <span className="sr-only">Match &amp; Learn</span>
+              <MatchLearnWordmark tone="hero" className="ml-[0.15em] text-[clamp(32px,10vw,38px)] md:text-[48px]" />
             </h1>
             <p className="relative mt-0.5 inline-flex h-[26px] shrink-0 items-center self-start">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -166,7 +162,8 @@ export function TaterMatchHome({
                 height={140}
                 className="pointer-events-none absolute inset-0 h-full w-full select-none"
               />
-              <span className="tm-plank-text relative px-3 text-[11px] font-extrabold leading-none text-white">
+              {/* One line on the 26px plank: on 320px phones it runs a little past the column, over the mascot's hand. */}
+              <span className="tm-plank-text relative whitespace-nowrap px-3 text-[11px] font-extrabold leading-none text-white">
                 Spot it · Match it · Grow smarter!
               </span>
             </p>

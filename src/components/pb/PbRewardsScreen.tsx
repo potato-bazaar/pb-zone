@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
-import { PbStarIcon } from "@/components/pb/PbUi";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BackToHub } from "@/components/layout/BackToHub";
+import { PbStarIcon, SectionCard } from "@/components/pb/PbUi";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { LIFETIME_MILESTONES, milestoneProgress, type LifetimeMilestone } from "@/data/pbEconomy";
+import { useBackTo } from "@/hooks/useBackTo";
 import { fetchMyLeaderboard } from "@/lib/leaderboardApi";
 import { fetchQuizPoints } from "@/lib/quizApi";
 import { loadClaimedRewardIds } from "@/lib/rewardClaim";
@@ -264,8 +265,57 @@ function PbRewardsSummaryCard({
 }
 
 /* ------------------------------------------------------------------ */
+/*  More — Leaderboard, Profile and Orders live under My Rewards       */
+/* ------------------------------------------------------------------ */
+
+function MoreLinks({ rank }: { rank: number | null }) {
+  const links = [
+    { href: "/pb", emoji: "🏆", title: "Leaderboard", subtitle: rank ? `You're ranked #${rank}` : "See where you rank" },
+    { href: "/profile", emoji: "👤", title: "My Profile", subtitle: "Your PB stats and history" },
+    { href: "/orders", emoji: "🛍️", title: "Your Orders", subtitle: "Track your reward orders" },
+  ];
+  return (
+    <SectionCard className="px-3 py-1">
+      <ul className="divide-y divide-[#F1EEFA]">
+        {links.map((l) => (
+          <li key={l.href}>
+            <Link
+              href={l.href}
+              className="flex min-h-11 items-center gap-3 rounded-xl py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6A5AE0] motion-safe:transition-transform motion-safe:active:scale-[0.99]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDE7FF] text-[20px]" aria-hidden>
+                {l.emoji}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] font-extrabold text-[#241A5E]">{l.title}</span>
+                <span className="block truncate text-[11px] font-bold text-[#6A5AE0]">{l.subtitle}</span>
+              </span>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 shrink-0 text-[#B8B0D8]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Reward modal                                                       */
 /* ------------------------------------------------------------------ */
+
+/** A backdrop tap this soon after the dialog appears was aimed at what was under it (the back button). */
+const BACKDROP_GRACE_MS = 300;
 
 function RewardModal({
   m,
@@ -275,6 +325,7 @@ function RewardModal({
   rank,
   onClose,
   onClaim,
+  onPlay,
 }: {
   m: LifetimeMilestone;
   state: RowState;
@@ -283,11 +334,35 @@ function RewardModal({
   rank: number | null;
   onClose: () => void;
   onClaim: () => void;
+  /** "Play to earn …": back to the hub, where the games are. */
+  onPlay: () => void;
 }) {
   const physical = m.claimable;
   const remainingLeadership = Math.max(0, m.points - leadership);
   const remainingCoins = Math.max(0, m.points - earnedCoins);
   const title = state === "locked" ? "Keep Growing!" : state === "claimed" ? (physical ? "Reward Claimed!" : "Reward Unlocked!") : "Reward Unlocked!";
+
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const openedAt = useRef(0);
+  // What had focus before (e.g. the ladder row), read while rendering: the page behind goes inert on commit.
+  const [returnFocus] = useState(() => document.activeElement);
+
+  useLayoutEffect(() => {
+    openedAt.current = performance.now();
+    titleRef.current?.focus();
+  }, []);
+
+  // A passive cleanup runs after the page behind has left `inert`, so the element can take focus again.
+  useEffect(
+    () => () => {
+      if (returnFocus instanceof HTMLElement) returnFocus.focus();
+    },
+    [returnFocus],
+  );
+
+  const closeFromBackdrop = () => {
+    if (performance.now() - openedAt.current >= BACKDROP_GRACE_MS) onClose();
+  };
 
   return (
     <div
@@ -295,12 +370,16 @@ function RewardModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="pb-reward-title"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
       style={{
         paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
       }}
     >
-      <button type="button" aria-label="Close dialog" className="absolute inset-0 bg-[#1a1a2e]/55 backdrop-blur-[3px]" onClick={onClose} />
+      {/* Pointer-only dismiss; keyboard users have the close button and Escape */}
+      <button type="button" tabIndex={-1} aria-label="Close dialog" className="absolute inset-0 bg-[#1a1a2e]/55 backdrop-blur-[3px]" onClick={closeFromBackdrop} />
       <div className="relative flex min-h-0 w-full max-w-[23rem] flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_60px_rgba(26,26,46,0.35)] ring-4 ring-[#B39DFF]/50" style={{ maxHeight: "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))" }}>
         {/* Hero */}
         <div className="relative h-[clamp(7.5rem,32dvh,15.5rem)] shrink-0 overflow-hidden bg-[#2A1E6E]">
@@ -354,7 +433,7 @@ function RewardModal({
 
         {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-4 text-center">
-          <h2 id="pb-reward-title" className="font-display text-[26px] font-extrabold leading-none text-[#241A5E]">
+          <h2 ref={titleRef} id="pb-reward-title" tabIndex={-1} className="font-display text-[26px] font-extrabold leading-none text-[#241A5E] outline-none">
             {title.split(" ")[0]} <span className="text-[#6A5AE0]">{title.split(" ").slice(1).join(" ")}</span>
           </h2>
           <p className="mt-1.5 font-display text-[17px] font-extrabold text-[#241A5E]">
@@ -445,9 +524,9 @@ function RewardModal({
         </div>
         <div className="shrink-0 px-5 pb-4 pt-2 text-center">
           {state === "need-coins" ? (
-            <Link href="/games" className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+            <button type="button" onClick={onPlay} className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Play to earn coins
-            </Link>
+            </button>
           ) : state === "claimable" ? (
             <>
               <button
@@ -466,9 +545,9 @@ function RewardModal({
               </button>
             </>
           ) : state === "locked" ? (
-            <Link href="/games" className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
+            <button type="button" onClick={onPlay} className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Play to earn PB
-            </Link>
+            </button>
           ) : (
             <button type="button" onClick={onClose} className="flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#6A5AE0] to-[#8A7BF0] py-3.5 font-display text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(106,90,224,0.45)] active:scale-[0.99]">
               Awesome!
@@ -543,25 +622,54 @@ export function PbRewardsScreen() {
   const milestone = milestoneProgress(leadership);
   const unlockedCount = LIFETIME_MILESTONES.filter((m) => leadership >= m.points).length;
 
+  const backToHub = useBackTo("/home");
+
+  // A locked reward's dialog isn't its unlock: leave it unseen so the celebration still fires later.
+  const dismiss = (m: LifetimeMilestone) => {
+    if (leadership >= m.points) markSeen(m.id);
+  };
+
   const closeModal = () => {
-    if (open) markSeen(open.id);
+    if (open) dismiss(open);
     setOpen(null);
   };
 
+  // Everything behind the reward dialog is inert while it is open.
+  const dialogOpen = open !== null;
+
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden bg-[#F5F3FF]">
-      {/* Hero — full banner, no side crop */}
-      <div className="relative z-30 shrink-0 overflow-hidden bg-[#7EB8E8]">
-        <h1 className="sr-only">PB Rewards</h1>
-        <Image
-          src="/images/rewards/pb-rewards-hero.png"
-          alt=""
-          width={1280}
-          height={720}
-          sizes="(max-width: 768px) 100vw, 640px"
-          priority
-          className="pointer-events-none relative z-10 block h-auto w-full"
-        />
+      {/* Above the hero and sheet, below the reward dialog */}
+      <div className="absolute left-4 z-50" style={{ top: "var(--header-top)" }} inert={dialogOpen}>
+        <BackToHub href="/home" tone="lavender" />
+      </div>
+
+      {/* Hero — full banner, no side crop. The art starts below a band of its own sky, so the back button
+          floats on open sky instead of covering the "PB Rewards" sign, whatever the status-bar inset. The knot
+          of the sign's left rope sits 7.7% of the art's width below its top, so on narrow phones the band
+          grows until the knot clears the 44px button by 4px. Short landscape screens drop the band and crop
+          the art to the sign's crown and lettering, which leaves the sheet most of the height. */}
+      <div
+        className="relative z-30 shrink-0 overflow-hidden bg-[#57BBFD] pt-[calc(var(--header-top)+max(0.75rem,3rem_-_7.7vw))] [@media(max-height:520px)]:h-[40dvh] [@media(max-height:520px)]:pt-0"
+        inert={dialogOpen}
+      >
+        <h1 className="sr-only">My Rewards</h1>
+        <div className="relative [@media(max-height:520px)]:h-full">
+          <Image
+            src="/images/rewards/pb-rewards-hero.png"
+            alt=""
+            width={1280}
+            height={720}
+            sizes="(max-width: 768px) 100vw, 640px"
+            preload
+            className="pointer-events-none block h-auto w-full [@media(max-height:520px)]:h-full [@media(max-height:520px)]:object-cover [@media(max-height:520px)]:object-[50%_30%]"
+          />
+          {/* Melts the art's top edge (ropes, a leaf) into the band */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#57BBFD] to-transparent [@media(max-height:520px)]:hidden"
+            aria-hidden
+          />
+        </div>
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-8 bg-gradient-to-b from-transparent to-[#F5F3FF]"
           aria-hidden
@@ -571,7 +679,8 @@ export function PbRewardsScreen() {
       {/* Curved sheet — ladder scrolls under the rounded edge */}
       <div
         className="relative z-40 -mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-[#F5F3FF] px-4 pt-5 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "var(--shell-pad)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+        inert={dialogOpen}
       >
         <div className="space-y-3.5">
           <PbRewardsSummaryCard
@@ -592,7 +701,7 @@ export function PbRewardsScreen() {
             remaining={milestone.remaining}
           />
 
-          <p className="px-1 text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#8B84A8]">
+          <p className="px-1 text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#6E6790]">
             Reward ladder
           </p>
 
@@ -702,6 +811,11 @@ export function PbRewardsScreen() {
             Unlocks follow live leaderboard PB. Claiming a gift spends earned coins, not welcome
             coins.
           </p>
+
+          <p className="px-1 text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#6E6790]">
+            More
+          </p>
+          <MoreLinks rank={rank} />
         </div>
       </div>
 
@@ -719,10 +833,12 @@ export function PbRewardsScreen() {
             setOpen(null);
             router.push(`/rewards/claim/${encodeURIComponent(id)}/address`);
           }}
+          onPlay={() => {
+            dismiss(open);
+            backToHub();
+          }}
         />
       ) : null}
-
-      <AppBottomNav />
     </div>
   );
 }

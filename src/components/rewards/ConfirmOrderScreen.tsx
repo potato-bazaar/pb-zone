@@ -1,18 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { RewardTier } from "@/data/rewards";
+import { BackToHub } from "@/components/layout/BackToHub";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
+import { useBackTo } from "@/hooks/useBackTo";
+import { noteReplace } from "@/lib/navStack";
 import { QuizApiError, claimQuizReward } from "@/lib/quizApi";
 import {
   formatAddressBlock,
+  loadClaimedRewardIds,
   loadRewardAddress,
   placeRewardOrder,
-  type RewardAddress,
 } from "@/lib/rewardClaim";
+
+const subscribeNever = () => () => {};
 
 export function ConfirmOrderScreen({
   tier,
@@ -24,7 +28,11 @@ export function ConfirmOrderScreen({
   const router = useRouter();
   const session = useUserSession();
   const { earnedCoins, setWallet } = usePbCoins();
-  const [address, setAddress] = useState<RewardAddress | null>(null);
+  const addressHref = `/rewards/claim/${tierId}/address`;
+  const toAddress = useBackTo(addressHref);
+  // The saved address lives in sessionStorage: read it once we're on the client (null while server-rendering / hydrating).
+  const onClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const address = useMemo(() => (onClient ? loadRewardAddress() : null), [onClient]);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const canClaim = earnedCoins >= tier.points;
@@ -38,14 +46,12 @@ export function ConfirmOrderScreen({
     [session.token, session.userId, session.userName],
   );
 
+  // Nothing to confirm without a saved address (deep link, cleared session): this entry becomes the address step.
   useEffect(() => {
-    const saved = loadRewardAddress();
-    if (!saved) {
-      router.replace(`/rewards/claim/${tierId}/address`);
-      return;
-    }
-    setAddress(saved);
-  }, [router, tierId]);
+    if (!onClient || address) return;
+    noteReplace();
+    router.replace(addressHref);
+  }, [onClient, address, router, addressHref]);
 
   if (!address) {
     return (
@@ -59,6 +65,11 @@ export function ConfirmOrderScreen({
 
   async function handlePlaceOrder() {
     if (!address || claiming || !canClaim) return;
+    // One order per reward: a Confirm reopened from history or a link must not spend coins on it again.
+    if (loadClaimedRewardIds().includes(tierId)) {
+      setClaimError("You've already claimed this reward. Track it in Your Orders.");
+      return;
+    }
     setClaiming(true);
     setClaimError(null);
     try {
@@ -69,7 +80,10 @@ export function ConfirmOrderScreen({
         pbPoints: wallet.leaderboardPoints,
       });
       const order = placeRewardOrder(tier, address);
-      router.push(
+      // Replace: once the order is placed, the phone's back button must not reopen Confirm.
+      // `claiming` stays on until Order Placed takes over, so a second tap can't place a second order.
+      noteReplace();
+      router.replace(
         `/rewards/claim/success?orderId=${encodeURIComponent(order.id)}`,
       );
     } catch (error) {
@@ -78,7 +92,6 @@ export function ConfirmOrderScreen({
           ? error.message
           : "Could not claim this reward. Earn more PB by playing games.";
       setClaimError(message);
-    } finally {
       setClaiming(false);
     }
   }
@@ -95,25 +108,8 @@ export function ConfirmOrderScreen({
           className="sticky top-0 z-30 bg-[#F5F6FA] px-4 pb-3"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <div className="relative flex items-center justify-center">
-            <Link
-              href={`/rewards/claim/${tierId}/address`}
-              aria-label="Back"
-              className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#2940B3]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </Link>
+          <div className="relative flex min-h-11 items-center justify-center">
+            <BackToHub href={addressHref} tone="neutral" className="absolute left-0" />
             <h1 className="font-display text-lg font-bold text-[#2940B3]">
               Confirm Order
             </h1>
@@ -126,9 +122,12 @@ export function ConfirmOrderScreen({
             <h2 className="text-[15px] font-bold text-[#2940B3]">
               Delivery Address
             </h2>
-            <Link
-              href={`/rewards/claim/${tierId}/address`}
-              className="inline-flex items-center gap-1 text-[13px] font-bold text-[#2940B3]"
+            {/* Editing is a step back to the address form: pop to it, so resubmitting doesn't stack a second Confirm. */}
+            <button
+              type="button"
+              onClick={toAddress}
+              aria-label="Edit delivery address"
+              className="hit-slop inline-flex items-center gap-1 rounded-full text-[13px] font-bold text-[#2940B3] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2940B3]"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -143,7 +142,7 @@ export function ConfirmOrderScreen({
                 <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
               </svg>
               Edit
-            </Link>
+            </button>
           </div>
           <p className="mt-3 text-[14px] font-bold text-[#1a1a2e]">
             {formatted.name}
@@ -192,7 +191,7 @@ export function ConfirmOrderScreen({
         </p>
 
         {claimError ? (
-          <p className="mt-3 text-center text-[13px] font-semibold text-[#D14343]">
+          <p className="mt-3 text-balance text-center text-[13px] font-semibold text-[#D14343]">
             {claimError}
           </p>
         ) : null}

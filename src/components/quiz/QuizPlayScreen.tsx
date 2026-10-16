@@ -640,11 +640,12 @@ export function QuizPlayScreen({
       >
         {/* Header */}
         <header className="relative mb-2 flex shrink-0 items-center justify-between gap-2">
+          {/* 28px disc, 44px hit area (hit-slop); steps back to How-to, like the phone's back. */}
           <button
             type="button"
             onClick={onExit}
             aria-label="Back"
-            className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-[#2B1F7A] shadow-[0_2px_6px_rgba(43,31,122,0.16)] ring-1 ring-white/90 active:scale-95"
+            className="hit-slop relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-[#2B1F7A] shadow-[0_2px_6px_rgba(43,31,122,0.16)] ring-1 ring-white/90 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#7C5CFF] focus-visible:ring-offset-2"
           >
             <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="m15 18-6-6 6-6" />

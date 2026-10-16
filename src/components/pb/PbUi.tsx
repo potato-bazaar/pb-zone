@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { DAILY_CAP_MESSAGE, PB_GAME_LABELS, milestoneProgress } from "@/data/pbEconomy";
 import type { PbReceipt } from "@/components/providers/PbPointsProvider";
+import { useBackTo } from "@/hooks/useBackTo";
 
 /* ------------------------------------------------------------------ */
 /*  PB identity: a purple star. Never a coin (FRD §23).                */
@@ -139,6 +140,48 @@ export function MilestoneProgressBar({ lifetimePoints, compact = false }: { life
 /*  Page chrome                                                        */
 /* ------------------------------------------------------------------ */
 
+const BACK_TONES = {
+  /** Over purple heroes and photos; the blur keeps the chevron readable over busy art. */
+  dark: "bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm",
+  light: "bg-white text-[#241A5E] shadow-[0_2px_8px_rgba(106,90,224,0.12)]",
+} as const;
+
+/**
+ * PB screens' round back: a 32px disc with a 44px hit area on phones (`hit-slop`).
+ * Pops history when `href` is the screen behind us, otherwise replaces this entry with it (useBackTo),
+ * so it never stacks a parent on top of its child.
+ */
+export function PbBackButton({
+  href,
+  onClick,
+  tone = "light",
+  className = "",
+}: {
+  href?: string;
+  /** Replaces the default back-to-`href`. */
+  onClick?: () => void;
+  tone?: keyof typeof BACK_TONES;
+  /** Placement only, e.g. `absolute left-0`. */
+  className?: string;
+}) {
+  const goBack = useBackTo(href);
+  return (
+    <button
+      type="button"
+      onClick={onClick ?? goBack}
+      aria-label="Back"
+      className={`hit-slop flex h-8 w-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-safe:transition-transform motion-safe:active:scale-95 ${BACK_TONES[tone]} ${className}`}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+    </button>
+  );
+}
+
+/** PbHeader's height (status-bar gap, 36px row, 8px bottom padding): the room content leaves under a pinned header. */
+export const PB_HEADER_HEIGHT = "calc(var(--header-top) + 2.75rem)";
+
 export function PbHeader({
   title,
   backHref,
@@ -147,31 +190,17 @@ export function PbHeader({
   tone = "light",
 }: {
   title: string;
+  /** Parent screen; back pops to it or replaces with it (never pushes). */
   backHref?: string;
   onBack?: () => void;
   right?: ReactNode;
   tone?: "light" | "dark";
 }) {
-  const iconCls =
-    tone === "dark"
-      ? "bg-white/15 text-white ring-1 ring-white/25"
-      : "bg-white text-[#241A5E] shadow-[0_2px_8px_rgba(106,90,224,0.12)]";
-  const back = (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  );
   return (
     <header className="relative z-30 px-4 pb-2" style={{ paddingTop: "var(--header-top)" }}>
       <div className="relative flex min-h-[2.25rem] items-center justify-center">
-        {backHref ? (
-          <Link href={backHref} aria-label="Back" className={`hit-slop absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
-            {back}
-          </Link>
-        ) : onBack ? (
-          <button type="button" onClick={onBack} aria-label="Back" className={`hit-slop absolute left-0 flex h-8 w-8 items-center justify-center rounded-full ${iconCls}`}>
-            {back}
-          </button>
+        {backHref || onBack ? (
+          <PbBackButton href={backHref} onClick={backHref ? undefined : onBack} tone={tone} className="absolute left-0" />
         ) : null}
         <h1 className={`mx-12 truncate font-display text-[20px] font-extrabold ${tone === "dark" ? "text-white" : "text-[#241A5E]"}`}>{title}</h1>
         {right ? <div className="absolute right-0 flex items-center">{right}</div> : null}

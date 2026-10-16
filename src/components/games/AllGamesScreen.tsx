@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { ALL_GAMES, GAME_CATEGORIES, type GameCategory, type GameItem } from "@/data/games";
 
@@ -375,7 +374,7 @@ export function AllGamesScreen() {
 
       <main
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain pt-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-        style={{ ...GUTTER, paddingBottom: "var(--float-nav-pad)", maskImage: SCROLL_FADE, WebkitMaskImage: SCROLL_FADE }}
+        style={{ ...GUTTER, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)", maskImage: SCROLL_FADE, WebkitMaskImage: SCROLL_FADE }}
       >
         {featured ? <FeaturedCard key={`featured-${filter}`} game={featured} /> : null}
 
@@ -393,8 +392,6 @@ export function AllGamesScreen() {
 
         <RewardsBanner />
       </main>
-
-      <AppBottomNav variant="floating" />
     </div>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
+import { useMemo, useSyncExternalStore } from "react";
+import { useBackTo } from "@/hooks/useBackTo";
 import {
   formatAddressBlock,
   getRewardOrderById,
@@ -97,12 +96,46 @@ function OrderStatusTimeline({ status }: { status: RewardOrder["status"] }) {
   );
 }
 
-export function OrderDetailsScreen({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<RewardOrder | null | undefined>(undefined);
+/** Back + centred title, shared by the loaded and not-found states. Keeps this screen's dark chevron. */
+function DetailsTitleRow({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="relative flex min-h-11 items-center justify-center">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back"
+        className="absolute left-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#EBEEF2] text-[#1a1a2e] shadow-[inset_0_1px_2px_rgba(255,255,255,0.7)] transition-transform active:scale-95 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </button>
+      <h1 className="font-display text-lg font-bold text-[#1a1a2e]">
+        Order Details
+      </h1>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    setOrder(getRewardOrderById(orderId));
-  }, [orderId]);
+const subscribeNever = () => () => {};
+
+export function OrderDetailsScreen({ orderId }: { orderId: string }) {
+  // Orders live in sessionStorage: read once we're on the client (undefined while server-rendering / hydrating).
+  const onClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const order = useMemo(
+    () => (onClient ? getRewardOrderById(orderId) : undefined),
+    [onClient, orderId],
+  );
+  const goBack = useBackTo("/orders");
 
   if (order === undefined) {
     return (
@@ -119,40 +152,25 @@ export function OrderDetailsScreen({ orderId }: { orderId: string }) {
           className="px-4 pb-3"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <div className="relative flex items-center justify-center">
-            <Link
-              href="/orders"
-              aria-label="Back"
-              className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#1a1a2e] shadow-[inset_0_1px_2px_rgba(255,255,255,0.7)]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </Link>
-            <h1 className="font-display text-lg font-bold text-[#1a1a2e]">
-              Order Details
-            </h1>
-          </div>
+          <DetailsTitleRow onBack={goBack} />
         </header>
-        <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        {/* Bottom padding mirrors the header so the message sits at the screen's centre, clear of the home indicator. */}
+        <div
+          className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+          style={{
+            paddingBottom:
+              "calc(var(--header-top) + 3.5rem + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           <p className="text-[15px] font-bold text-[#1a1a2e]">Order not found</p>
-          <Link
-            href="/orders"
-            className="mt-4 text-[14px] font-bold text-[#2940B3]"
+          <button
+            type="button"
+            onClick={goBack}
+            className="hit-slop mt-4 rounded-full text-[14px] font-bold text-[#2940B3] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2940B3]"
           >
             Back to Your Orders
-          </Link>
+          </button>
         </div>
-        <AppBottomNav />
       </div>
     );
   }
@@ -169,36 +187,14 @@ export function OrderDetailsScreen({ orderId }: { orderId: string }) {
       <div
         className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
         style={{
-          paddingBottom: "var(--shell-pad)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
         }}
       >
         <header
           className="sticky top-0 z-30 bg-[#F7F5FC] px-4 pb-3"
           style={{ paddingTop: "var(--header-top)" }}
         >
-          <div className="relative flex items-center justify-center">
-            <Link
-              href="/orders"
-              aria-label="Back"
-              className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBEEF2] text-[#1a1a2e] shadow-[inset_0_1px_2px_rgba(255,255,255,0.7)]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </Link>
-            <h1 className="font-display text-lg font-bold text-[#1a1a2e]">
-              Order Details
-            </h1>
-          </div>
+          <DetailsTitleRow onBack={goBack} />
         </header>
 
         <div className="space-y-3 px-4 pt-1 pb-2">
@@ -265,8 +261,6 @@ export function OrderDetailsScreen({ orderId }: { orderId: string }) {
           </article>
         </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

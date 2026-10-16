@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
-import { PbHeader, SectionCard } from "@/components/pb/PbUi";
+import { PB_HEADER_HEIGHT, PbHeader, SectionCard } from "@/components/pb/PbUi";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { fetchLeaderboardPoints, rankStoredPlayers } from "@/lib/leaderboardApi";
@@ -69,6 +68,7 @@ export function SeasonPrizesScreen() {
   const { seasonRank, state } = usePbPoints();
   const { userName, userId, token } = useUserSession();
   const [live, setLive] = useState<{ points: number; rank: number } | null>(null);
+  const [scrolled, setScrolled] = useState(false);
   const daysLeft = seasonDaysRemaining();
 
   useEffect(() => {
@@ -94,11 +94,24 @@ export function SeasonPrizesScreen() {
 
   return (
     <div className="relative mx-auto h-dvh w-full max-w-screen-sm bg-[#F5F3FF]">
-      <div className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]" style={{ paddingBottom: "var(--shell-pad)" }}>
+      {/* Pinned, so the only way back never scrolls away. Clear over the farm photo at rest; once content
+          slides under it, a purple scrim keeps the title and back button readable over the white cards. */}
+      <div
+        className={`absolute inset-x-0 top-0 z-30 transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${
+          scrolled ? "bg-[#241A5E]/90 shadow-[0_6px_18px_rgba(36,26,94,0.28)] backdrop-blur-md" : ""
+        }`}
+      >
+        <PbHeader title="This Season's Prizes" backHref="/rewards" tone="dark" />
+      </div>
+      <div
+        className="h-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
+      >
         <div className="quiz-farm relative overflow-hidden pb-8">
           <div className="absolute inset-0 bg-gradient-to-b from-[#241A5E]/60 via-[#241A5E]/30 to-[#F5F3FF]" aria-hidden />
-          <div className="relative z-10">
-            <PbHeader title="This Season's Prizes" backHref="/pb" tone="dark" />
+          {/* The photo runs up behind the pinned header */}
+          <div className="relative z-10" style={{ paddingTop: PB_HEADER_HEIGHT }}>
             <div className="mt-1 text-center text-white">
               <h2 className="font-display text-[22px] font-extrabold drop-shadow">Top 3 Players Win Mega Prizes!</h2>
               <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1 text-[12px] font-bold">
@@ -152,8 +165,6 @@ export function SeasonPrizesScreen() {
           </p>
         </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

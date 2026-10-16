@@ -57,7 +57,11 @@ export const GAME_CATEGORIES: { id: "all" | GameCategory; label: string }[] = [
   { id: "learn", label: "Learn" },
 ];
 
-/** Launch set — only these four go live for now. Order = All Games / home carousel. */
+/**
+ * Every routable game (`/games/[id]` 404s for ids missing here). The PB Zone hub shows Potato Quiz,
+ * Match & Learn and Spin & Win; Potato Run / Crush / Ninja stay registered so their routes keep working,
+ * but nothing links to them.
+ */
 export const ALL_GAMES: GameItem[] = [
   {
     id: "quiz-time",
@@ -125,7 +129,7 @@ export const ALL_GAMES: GameItem[] = [
   },
   {
     id: "tater-match",
-    title: "TATER MATCH",
+    title: "MATCH & LEARN",
     description: "Match the right potato or plant — spot varieties and healthy crops!",
     shortDescription: "Spot it. Match it. Grow smarter!",
     image: "/games/cards/tater-match.webp",
@@ -171,6 +175,34 @@ export const ALL_GAMES: GameItem[] = [
       { label: "Earn PB", icon: "coin" },
     ],
     theme: { title: ["#FFD23F", "#FF6B3D"], shade: "#6E1A0A", button: ["#FF9A4D", "#E2531C"], buttonEdge: "#9A2E08", wash: "rgba(255, 238, 222, 0.85)" },
+    playable: true,
+  },
+  // Luck, not skill: pays PB Coins only, never PB Points — so no pbGameId, and not in PbGameId or LEADERBOARD_GAMES.
+  {
+    id: "spin-win",
+    title: "SPIN & WIN",
+    description: "Spin the wheel once a day for PB Coins.",
+    shortDescription: "Spin the wheel once a day for PB Coins",
+    image: "/games/hub-v2/tile-spin.webp",
+    cardImage: "/games/hub-v2/tile-spin.webp",
+    blurb: "Spin the wheel once a day for PB Coins",
+    cta: "Spin",
+    bg: "#FFF4D6",
+    titleColor: "#0B3B22",
+    buttonBg: "#F39A12",
+    imagePosition: "70% 50%",
+    category: "arcade",
+    tags: [
+      { label: "Daily", icon: "timer" },
+      { label: "PB Coins", icon: "coin" },
+    ],
+    theme: {
+      title: ["#FFD84A", "#4CCB68"],
+      shade: "#0B3B22",
+      button: ["#FFB547", "#F39A12"],
+      buttonEdge: "#B86A00",
+      wash: "rgba(255, 244, 214, 0.85)",
+    },
     playable: true,
   },
   // --- Coming later (uncomment when ready) ---

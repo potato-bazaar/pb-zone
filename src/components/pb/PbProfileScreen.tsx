@@ -3,13 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AppBottomNav } from "@/components/layout/AppBottomNav";
-import { MilestoneProgressBar, PbStarIcon, PlayerAvatar, SectionCard } from "@/components/pb/PbUi";
+import { MilestoneProgressBar, PbBackButton, PbStarIcon, PlayerAvatar, SectionCard } from "@/components/pb/PbUi";
 import { usePbCoins } from "@/components/providers/PbCoinsProvider";
 import { usePbPoints } from "@/components/providers/PbPointsProvider";
 import { useUserSession } from "@/components/providers/UserSessionProvider";
 import { PB_GAME_LABELS, pbTitleFor, type PbGameId } from "@/data/pbEconomy";
 import { isLeaderboardGame } from "@/data/leaderboard";
+import { useBackTo } from "@/hooks/useBackTo";
 import {
   fetchLeaderboardPoints,
   fetchMyLeaderboard,
@@ -21,6 +21,7 @@ import { fetchQuizPoints } from "@/lib/quizApi";
 
 const GAME_EMOJI: Partial<Record<PbGameId, string>> = {
   "quiz-time": "🎓",
+  "tater-match": "🔍",
   "potato-crush": "🥔",
   "potato-ninja": "🔪",
   "potato-sort": "🧺",
@@ -33,6 +34,11 @@ const GAME_EMOJI: Partial<Record<PbGameId, string>> = {
 
 function gameBoardHref(id: PbGameId) {
   return `/pb?game=${id}`;
+}
+
+/** History saved before the rename still reads "Tater Match · …"; show the game's current name. */
+function historyLabel(ev: { gameId: PbGameId; label: string }) {
+  return ev.gameId === "tater-match" ? ev.label.replace(/^Tater Match\b/, PB_GAME_LABELS["tater-match"]) : ev.label;
 }
 
 function relativeTime(iso: string) {
@@ -103,6 +109,7 @@ export function PbProfileScreen() {
 
   const shownRank = rank ?? live?.rank ?? null;
   const title = pbTitleFor(leadership || state.lifetimePoints);
+  const backToRewards = useBackTo("/rewards");
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-screen-sm flex-col overflow-hidden bg-[#F5F3FF]">
@@ -114,9 +121,12 @@ export function PbProfileScreen() {
           aria-hidden
         />
         <div className="relative px-4 pb-10" style={{ paddingTop: "var(--header-top)" }}>
-          <h1 className="text-center font-display text-[20px] font-extrabold text-white drop-shadow">
-            My PB Profile
-          </h1>
+          <div className="relative flex min-h-[2.25rem] items-center justify-center">
+            <PbBackButton href="/rewards" tone="dark" className="absolute left-0" />
+            <h1 className="mx-12 truncate text-center font-display text-[20px] font-extrabold text-white drop-shadow">
+              My PB Profile
+            </h1>
+          </div>
           <div className="mt-3 flex flex-col items-center">
             <PlayerAvatar size="xl" ringClass="ring-white" />
             <h2 className="mt-3 max-w-full break-words px-2 text-center font-display text-[clamp(1.15rem,6vw,1.5rem)] font-extrabold text-white drop-shadow">
@@ -133,7 +143,7 @@ export function PbProfileScreen() {
       {/* Curved sheet on top — scroll clips content under the rounded edge */}
       <div
         className="relative z-40 -mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-[#F5F3FF] px-4 pt-5 [-webkit-overflow-scrolling:touch]"
-        style={{ paddingBottom: "var(--shell-pad)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
       >
           {/* Stats */}
           <div className="space-y-3.5">
@@ -163,8 +173,15 @@ export function PbProfileScreen() {
             </div>
           </SectionCard>
 
-          {/* Next milestone */}
-          <Link href="/rewards" className="block">
+          {/* Next milestone — My Rewards is this screen's parent: step back to it instead of stacking it on top */}
+          <Link
+            href="/rewards"
+            onNavigate={(e) => {
+              e.preventDefault();
+              backToRewards();
+            }}
+            className="block"
+          >
             <SectionCard className="flex items-center gap-3 bg-gradient-to-br from-[#FFF6D6] to-[#FFEFC2] ring-1 ring-[#FFE082]">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-[28px] shadow-inner">
                 {milestone.next ? (
@@ -233,7 +250,7 @@ export function PbProfileScreen() {
                   <li key={ev.eventId} className="flex items-center gap-3 py-2">
                     <span className="text-[18px]">{GAME_EMOJI[ev.gameId] ?? "🎮"}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-extrabold text-[#241A5E]">{ev.label}</p>
+                      <p className="truncate text-[13px] font-extrabold text-[#241A5E]">{historyLabel(ev)}</p>
                       <p className="text-[11px] font-semibold text-[#8B84A8]">
                         {relativeTime(ev.at)}
                         {ev.applied < ev.requested ? ` · capped (${ev.requested} earned)` : ""}
@@ -270,8 +287,6 @@ export function PbProfileScreen() {
           </div>
           </div>
       </div>
-
-      <AppBottomNav />
     </div>
   );
 }

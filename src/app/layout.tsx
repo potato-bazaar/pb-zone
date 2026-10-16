@@ -36,7 +36,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#EDE7FC",
+  themeColor: "#FFD84A",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -45,7 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${nunito.variable} ${fredoka.variable} ${pacifico.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#EDE7FC] font-sans">
+      <body className="min-h-full bg-[#FFD84A] font-sans">
         <SessionBootstrap />
         <AppProviders>{children}</AppProviders>
       </body>

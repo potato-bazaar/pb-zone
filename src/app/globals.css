@@ -16,14 +16,6 @@
   --safe-right: env(safe-area-inset-right, 0px);
   /* Phones: sit under the notch when one exists, otherwise a small gap. */
   --header-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
-  --nav-pad: max(1.25rem, env(safe-area-inset-bottom, 0px));
-  --nav-row: 4.25rem;
-  /* Clears the tab bar. 4.25 + 1.25 + 1.75 = 7.25rem, matching the previous inset. */
-  --shell-pad: calc(var(--nav-row) + var(--nav-pad) + 1.75rem);
-  /* Floating (inset) tab bar: bar height, gap under it, and the scroll padding that clears it. */
-  --float-nav-h: 4.25rem;
-  --float-nav-gap: max(0.75rem, env(safe-area-inset-bottom, 0px));
-  --float-nav-pad: calc(var(--float-nav-h) + var(--float-nav-gap) + 1.25rem);
 }
 
 /* Desktop preview keeps the taller status-bar gap. */
@@ -43,10 +35,6 @@
 @media (max-height: 520px) {
   :root {
     --header-top: max(0.35rem, calc(env(safe-area-inset-top, 0px) + 0.2rem));
-    --nav-pad: max(0.35rem, env(safe-area-inset-bottom, 0px));
-    --nav-row: 3.25rem;
-    --float-nav-h: 3.5rem;
-    --float-nav-gap: max(0.35rem, env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -80,6 +68,8 @@ html {
   width: 100%;
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
+  /* Set on the root, it applies to the viewport: no pull-to-refresh, glow or bounce. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -88,11 +78,13 @@ body {
   max-width: 100vw;
   min-height: 100%;
   min-height: 100dvh;
-  background: var(--background);
+  /* PB Zone hub yellow: status bar, overscroll and anything a screen leaves unpainted. */
+  background: #ffd84a;
   color: var(--foreground);
   font-family: var(--font-nunito), system-ui, sans-serif;
-  overscroll-behavior: none;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes <body> a scroll container that can't scroll, and a touch drag latched
+     onto it never reaches the page, so screens taller than the viewport couldn't be scrolled by touch. */
+  overflow-x: clip;
 }
 
 .safe-top {
@@ -108,20 +100,23 @@ body {
   min-width: 44px;
 }
 
-/* Invisible 44px hit area. Visual size stays put, so the desktop column is unchanged. */
-@media (max-width: 767px) {
-  .hit-slop {
-    position: relative;
-  }
+/* Invisible 44px hit area on phones and touch tablets. Visual size stays put, so the desktop column is unchanged.
+   In the components layer so a positioning utility on the same element (`hit-slop absolute`) still wins. */
+@layer components {
+  @media (max-width: 767px), (pointer: coarse) {
+    .hit-slop {
+      position: relative;
+    }
 
-  .hit-slop::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: max(100%, 44px);
-    height: max(100%, 44px);
-    transform: translate(-50%, -50%);
+    .hit-slop::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
   }
 }
 
@@ -1945,6 +1940,120 @@ body {
 @keyframes tm-sway { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
 
 /* ------------------------------------------------------------------ */
+/*  Match & Learn wordmark (MatchLearnWordmark / MatchLearnSign)       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Live lettering in place of the baked "Tater Match" art (hero-title.webp on Home, logo.webp on Play).
+ * Every class is namespaced `tm-ml-*`.
+ *
+ * Back to front: leaf sprigs → one ink plane holding both lines → the gradient faces. The ink's
+ * round outline is a ring of hard text-shadows (set inline by the component), so it merges across
+ * letters and lines like the painted art, with none of -webkit-text-stroke's miter spikes. The faces
+ * run the `--tm-ml-gloss` SVG filter (thicker letters + glossy top-left rim, also set inline); the
+ * drop-shadow after it is the same-hue bevel under each letter.
+ */
+.tm-ml {
+  position: relative;
+  display: block;
+  width: max-content;
+  font-family: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: 0.015em;
+  text-align: center;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.tm-ml-line { display: block; }
+.tm-ml-ink { position: absolute; inset: 0; }
+.tm-ml-faces { position: relative; display: block; }
+/* Faces stay inline: an inline box spans Fredoka's full ascent-descent (so no glyph is clipped), and
+   the gradient stops below sit on its cap band (cap top ≈ 22%, baseline ≈ 80%). */
+.tm-ml-face { -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tm-ml-sprig { position: absolute; height: auto; pointer-events: none; }
+
+/* Home hero: the old art's sun and leaf bubble letters on a merged dark-olive outline. */
+.tm-ml--hero { text-transform: uppercase; }
+.tm-ml--hero .tm-ml-amp { font-size: 0.72em; }
+.tm-ml--hero .tm-ml-ink { color: #1D1E08; }
+.tm-ml--hero .tm-ml-sprig { filter: drop-shadow(0 1px 1px rgba(0, 30, 0, 0.3)); }
+.tm-ml-sprig--tr { width: 0.68em; right: -0.4em; top: -0.04em; transform: rotate(26deg); }
+.tm-ml-sprig--l { width: 0.56em; left: -0.06em; top: 0.36em; transform: scaleX(-1) rotate(30deg); }
+.tm-ml-sun {
+  background-image: linear-gradient(180deg, #FFFBC4 0%, #FFFBC4 22%, #FFF239 26%, #FFEA34 37%, #FFD621 51.5%, #FDBF12 66%, #FCA708 76%, #F99A06 82%, #F99A06 100%);
+  filter: var(--tm-ml-gloss) drop-shadow(0 0.07em 0 #A33A00);
+}
+.tm-ml-leaf {
+  background-image: linear-gradient(180deg, #F2FFC8 0%, #F2FFC8 22%, #C4F964 26%, #A2F24A 37%, #73E040 51.5%, #45CB44 66%, #22B646 76%, #12A443 82%, #12A443 100%);
+  filter: var(--tm-ml-gloss) drop-shadow(0 0.07em 0 #03600F);
+}
+
+/* Play sign: cream and gold letters with a dark-brown outline, the colours of the old painted sign. */
+.tm-ml--sign { line-height: 0.92; letter-spacing: 0.01em; }
+.tm-ml--sign .tm-ml-amp { font-size: 0.8em; }
+.tm-ml--sign .tm-ml-ink { color: #3A1A05; }
+.tm-ml-cream {
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 23%, #FFFBF2 30%, #FFF3D6 50%, #FFE9B8 70%, #FFDD99 80%, #FFDD99 100%);
+  filter: var(--tm-ml-gloss) drop-shadow(0 0.06em 0 #B9874C);
+}
+.tm-ml-gold {
+  background-image: linear-gradient(180deg, #FFFBC8 0%, #FFFBC8 23%, #FCF288 28%, #FFE45A 40%, #FFD831 52%, #F9B915 66%, #EE9A06 76%, #E68A00 80%, #E68A00 100%);
+  filter: var(--tm-ml-gloss) drop-shadow(0 0.06em 0 #8E4A00);
+}
+
+/* Wooden plaque behind the Play sign (text-free plank texture), sized from the header's --tm-logo-h. */
+.tm-ml-board {
+  --tm-ml-h: var(--tm-logo-h, 86px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--tm-ml-h) * 0.82);
+  padding: 0 calc(var(--tm-ml-h) * 0.16) calc(var(--tm-ml-h) * 0.02);
+  border-radius: calc(var(--tm-ml-h) * 0.2);
+  background: url("/games/match/wood-plank.webp") 50% 40% / auto 135% no-repeat, linear-gradient(180deg, #B5702F 0%, #8A4A1C 100%);
+  box-shadow:
+    inset 0 0 0 2px #6B3814,
+    inset 0 2px 0 2px rgba(255, 214, 150, 0.45),
+    inset 0 -3px 0 2px rgba(60, 25, 5, 0.4),
+    0 0 0 2px #3A1A05,
+    0 3px 0 2px #2A1203;
+}
+.tm-ml-board .tm-ml { font-size: calc(var(--tm-ml-h) * 0.31); }
+/* Gold rivets in the four corners. */
+.tm-ml-board::after {
+  --tm-ml-rivet: radial-gradient(circle at 42% 38%, #FFF6C2 0 14%, #F2C33A 34%, #A8720E 64%, rgba(80, 40, 0, 0.6) 70%, transparent 74%);
+  content: "";
+  position: absolute;
+  inset: calc(var(--tm-ml-h) * 0.075) calc(var(--tm-ml-h) * 0.07);
+  pointer-events: none;
+  background:
+    var(--tm-ml-rivet) left top / 7px 7px no-repeat,
+    var(--tm-ml-rivet) right top / 7px 7px no-repeat,
+    var(--tm-ml-rivet) left bottom / 7px 7px no-repeat,
+    var(--tm-ml-rivet) right bottom / 7px 7px no-repeat;
+}
+.tm-ml-board-leaf {
+  position: absolute;
+  z-index: -1;
+  width: calc(var(--tm-ml-h) * 0.4);
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 30, 0, 0.3));
+}
+.tm-ml-board-leaf--l { left: -21%; top: 2%; transform: scaleX(-1) rotate(-34deg); }
+.tm-ml-board-leaf--r { right: -20%; bottom: -2%; transform: rotate(34deg); }
+
+/* High contrast: system-coloured text only (text-shadow is dropped there anyway, so the ink plane would just double the text). */
+@media (forced-colors: active) {
+  .tm-ml-ink, .tm-ml-sprig, .tm-ml-board-leaf, .tm-ml-board::after { display: none; }
+  .tm-ml-face { filter: none; }
+  .tm-ml-board { background: Canvas; box-shadow: none; border: 2px solid CanvasText; }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Quiz — How to play                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -2016,3 +2125,322 @@ body {
 @keyframes qh-twinkle { 0%, 100% { opacity: 0.6; transform: scale(0.88); } 50% { opacity: 1; transform: scale(1.06); } }
 @keyframes qh-pop { from { transform: scale(0) rotate(-40deg); } to { transform: none; } }
 @keyframes qh-sheen { 0%, 55% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+
+/* ------------------------------------------------------------------ */
+/*  PB Zone hub (/home)                                                */
+/*  One yellow screen: title, 2×2 tiles, tagline, leaves in the four   */
+/*  viewport corners. (.hub-brand / .hub-title / .hub-cta / .hub-card  */
+/*  / .hub-art above belong to the old All Games screen.)              */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --hub-bg: radial-gradient(135% 80% at 50% 42%, #ffd84a 0%, #ffd84a 34%, #fdd235 100%);
+  --hub-ink: #0b3b22;
+  --hub-accent: #f39a12;
+  --tile-label-bg: #fef7e7;
+  --tile-title: #10291a;
+  --tile-sub: #2c4d38;
+  --tile-quiz-bg: linear-gradient(180deg, #fcf0da 0%, #fb9330 100%);
+  --tile-match-bg: linear-gradient(180deg, #eaf5d3 0%, #d1e8b0 100%);
+  --tile-spin-bg: #fde794;
+  --tile-rewards-bg: #fdf4d7;
+}
+
+.hub-root {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background-color: #fdd235;
+  background-image: var(--hub-bg);
+}
+
+/* The sprites were cut from the 1024×1536 reference: each keeps its share of the viewport width, or of the
+   viewport height where that is larger (tall phones), so the corners stay as full as the reference's. Capped at
+   the files' own size; the first width is the fallback where dvh is unknown. */
+.hub-leaf {
+  position: absolute;
+  z-index: 0;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* The top pair takes a smaller share of the height and fades out at the bottom, so the title's sparks keep clear
+   yellow around them on short screens and with large text. */
+.hub-leaf-tl { top: 0; left: 0; width: clamp(40px, 13.77vw, 141px); width: clamp(40px, max(13.77vw, 7.5dvh), 141px); }
+.hub-leaf-tr { top: 0; right: 0; width: clamp(40px, 13.48vw, 138px); width: clamp(40px, max(13.48vw, 7.35dvh), 138px); }
+.hub-leaf-tl,
+.hub-leaf-tr {
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+.hub-leaf-bl { bottom: 0; left: 0; width: clamp(72px, 24.02vw, 246px); width: clamp(72px, max(24.02vw, 16dvh), 246px); }
+.hub-leaf-br { bottom: 0; right: 0; width: clamp(68px, 22.66vw, 232px); width: clamp(68px, max(22.66vw, 15.1dvh), 232px); }
+
+/* Title / grid / tagline read as one block: the gaps inside it stay small (16px, growing to 3% of the height,
+   at most 36px) and the rest of the spare height goes to the bands above and below it, where the corner leaves
+   sit. When the block is taller than the screen the bands collapse and the page scrolls. */
+.hub-col {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(16px, min(3vh, 36px)) auto minmax(16px, min(3vh, 36px)) auto minmax(0, 1fr);
+  /* Not auto: the one-line title must not widen the column past the screen (its sparks shrink instead). */
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 520px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
+}
+.hub-heading { grid-row: 2; text-align: center; }
+.hub-nav { grid-row: 4; }
+.hub-tagline { grid-row: 6; }
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Fixed-ratio tile (--tile-aspect comes from its art, see hubTiles.ts): the art takes what the label leaves, so
+   a wrapped label grows into the art instead of overflowing. overflow: clip (not hidden) keeps the ratio box's
+   content-based minimum, so huge text grows the tile rather than being cut off. */
+.hub-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: var(--tile-aspect, 0.86);
+  overflow: clip;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  background: var(--tile-label-bg);
+  box-shadow: 0 6px 16px rgba(155, 110, 0, 0.18);
+}
+.hub-tile:focus-visible { outline: 3px solid var(--hub-ink); outline-offset: 3px; }
+.hub-tile-art {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* The label's rounded top corners show the art's bottom edge mirrored (Blink/WebKit); the art itself is not
+   enlarged to reach under them. Elsewhere the corners simply read as square. */
+.hub-tile-art img { -webkit-box-reflect: below; }
+.hub-tile-label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  /* 30% of a 0.86 tile on every tile, so both rows' labels match and a taller tile's extra height is all art. */
+  min-height: calc(30% * var(--tile-aspect, 0.86) / 0.86);
+  /* The text sits a little above the middle, as in the reference. 8px sides: room for the title at full size
+     and for the longest subtitle on one line at 360px. */
+  padding: 3px 8px 9px;
+  border-radius: 9px 9px 0 0;
+  background: var(--tile-label-bg);
+  text-align: center;
+}
+
+/* Screens too short for the full layout (phone landscape, a short webview): the art gives up height first,
+   scrolling is the last resort. Full-size tiles need about 1.46× the width in height on a phone (title, two
+   rows, tagline, gaps) and about 730px once the column is capped at 520px. Every tile gets the same shape here,
+   so the rows still line up. */
+@media (max-width: 520px) and (min-aspect-ratio: 685/1000), (min-width: 521px) and (max-height: 729px) {
+  .hub-tile { aspect-ratio: 1.15; }
+  .hub-tile-label { min-height: 40%; }
+}
+
+/* Spin & Win: a free spin is waiting. */
+.hub-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #fff, 0 2px 5px rgba(120, 20, 20, 0.35);
+  pointer-events: none;
+}
+.hub-dot::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid #ef4444;
+  border-radius: inherit;
+  opacity: 0;
+}
+
+/* Rise on the <li> (transform), press on the link (the separate `scale` property), so the two never fight. */
+@media (prefers-reduced-motion: no-preference) {
+  .hub-rise { animation: quiz-card-in 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+  .hub-rise-soft { animation: hub-rise-soft 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hub-tile { transition: scale 120ms ease; }
+  .hub-tile:active { scale: 0.97; }
+  .hub-dot::after { animation: hub-dot-pulse 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+}
+@keyframes hub-rise-soft { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hub-dot-pulse { from { transform: scale(1); opacity: 0.75; } to { transform: scale(2.1); opacity: 0; } }
+
+/* ------------------------------------------------------------------ */
+/*  Spin & Win (/games/spin-win)                                       */
+/*  Same family as the PB Zone hub: warm yellow, dark green ink,       */
+/*  orange accent. Every class and keyframe here is spin-*.            */
+/* ------------------------------------------------------------------ */
+
+.spin-screen {
+  --spin-ink: #0b3b22;
+  --spin-sub: #2c4d38;
+  --spin-accent: #f39a12;
+  --spin-cream: #fef7e7;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #fdd235;
+  background-image: radial-gradient(130% 80% at 50% 40%, #ffd84a 0%, #fed43e 55%, #fdd235 100%);
+  color: var(--spin-ink);
+}
+
+/* Wheel width: ≈ min(86vw, 360px), and short enough that header + wheel + button fit a 640px-tall phone.
+   Landscape and tiny screens bottom out at 220px and scroll. The vh line is for webviews without dvh. */
+.spin-wheel-size {
+  width: clamp(220px, min(86vw, calc((100vh - 292px) * 0.885)), 360px);
+  width: clamp(220px, min(86vw, calc((100dvh - 292px) * 0.885)), 360px);
+}
+
+/* Soft sun behind the wheel, with slow rays. */
+.spin-glow {
+  background: radial-gradient(closest-side, rgba(255, 251, 228, 0.95) 0%, rgba(255, 245, 200, 0.55) 52%, rgba(255, 238, 168, 0) 100%);
+}
+.spin-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.34) 0deg 6deg, rgba(255, 255, 255, 0) 6deg 20deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+}
+
+/* Header coin balance (the coin-fly target). No backdrop-filter: coins fly over it, not inside it. */
+.spin-pill {
+  background: linear-gradient(180deg, #fffdf6 0%, var(--spin-cream) 100%);
+  box-shadow: 0 0 0 1.5px rgba(226, 184, 82, 0.85), 0 5px 14px -6px rgba(122, 82, 0, 0.45), inset 0 1px 0 #fff;
+}
+
+/* Status note under the button (guest message, errors). */
+.spin-note {
+  background: rgba(254, 247, 231, 0.85);
+  box-shadow: 0 0 0 1.5px rgba(226, 184, 82, 0.6);
+}
+
+/* Primary 3D button: orange body, dark lip. The gloss stays in the top quarter, above the label, so the white
+   label sits on ≥ 3.6:1 orange everywhere (22px bold = large text). */
+.spin-cta {
+  position: relative;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 26%),
+    linear-gradient(180deg, #f4883a 0%, #d65a12 34%, #c24a0c 100%);
+  box-shadow:
+    0 5px 0 #8f360a,
+    0 12px 22px -10px rgba(168, 67, 12, 0.65),
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(120, 40, 0, 0.25);
+  text-shadow: 0 2px 0 rgba(150, 50, 0, 0.55);
+  transition: translate 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.spin-cta:active:not(:disabled) {
+  translate: 0 4px;
+  box-shadow: 0 1px 0 #8f360a, 0 4px 10px -8px rgba(168, 67, 12, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(120, 40, 0, 0.25);
+}
+.spin-cta:focus-visible { outline: 3px solid var(--spin-ink); outline-offset: 4px; }
+/* Waiting / used up: muted gold, dark label (≈ 5:1) so the countdown stays easy to read. */
+.spin-cta:disabled {
+  cursor: default;
+  color: #5c4712;
+  text-shadow: none;
+  background: linear-gradient(180deg, #fbecc0 0%, #f0d99a 100%);
+  box-shadow: 0 4px 0 #cfae5c, 0 10px 18px -12px rgba(122, 82, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+/* Green twin for "Done". White on the mid stop ≈ 5:1. */
+.spin-cta--green {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, #3fa24b 0%, #22803a 48%, #145c2b 100%);
+  box-shadow: 0 5px 0 #0d3f1e, 0 12px 22px -10px rgba(13, 63, 30, 0.6), inset 0 2px 0 rgba(190, 255, 190, 0.35), inset 0 -2px 0 rgba(0, 40, 15, 0.35);
+  text-shadow: 0 2px 0 rgba(10, 60, 25, 0.5);
+}
+.spin-cta--green:active:not(:disabled) { box-shadow: 0 1px 0 #0d3f1e, inset 0 2px 0 rgba(190, 255, 190, 0.3); }
+
+/* Wheel layers. The rotor is the only thing that turns, on its own compositor layer. */
+.spin-rotor { will-change: transform; transform-origin: 50% 50%; }
+.spin-pointer { transform-origin: 50% 36%; filter: drop-shadow(0 2px 2px rgba(120, 60, 0, 0.18)); }
+.spin-light { fill: #fff6cf; stroke: #e0a100; stroke-width: 0.8; }
+.spin-wheel[data-lights="off"] .spin-light { fill: #f9e39a; }
+
+/* Result card. */
+.spin-card {
+  background: linear-gradient(180deg, #fffdf5 0%, var(--spin-cream) 100%);
+  box-shadow: 0 0 0 2px #f6c744, 0 0 0 5px rgba(255, 255, 255, 0.7), 0 24px 44px -18px rgba(110, 70, 0, 0.6);
+}
+.spin-card-mascot,
+.spin-stage-mascot { filter: drop-shadow(0 6px 8px rgba(110, 70, 0, 0.3)); }
+
+.spin-toast { animation: spin-toast 3.2s ease-out both; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .spin-rays { animation: spin-rays 80s linear infinite; }
+  .spin-sparkle { animation: spin-twinkle-star 2.8s ease-in-out infinite; }
+
+  /* Ready: the button breathes and throws a soft ring (scale/translate are separate properties, so the
+     press still works while the pulse runs). */
+  .spin-cta-ready { animation: spin-cta-pulse 1.5s ease-in-out infinite; }
+  .spin-cta-ready::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 20px 6px rgba(255, 190, 60, 0.7);
+    pointer-events: none;
+    animation: spin-cta-ring 1.5s ease-out infinite;
+  }
+
+  /* Bulbs: lazy twinkle while ready, a fast chase while spinning, a burst of blinks on a win. */
+  .spin-wheel[data-lights="idle"] .spin-light { animation: spin-bulb 1.6s steps(1, end) infinite; }
+  .spin-wheel[data-lights="idle"] .spin-light-b { animation-delay: -0.8s; }
+  .spin-wheel[data-lights="chase"] .spin-light { animation: spin-bulb 0.3s steps(1, end) infinite; }
+  .spin-wheel[data-lights="chase"] .spin-light-b { animation-delay: -0.15s; }
+  .spin-wheel[data-lights="win"] .spin-light { animation: spin-bulb 0.42s steps(1, end) 8; }
+  /* Wheel labels turning upright once the wheel stops: a quick crossfade (an instant swap under reduced motion). */
+  .spin-label { transition: opacity 0.14s ease-out; }
+
+  .spin-spot { animation: spin-fade-in 0.35s ease-out both; }
+  .spin-spot-edge { animation: spin-spot-pulse 1.1s ease-in-out 0.35s infinite; }
+  .spin-card-in { animation: spin-card-in 0.5s cubic-bezier(0.22, 1.3, 0.36, 1) both; }
+  .spin-card-mascot { animation: spin-mascot-in 0.7s cubic-bezier(0.22, 1.4, 0.36, 1) 0.15s both; }
+  .spin-rise { animation: spin-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin-toast { animation-name: spin-fade-hold; }
+}
+
+@keyframes spin-rays { to { rotate: 360deg; } }
+@keyframes spin-twinkle-star { 0%, 100% { opacity: 0.55; scale: 0.8; } 50% { opacity: 1; scale: 1.08; } }
+@keyframes spin-cta-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.045; } }
+@keyframes spin-cta-ring { 0% { opacity: 0.85; scale: 0.97; } 75%, 100% { opacity: 0; scale: 1.1; } }
+@keyframes spin-bulb { 0% { fill: #fffbe8; } 50% { fill: #f2b71a; } }
+@keyframes spin-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin-spot-pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.45; } }
+@keyframes spin-card-in { from { opacity: 0; transform: translateY(26px) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes spin-mascot-in { from { opacity: 0; transform: translateY(18px) rotate(-10deg) scale(0.7); } to { opacity: 1; transform: none; } }
+@keyframes spin-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes spin-toast {
+  0% { opacity: 0; translate: 0 -10px; }
+  8% { opacity: 1; translate: 0 0; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes spin-fade-hold { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }

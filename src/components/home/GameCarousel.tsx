@@ -125,7 +125,7 @@ export function GameCarousel({ games }: GameCarouselProps) {
                   </div>
                 ) : null}
                 <Link
-                  href={game.href ?? "/games"}
+                  href={game.href ?? "/home"}
                   className="home-cta mt-3 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 font-display text-[14px] font-extrabold text-white max-md:min-h-11"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>

@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "admin/**",
+    // Admin build output (`npm run build` writes it here; gitignored).
+    "public/admin/**",
   ]),
 ]);
 

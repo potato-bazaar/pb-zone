@@ -366,7 +366,7 @@ export function TaterMatchResult({
         </section>
       </TaterScroll>
 
-      {/* Footer: Play Again on the wooden board, then Tater Home. */}
+      {/* Footer: Play Again on the wooden board, then back to the game's home screen. */}
       <TaterFooter top={1} bottom={1}>
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -398,7 +398,7 @@ export function TaterMatchResult({
         <div className="mx-auto mt-2 w-[92%]">
           <TaterGhost
             icon="home"
-            label="Tater Home"
+            label="Match & Learn Home"
             className="tm-ghost-leaf"
             onClick={() => {
               if (!settled()) return;
