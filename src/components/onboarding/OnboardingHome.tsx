@@ -3,11 +3,10 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { GAMES_LIVE } from "@/data/launch";
 
 const SKY = "#E4E7FF";
 const WELCOME_SEEN_KEY = "pb-zone:welcome-seen";
-/** Pre-launch: the welcome screen only teases the games. Set to true on launch day. */
-const GAMES_LIVE = false;
 
 function hasSeenWelcome() {
   try {
